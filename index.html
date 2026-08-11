@@ -289,6 +289,137 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
   .group-head{color:#000}
 }
 
+/* ---------- Görünüm sekmeleri ---------- */
+.tabs{display:flex;gap:2px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:2px;flex:none}
+.tab{display:inline-flex;align-items:center;gap:6px;border:0;background:none;cursor:pointer;color:var(--muted);padding:5px 12px;border-radius:5px;font-weight:500}
+.tab:hover{color:var(--text)}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--text);box-shadow:var(--sh-1)}
+.tab svg{width:15px;height:15px}
+
+/* ---------- Depolama göstergesi ---------- */
+.meter{margin-top:22px;padding:9px 8px 0;border-top:1px solid var(--border)}
+.meter .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-bottom:5px;font-variant-numeric:tabular-nums}
+.meter .bar{height:4px;background:var(--surface-3);border-radius:3px;overflow:hidden}
+.meter .bar > i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.meter.warn .bar > i{background:var(--warn)} .meter.warn .lbl{color:var(--warn)}
+.meter.full .bar > i{background:var(--danger)} .meter.full .lbl{color:var(--danger)}
+
+/* ---------- Notlar düzeni ---------- */
+.notes-shell{display:flex;flex-direction:column;height:calc(100vh - 53px)}
+.notes-shell > #banners:not(:empty){padding:12px 18px 0}
+.notes-app{display:grid;grid-template-columns:212px 260px minmax(0,1fr);align-items:start;flex:1;min-height:0}
+.nb-pane,.pg-pane{height:100%;overflow-y:auto;border-right:1px solid var(--border);padding:16px 12px 30px}
+.pane-head{display:flex;align-items:center;gap:6px;margin:0 0 9px 6px}
+.pane-head h2{flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);margin:0}
+.pane-head .btn-icon{width:26px;height:26px;padding:5px}
+
+.nb-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;padding:7px 8px;border-radius:var(--r-sm);cursor:pointer;color:var(--muted)}
+.nb-item:hover{background:var(--surface-2);color:var(--text)}
+.nb-item[aria-current="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nb-item .nb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nb-item .count{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.nb-item[aria-current="true"] .count{color:var(--accent)}
+.nb-acts{display:flex;gap:1px;opacity:0}
+.nb-row:hover .nb-acts,.nb-row:focus-within .nb-acts{opacity:1}
+.nb-row{display:flex;align-items:center;gap:2px;border-radius:var(--r-sm)}
+.nb-acts button{border:0;background:none;cursor:pointer;color:var(--faint);padding:4px;border-radius:4px;line-height:0}
+.nb-acts button:hover{background:var(--surface-3);color:var(--text)}
+.nb-acts svg{width:13px;height:13px}
+
+.pg-item{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;padding:9px 10px;border-radius:var(--r-sm);cursor:pointer;color:var(--text)}
+.pg-item:hover{background:var(--surface-2)}
+.pg-item[aria-current="true"]{background:var(--surface);border-color:var(--accent);box-shadow:var(--sh-1)}
+.pg-item .pg-title{font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg-item .pg-prev{font-size:12.5px;color:var(--muted);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2;overflow:hidden}
+.pg-item .pg-date{font-size:11px;color:var(--faint);margin-top:5px}
+.pg-list{display:flex;flex-direction:column;gap:2px;list-style:none;margin:0;padding:0}
+
+/* ---------- Editör ---------- */
+.ed-pane{height:100%;display:flex;flex-direction:column;min-width:0}
+.ed-title{border:0;background:none;font-size:26px;font-weight:700;letter-spacing:-.02em;padding:18px 28px 6px;width:100%;color:var(--text)}
+.ed-title:focus{outline:none}
+.ed-title::placeholder{color:var(--faint)}
+.ed-meta{padding:0 28px 10px;font-size:12px;color:var(--faint)}
+.toolbar{display:flex;flex-wrap:wrap;gap:2px;align-items:center;padding:6px 24px;border-block:1px solid var(--border);background:var(--surface-2);position:sticky;top:0;z-index:5}
+.toolbar button{border:0;background:none;cursor:pointer;color:var(--muted);padding:6px;border-radius:5px;line-height:0;min-width:30px;display:inline-flex;align-items:center;justify-content:center}
+.toolbar button:hover{background:var(--surface-3);color:var(--text)}
+.toolbar button.on{background:var(--accent-soft);color:var(--accent)}
+.toolbar button svg{width:15px;height:15px}
+.toolbar .tb-sep{width:1px;height:18px;background:var(--border);margin:0 4px}
+.toolbar .tb-txt{font-size:13px;font-weight:700;min-width:26px}
+.tb-hl{width:15px;height:15px;border-radius:4px;border:1px solid var(--border-strong)}
+.tb-hl-none{
+  background:var(--surface);position:relative;overflow:hidden;
+  background-image:linear-gradient(to top left,transparent 45%,var(--danger) 45%,var(--danger) 55%,transparent 55%);
+}
+
+.editor{
+  flex:1;overflow-y:auto;padding:20px 28px 120px;outline:none;line-height:1.65;
+  font-size:15.5px;caret-color:var(--accent);
+}
+.editor:focus{outline:none}
+.editor > *:first-child{margin-top:0}
+.editor h1{font-size:23px;margin:22px 0 8px;font-weight:700;letter-spacing:-.01em}
+.editor h2{font-size:19px;margin:20px 0 7px;font-weight:700}
+.editor h3{font-size:16px;margin:17px 0 6px;font-weight:700;color:var(--muted)}
+.editor p{margin:0 0 10px}
+.editor ul,.editor ol{margin:0 0 10px;padding-left:26px}
+.editor li{margin:3px 0}
+.editor blockquote{margin:0 0 10px;padding:2px 0 2px 14px;border-left:3px solid var(--border-strong);color:var(--muted)}
+.editor code{background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:.9em;font-family:ui-monospace,Menlo,Consolas,monospace}
+.editor pre{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;overflow-x:auto;margin:0 0 10px}
+.editor pre code{background:none;border:0;padding:0}
+.editor a{color:var(--accent)}
+.editor hr{border:0;border-top:1px solid var(--border);margin:18px 0}
+.editor img{max-width:100%;height:auto;border-radius:var(--r-sm);margin:4px 0;cursor:pointer}
+.editor img.img-sm{max-width:220px} .editor img.img-md{max-width:460px}
+.editor img.sel{outline:2px solid var(--accent);outline-offset:2px}
+.editor .hl-y{background:#fde68a;color:#3a2f05;border-radius:3px;padding:0 2px}
+.editor .hl-g{background:#bbf7d0;color:#05321d;border-radius:3px;padding:0 2px}
+.editor .hl-b{background:#bfdbfe;color:#0a2540;border-radius:3px;padding:0 2px}
+.editor .hl-p{background:#f5d0fe;color:#3b0a3e;border-radius:3px;padding:0 2px}
+.editor .note-link{
+  color:var(--accent);border-bottom:1px dashed var(--accent);cursor:pointer;
+  text-decoration:none;padding-bottom:1px;
+}
+.editor .note-link::after{content:" ↗";font-size:.8em;vertical-align:super}
+.editor .note-link.dead{color:var(--faint);border-bottom-color:var(--faint)}
+/* Notlardaki yapılacak maddesi: contenteditable içine gerçek <input> koymak
+   imleç ve seçim davranışını bozduğu için işaretleyici CSS ile çizilir. */
+.editor ul li.todo{list-style:none;position:relative;padding-left:4px}
+.editor ul li.todo::before{
+  content:"";position:absolute;left:-22px;top:.28em;width:14px;height:14px;
+  border:1.7px solid var(--border-strong);border-radius:4px;background:var(--surface);cursor:pointer;
+}
+.editor ul li.todo.done::before{
+  background:var(--accent);border-color:var(--accent);
+  content:"✓";color:var(--on-accent);font-size:11px;line-height:12px;text-align:center;font-weight:700;
+}
+.editor ul li.todo.done{color:var(--faint);text-decoration:line-through}
+
+.ed-empty{flex:1;display:grid;place-items:center;text-align:center;color:var(--faint);padding:40px}
+.ed-empty svg{width:38px;height:38px;opacity:.5;margin-bottom:12px}
+
+@media (max-width:1040px){
+  .notes-app{grid-template-columns:180px 220px minmax(0,1fr)}
+  .editor,.ed-title,.ed-meta{padding-left:20px;padding-right:20px}
+  .toolbar{padding-inline:16px}
+}
+@media (max-width:860px){
+  .notes-app{grid-template-columns:minmax(0,1fr);height:auto}
+  .nb-pane,.pg-pane{height:auto;overflow:visible;border-right:0;border-bottom:1px solid var(--border);padding:12px 16px}
+  .nb-pane .nb-row{display:inline-flex}
+  .ed-pane{height:auto;min-height:60vh}
+}
+
+@media print{
+  .tabs,.nb-pane,.pg-pane,.toolbar,.meter,.ed-meta{display:none !important}
+  .notes-app{display:block;height:auto}
+  .ed-pane{height:auto;display:block}
+  .editor{overflow:visible;padding:0;height:auto}
+  .ed-title{padding:0 0 12px;font-size:22px}
+}
+
 /* ---------- Açılış hatası ---------- */
 .bootfail{
   max-width:640px;margin:60px auto;padding:22px 24px;
@@ -391,6 +522,22 @@ const ICON = {
   filter:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8Z"/></svg>',
   inbox:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5.5 5h13l2.5 8v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6Z"/></svg>',
   list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22Z"/><path d="M4 17.5A2.5 2.5 0 0 1 6.5 15H20"/></svg>',
+  page:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
+  pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L20 8a2.8 2.8 0 0 0-4-4L4 16Z"/><path d="m14 6 4 4"/></svg>',
+  bold:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h7a4 4 0 0 1 0 8H7Zm0 8h8a4 4 0 0 1 0 8H7Z"/></svg>',
+  italic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 4h-6M14 4 10 20M15 20H9"/></svg>',
+  underline:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 4v7a5 5 0 0 0 10 0V4M5 21h14"/></svg>',
+  strike:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 12h16"/><path d="M7 7a4 4 0 0 1 4-3h2a4 4 0 0 1 3.8 2.6M6.6 15A4 4 0 0 0 10 20h3a4 4 0 0 0 4-4"/></svg>',
+  ul:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>',
+  ol:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 5.5 5.5 5v4M3.5 15c0-1.6 2.5-1.4 2.5 0 0 .9-2.5 1.8-2.5 3.5H6"/></svg>',
+  todo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="8" rx="2"/><path d="m4.5 16.5 2.5 2.5 4-4M14 8h7M14 18h7"/></svg>',
+  link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>',
+  image:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 17 5-5 4 4 3-2 4 4"/></svg>',
+  eraser:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 15 6-6 7 7-4 4H8Z"/><path d="M11 9 15 5a2 2 0 0 1 3 0l3 3a2 2 0 0 1 0 3l-3 3M4 21h16"/></svg>',
+  quote:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v2a2 2 0 0 1-2 2H4M20 6h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v2a2 2 0 0 1-2 2h-1"/></svg>',
+  code:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg>',
+  taskify:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11M3 12h7M3 18h7"/><circle cx="17" cy="16" r="5"/><path d="m15 16 1.5 1.5L19.5 14"/></svg>',
 };
 
 /* ------------------------------------------------------------------- i18n */
@@ -432,6 +579,49 @@ const I18N = {
     csvHead:["Başlık","Açıklama","Son tarih","Öncelik","Durum","Etiketler","Alt görevler","Oluşturulma"],
     yes:"Tamamlandı", no:"Açık",
     langName:"Türkçe",
+
+    /* --- notlar --- */
+    tabTasks:"Görevler", tabNotes:"Notlar",
+    notebooks:"Defterler", pages:"Sayfalar",
+    newNotebook:"Yeni defter", newPage:"Yeni sayfa",
+    renameNotebook:"Defteri yeniden adlandır", deleteNotebook:"Defteri sil",
+    deletePage:"Sayfayı sil",
+    untitledNotebook:"Yeni defter", untitledPage:"Adsız sayfa",
+    firstNotebook:"Notlarım",
+    pageTitlePh:"Sayfa başlığı",
+    editorPh:"Buraya yazmaya başla. Metni seçince biçimlendirme araçlarını kullanabilirsin.",
+    noNotebooks:"Henüz defter yok", noNotebooksHint:"Başlamak için bir defter oluştur.",
+    noPages:"Bu defterde sayfa yok", noPagesHint:"“Yeni sayfa” ile ilk notunu ekle.",
+    noPageOpen:"Sayfa seçilmedi", noPageOpenHint:"Soldan bir sayfa seç ya da yenisini oluştur.",
+    notesSearchPh:"Notlarda ara…  ( / )",
+    noNoteMatch:"Eşleşen sayfa yok",
+    notebookDeleted:"Defter silindi", pageDeleted:"Sayfa silindi",
+    notebookRestored:"Defter geri getirildi", pageRestored:"Sayfa geri getirildi",
+    emptyPagePreview:"(boş sayfa)",
+
+    tbBold:"Kalın (Ctrl+B)", tbItalic:"İtalik (Ctrl+I)", tbUnderline:"Altı çizili (Ctrl+U)",
+    tbStrike:"Üstü çizili", tbH1:"Büyük başlık", tbH2:"Başlık", tbH3:"Alt başlık",
+    tbP:"Normal metin", tbUl:"Madde listesi", tbOl:"Numaralı liste", tbTodo:"Yapılacak maddesi",
+    tbQuote:"Alıntı", tbCode:"Kod", tbLink:"Bağlantı ekle", tbImage:"Resim ekle",
+    tbClear:"Biçimi temizle", tbHl:"Vurgu", tbHlNone:"Vurguyu kaldır",
+    tbTaskify:"Seçili metinden görev oluştur",
+    linkPrompt:"Bağlantı adresi:",
+    selectFirst:"Önce metni seç.",
+    taskFromNote:"Görev oluşturuldu:", sourceNote:"Kaynak not", openNote:"Notu aç",
+    noteGone:"Bağlı not artık yok.", taskGone:"Bağlı görev artık yok.",
+
+    imgTooBig:"Depolama neredeyse dolu — resim eklenemedi. Önce JSON yedeği alıp yer aç.",
+    imgFailed:"Resim okunamadı.",
+    imgAdded:"Resim eklendi ({n}).",
+    imgSize:"Boyut", imgSmall:"Küçük", imgMedium:"Orta", imgLarge:"Tam", imgRemove:"Resmi sil",
+
+    storageUsed:"Depolama", storageOf:"{used} / {total}",
+    storageWarn:"Depolama alanının %{n}'i dolu. JSON yedeği alıp eski notları temizlemeyi düşün.",
+    notesQuotaFail:"Notlar kaydedilemedi — depolama alanı doldu. Görevlerin etkilenmedi; JSON yedeği alıp yer aç.",
+    exportNotesHtml:"Notları HTML olarak indir",
+    notesHtmlTitle:"TaskHub notları",
+    exportedNotes:"Notlar indirildi.",
+    importCounts:"{t} görev, {p} not sayfası bulundu. Mevcut verinin yerine mi geçsin, yoksa birleştirilsin mi? Birleştirmede aynı kaydın yeni sürümü kazanır.",
   },
   en:{
     appName:"TaskHub", search:"Search", searchPh:"Search tasks…  ( / )",
@@ -470,6 +660,49 @@ const I18N = {
     csvHead:["Title","Notes","Due date","Priority","Status","Tags","Subtasks","Created"],
     yes:"Done", no:"Open",
     langName:"English",
+
+    /* --- notes --- */
+    tabTasks:"Tasks", tabNotes:"Notes",
+    notebooks:"Notebooks", pages:"Pages",
+    newNotebook:"New notebook", newPage:"New page",
+    renameNotebook:"Rename notebook", deleteNotebook:"Delete notebook",
+    deletePage:"Delete page",
+    untitledNotebook:"New notebook", untitledPage:"Untitled page",
+    firstNotebook:"My notes",
+    pageTitlePh:"Page title",
+    editorPh:"Start writing here. Select text to use the formatting tools.",
+    noNotebooks:"No notebooks yet", noNotebooksHint:"Create a notebook to get started.",
+    noPages:"No pages in this notebook", noPagesHint:"Use “New page” to add your first note.",
+    noPageOpen:"No page selected", noPageOpenHint:"Pick a page on the left, or create one.",
+    notesSearchPh:"Search notes…  ( / )",
+    noNoteMatch:"No matching pages",
+    notebookDeleted:"Notebook deleted", pageDeleted:"Page deleted",
+    notebookRestored:"Notebook restored", pageRestored:"Page restored",
+    emptyPagePreview:"(empty page)",
+
+    tbBold:"Bold (Ctrl+B)", tbItalic:"Italic (Ctrl+I)", tbUnderline:"Underline (Ctrl+U)",
+    tbStrike:"Strikethrough", tbH1:"Large heading", tbH2:"Heading", tbH3:"Subheading",
+    tbP:"Normal text", tbUl:"Bulleted list", tbOl:"Numbered list", tbTodo:"To-do item",
+    tbQuote:"Quote", tbCode:"Code", tbLink:"Insert link", tbImage:"Insert image",
+    tbClear:"Clear formatting", tbHl:"Highlight", tbHlNone:"Remove highlight",
+    tbTaskify:"Create a task from the selection",
+    linkPrompt:"Link address:",
+    selectFirst:"Select some text first.",
+    taskFromNote:"Task created:", sourceNote:"Source note", openNote:"Open note",
+    noteGone:"The linked note is gone.", taskGone:"The linked task is gone.",
+
+    imgTooBig:"Storage is nearly full — image not added. Download a JSON backup and free some space.",
+    imgFailed:"Could not read the image.",
+    imgAdded:"Image added ({n}).",
+    imgSize:"Size", imgSmall:"Small", imgMedium:"Medium", imgLarge:"Full", imgRemove:"Remove image",
+
+    storageUsed:"Storage", storageOf:"{used} / {total}",
+    storageWarn:"Storage is {n}% full. Consider a JSON backup and clearing old notes.",
+    notesQuotaFail:"Notes could not be saved — storage is full. Your tasks are unaffected; back up and free space.",
+    exportNotesHtml:"Download notes as HTML",
+    notesHtmlTitle:"TaskHub notes",
+    exportedNotes:"Notes downloaded.",
+    importCounts:"Found {t} tasks and {p} note pages. Replace the current data, or merge? When merging, the newer version of a record wins.",
   }
 };
 function t(key, vars){
@@ -548,6 +781,121 @@ function mergeImport(current, incoming){
   return { tasks: out, added, updated, kept };
 }
 
+/* ------------------------------------------------- not içeriği süzgeci ---
+ * Zengin metin editörü web'den kopyalanan HTML'i olduğu gibi alır. Bu içerik
+ * localStorage'a yazılıp sonra innerHTML ile geri basıldığında, kendi dosyanda
+ * saklanmış kod çalışır. Bu yüzden süzgeç izin listesiyle çalışır: bilinmeyen
+ * her şey reddedilir, kara liste tutulmaz.
+ * Hem yapıştırma anında hem yükleme anında geçirilir — elle düzenlenmiş ya da
+ * başkasından gelen bir yedek dosyası da aynı içeriği taşıyabilir. */
+
+// İçeriğiyle birlikte tamamen atılanlar.
+const DROP_TAGS = {
+  SCRIPT:1, STYLE:1, IFRAME:1, OBJECT:1, EMBED:1, FORM:1, INPUT:1, BUTTON:1,
+  SELECT:1, TEXTAREA:1, OPTION:1, LINK:1, META:1, BASE:1, TITLE:1, NOSCRIPT:1,
+  SVG:1, MATH:1, TEMPLATE:1, AUDIO:1, VIDEO:1, SOURCE:1, CANVAS:1, APPLET:1, FRAME:1, FRAMESET:1
+};
+// Korunan etiketler. DIV bilerek içeride: contenteditable satır sonlarını
+// <div> ile üretir, atılırsa her yeniden yüklemede satırlar birleşir.
+const OK_TAGS = {
+  P:1, DIV:1, BR:1, H1:1, H2:1, H3:1, B:1, STRONG:1, I:1, EM:1, U:1, S:1, STRIKE:1,
+  UL:1, OL:1, LI:1, A:1, CODE:1, PRE:1, BLOCKQUOTE:1, HR:1, MARK:1, SPAN:1, IMG:1
+};
+const VOID_TAGS = { BR:1, HR:1, IMG:1 };
+// class niteliğinde yalnızca bu adlar kalır.
+const OK_CLASS = {
+  "hl-y":1, "hl-g":1, "hl-b":1, "hl-p":1,
+  "todo":1, "done":1,
+  "img-sm":1, "img-md":1, "img-lg":1,
+  "note-link":1
+};
+const MAX_DEPTH = 40;
+
+function safeUrl(u){
+  const s = String(u == null ? "" : u).replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  return /^(https?:\/\/|mailto:)/i.test(s) ? s : null;
+}
+function safeImgSrc(u){
+  const s = String(u == null ? "" : u).replace(/\s/g, "");
+  return /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=]+$/i.test(s) ? s : null;
+}
+
+function cleanFragment(src, doc, depth){
+  const frag = doc.createDocumentFragment();
+  for (let n = src.firstChild; n; n = n.nextSibling){
+    if (n.nodeType === 3){ frag.appendChild(doc.createTextNode(n.nodeValue)); continue; }
+    if (n.nodeType !== 1) continue;                       // yorum ve diğerleri düşer
+    const tag = n.tagName.toUpperCase();
+    if (DROP_TAGS[tag]) continue;
+    // İzinsiz ama zararsız etiket (table, font, section…): açılır, metni korunur.
+    if (!OK_TAGS[tag] || depth >= MAX_DEPTH){ frag.appendChild(cleanFragment(n, doc, depth + 1)); continue; }
+
+    const out = doc.createElement(tag);
+    const attrs = n.attributes;
+    for (let i = 0; i < attrs.length; i++){
+      const name = attrs[i].name.toLowerCase(), val = attrs[i].value;
+      if (name === "href" && tag === "A"){
+        const u = safeUrl(val);
+        if (u){ out.setAttribute("href", u); out.setAttribute("rel", "noopener noreferrer"); out.setAttribute("target", "_blank"); }
+      } else if (name === "src" && tag === "IMG"){
+        const u = safeImgSrc(val);
+        if (u) out.setAttribute("src", u);
+      } else if (name === "alt" && tag === "IMG"){
+        out.setAttribute("alt", val.slice(0, 200));
+      } else if (name === "class"){
+        const cls = val.split(/\s+/).filter(c => OK_CLASS[c]);
+        if (cls.length) out.setAttribute("class", cls.join(" "));
+      } else if (name === "data-task"){
+        if (/^[A-Za-z0-9_-]{1,64}$/.test(val)) out.setAttribute("data-task", val);
+      }
+      // Geri kalan her şey — özellikle style ve on* — düşer.
+    }
+    if (tag === "IMG" && !out.getAttribute("src")) continue;
+    if (VOID_TAGS[tag]){ frag.appendChild(out); continue; }
+    // Bağlantı hedefi hayatta kalmadıysa etiketi tutmanın anlamı yok, açılır.
+    if (tag === "A" && !out.hasAttribute("href") && !out.hasAttribute("data-task")){
+      frag.appendChild(cleanFragment(n, doc, depth + 1));
+      continue;
+    }
+    out.appendChild(cleanFragment(n, doc, depth + 1));
+    frag.appendChild(out);
+  }
+  return frag;
+}
+
+/** Canlı belgeye hiç değmeden ayrıştırır: createHTMLDocument'in tarama bağlamı
+ *  olmadığı için ayrıştırma sırasında script çalışmaz, resim yüklenmez. */
+function scratchDoc(html){
+  const doc = document.implementation.createHTMLDocument("");
+  doc.body.innerHTML = String(html == null ? "" : html);
+  return doc;
+}
+
+function sanitizeHtml(html){
+  let doc;
+  try { doc = scratchDoc(html); } catch(e){ return ""; }
+  const out = document.implementation.createHTMLDocument("");
+  out.body.appendChild(cleanFragment(doc.body, out, 0));
+  return out.body.innerHTML;
+}
+
+/** Biçimli içerikten düz metin — arama ve önizleme için.
+ *  textContent blok sınırlarını yok sayar ve "…maddeleriBu satır…" gibi
+ *  yapışık çıktı verir; bu hem önizlemeyi okunmaz yapar hem de bloklar arası
+ *  geçen bir arama ifadesinin eşleşmesini engeller. Bloklardan sonra boşluk
+ *  eklenir. */
+const BLOCK_SEL = "p,div,h1,h2,h3,li,blockquote,pre,br,hr,tr,td";
+function noteText(html){
+  let doc;
+  try { doc = scratchDoc(html); } catch(e){ return ""; }
+  const blocks = doc.body.querySelectorAll(BLOCK_SEL);
+  for (let i = 0; i < blocks.length; i++){
+    const b = blocks[i];
+    if (b.parentNode) b.parentNode.insertBefore(doc.createTextNode(" "), b.nextSibling);
+  }
+  return String(doc.body.textContent || "").replace(/\s+/g, " ").trim();
+}
+
 const PRIO_ORDER = { high:0, med:1, low:2 };
 function sortTasks(list){
   return list.slice().sort((a,b) => {
@@ -569,6 +917,7 @@ function uid(){
 /* ------------------------------------------------------------- depolama */
 const STORAGE_KEY = "taskhub";
 const SCHEMA_VERSION = 1;
+const NB_COLORS = ["#5b5bd6","#0b7a55","#c2410c","#b4309b","#0369a1","#a16207"];
 const params = new URLSearchParams(location.search);
 
 let storageOK = false;
@@ -614,7 +963,10 @@ function normalizeTask(raw){
     done: !!raw.done,
     createdAt: ts(raw.createdAt) ? raw.createdAt : now,
     updatedAt: ts(raw.updatedAt) ? raw.updatedAt : (ts(raw.createdAt) ? raw.createdAt : now),
-    completedAt: raw.done ? (ts(raw.completedAt) ? raw.completedAt : now) : null
+    completedAt: raw.done ? (ts(raw.completedAt) ? raw.completedAt : now) : null,
+    sourceNoteId: (raw.sourceNoteId && typeof raw.sourceNoteId === "object"
+      && typeof raw.sourceNoteId.notebookId === "string" && typeof raw.sourceNoteId.pageId === "string")
+      ? { notebookId: raw.sourceNoteId.notebookId, pageId: raw.sourceNoteId.pageId } : null
   };
 }
 
@@ -628,6 +980,96 @@ function normalizeState(raw){
   if (ts(set.nagDismissedAt)) s.settings.nagDismissedAt = set.nagDismissedAt;
   s.tasks = Array.isArray(raw.tasks) ? raw.tasks.map(normalizeTask).filter(Boolean) : [];
   return s;
+}
+
+/* ------------------------------------------------------------ notlar deposu
+ * Notlar ayrı bir anahtarda tutulur. Tek anahtar olsaydı şişen bir not
+ * setItem'ı patlatır ve GÖREVLER de kaydedilemez hale gelirdi; ayrı yazınca
+ * notlar kotayı doldursa bile görev tarafı çalışmaya devam eder. */
+const NOTES_KEY = "taskhub.notes";
+const STORAGE_BUDGET = 5 * 1024 * 1024; // localStorage tavanı için pratik varsayım
+let notesQuotaHit = false;
+
+function defaultNotes(){ return { version: SCHEMA_VERSION, notebooks: [] }; }
+
+function normalizeNotePage(raw){
+  if (!raw || typeof raw !== "object") return null;
+  const now = new Date().toISOString();
+  return {
+    id: typeof raw.id === "string" && raw.id ? raw.id : uid(),
+    title: typeof raw.title === "string" ? raw.title.slice(0, 300) : "",
+    html: sanitizeHtml(typeof raw.html === "string" ? raw.html : ""),
+    createdAt: ts(raw.createdAt) ? raw.createdAt : now,
+    updatedAt: ts(raw.updatedAt) ? raw.updatedAt : (ts(raw.createdAt) ? raw.createdAt : now)
+  };
+}
+
+function normalizeNotebook(raw){
+  if (!raw || typeof raw !== "object") return null;
+  const now = new Date().toISOString();
+  return {
+    id: typeof raw.id === "string" && raw.id ? raw.id : uid(),
+    name: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim().slice(0, 120) : I18N.tr.untitledNotebook,
+    color: /^#[0-9a-f]{6}$/i.test(raw.color) ? raw.color : NB_COLORS[0],
+    pages: Array.isArray(raw.pages) ? raw.pages.map(normalizeNotePage).filter(Boolean) : [],
+    createdAt: ts(raw.createdAt) ? raw.createdAt : now,
+    updatedAt: ts(raw.updatedAt) ? raw.updatedAt : (ts(raw.createdAt) ? raw.createdAt : now)
+  };
+}
+
+function normalizeNotes(raw){
+  const n = defaultNotes();
+  if (!raw || typeof raw !== "object") return n;
+  n.notebooks = Array.isArray(raw.notebooks) ? raw.notebooks.map(normalizeNotebook).filter(Boolean) : [];
+  return n;
+}
+
+function loadNotes(){
+  if (!storageOK) return defaultNotes();
+  let raw = null;
+  try { raw = localStorage.getItem(NOTES_KEY); } catch(e){ return defaultNotes(); }
+  if (!raw) return defaultNotes();
+  try {
+    return normalizeNotes(JSON.parse(raw));
+  } catch(e){
+    try { localStorage.setItem(NOTES_KEY + ".corrupt." + Date.now(), raw); } catch(_){}
+    corruptRecovered = true;
+    return defaultNotes();
+  }
+}
+
+let notesSaveTimer = null;
+function scheduleSaveNotes(){
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(saveNotesNow, 400);
+}
+function saveNotesNow(){
+  clearTimeout(notesSaveTimer); notesSaveTimer = null;
+  flushEditor();          // editördeki ham HTML süzgeçten geçip modele burada yazılır
+  if (!storageOK) return;
+  try {
+    localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+    notesQuotaHit = false;
+  } catch(e){
+    // storageOK'e dokunulmaz: görev kaydı bundan etkilenmemeli.
+    notesQuotaHit = true;
+    renderBanners();
+    toast(t("notesQuotaFail"), null, 9000);
+  }
+}
+
+/** İki anahtarın yaklaşık bayt boyutu (UTF-16 saklama varsayımıyla). */
+function storageBytes(){
+  let n = 0;
+  try { n += JSON.stringify(state).length * 2; } catch(e){}
+  try { n += JSON.stringify(notes).length * 2; } catch(e){}
+  return n;
+}
+const storagePercent = () => Math.min(100, Math.round(storageBytes() / STORAGE_BUDGET * 100));
+function formatBytes(n){
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " KB";
+  return (n / 1024 / 1024).toFixed(1) + " MB";
 }
 
 function load(){
@@ -663,14 +1105,23 @@ function saveNow(){
     toast(t("quotaFail"));
   }
 }
-window.addEventListener("beforeunload", () => { if (saveTimer) saveNow(); });
+window.addEventListener("beforeunload", () => {
+  if (saveTimer) saveNow();
+  flushEditor();
+  if (notesSaveTimer || dirtyEditor) saveNotesNow();
+});
 
 /* ------------------------------------------------------------ uygulama durumu */
 let state = defaultState();
+let notes = defaultNotes();
 let today = ymd(new Date());
 let openTaskId = null;
 let lastFocused = null;
-const ui = { q:"", status:"all", prios:new Set(), tags:new Set(), showCompleted:true, nagHidden:false };
+const ui = {
+  q:"", status:"all", prios:new Set(), tags:new Set(), showCompleted:true, nagHidden:false,
+  view:"tasks",          // "tasks" | "notes"
+  nbId:null, pageId:null // seçili defter ve sayfa
+};
 
 /* ------------------------------------------------------------- DOM yardımcısı */
 function el(tag, props, ...children){
@@ -795,20 +1246,48 @@ function formatStamp(iso){
 
 /* ============================== ARAYÜZ ================================== */
 
+function switchView(v){
+  if (ui.view === v) return;
+  if (ui.view === "notes"){ flushEditor(); saveNotesNow(); }
+  ui.view = v;
+  ui.q = "";
+  buildShell();
+}
+
 function buildShell(){
   const root = document.getElementById("root");
   root.textContent = "";
+  closeImgPopover();
+  const isNotes = ui.view === "notes";
 
-  /* --- üst çubuk --- */
+  const onSearch = (val) => {
+    ui.q = val;
+    if (isNotes){ renderBanners(); renderPageList(); }
+    else { renderBanners(); renderSidebar(); renderList(); }
+  };
   const searchInput = el("input", {
     id:"q", class:"input", type:"search", autocomplete:"off",
-    "aria-label": t("search"), placeholder: t("searchPh"), value: ui.q,
-    oninput(e){ ui.q = e.target.value; renderBanners(); renderSidebar(); renderList(); },
-    onkeydown(e){ if (e.key === "Escape"){ e.stopPropagation(); if (ui.q){ ui.q = ""; e.target.value = ""; renderBanners(); renderSidebar(); renderList(); } else e.target.blur(); } }
+    "aria-label": t("search"), placeholder: isNotes ? t("notesSearchPh") : t("searchPh"), value: ui.q,
+    oninput(e){ onSearch(e.target.value); },
+    onkeydown(e){
+      if (e.key === "Escape"){
+        e.stopPropagation();
+        if (ui.q){ e.target.value = ""; onSearch(""); } else e.target.blur();
+      }
+    }
   });
+
+  const tab = (view, iconName, label) => el("button", {
+    class:"tab", role:"tab", "aria-selected": String(ui.view === view),
+    onclick(){ switchView(view); }
+  }, icon(iconName), label);
 
   const topbar = el("header", { class:"topbar" },
     el("div", { class:"brand" }, el("span", { class:"mark", svg:ICON.check, "aria-hidden":"true" }), el("span", { text: t("appName") })),
+    el("div", { class:"tabs", role:"tablist" },
+      tab("tasks", "list", t("tabTasks")),
+      tab("notes", "book", t("tabNotes"))
+    ),
     el("div", { class:"search" },
       el("span", { class:"ico", svg:ICON.search, "aria-hidden":"true" }),
       searchInput
@@ -820,11 +1299,48 @@ function buildShell(){
       el("div", { class:"sep" }),
       el("button", { class:"btn btn-ghost btn-icon", title: t("exportJson"), "aria-label": t("exportJson"), onclick: exportJson }, icon("down2")),
       el("button", { class:"btn btn-ghost btn-icon", title: t("importJson"), "aria-label": t("importJson"), onclick: pickImport }, icon("up2")),
-      el("button", { class:"btn btn-ghost btn-icon", title: t("exportCsv"), "aria-label": t("exportCsv"), onclick: exportCsv }, icon("sheet"))
+      // Dışa aktarma biçimi görünüme göre: CSV görevler için, HTML notlar için.
+      isNotes
+        ? el("button", { class:"btn btn-ghost btn-icon", id:"expNotes", title: t("exportNotesHtml"), "aria-label": t("exportNotesHtml"), onclick: exportNotesHtml }, icon("page"))
+        : el("button", { class:"btn btn-ghost btn-icon", id:"expCsv", title: t("exportCsv"), "aria-label": t("exportCsv"), onclick: exportCsv }, icon("sheet"))
     )
   );
 
-  /* --- ana gövde --- */
+  root.append(
+    topbar,
+    el("div", { id:"viewHost" }),
+    el("div", { class:"toasts", id:"toasts", "aria-live":"polite", "aria-atomic":"false" }),
+    buildImportDialog(),
+    el("input", { type:"file", id:"fileInput", accept:".json,application/json", class:"sr-only", onchange: onFileChosen }),
+    el("input", { type:"file", id:"imgInput", accept:"image/*", class:"sr-only", onchange(e){
+      const f = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (f) insertImageFile(f);
+    }})
+  );
+
+  mountView();
+}
+
+function mountView(){
+  const host = document.getElementById("viewHost");
+  host.textContent = "";
+
+  if (ui.view === "notes"){
+    ensureNotebook();
+    editorPageId = null;                    // görünüm yeniden kurulduğu için editör de kurulmalı
+    host.append(el("div", { class:"notes-shell" },
+      el("div", { id:"banners" }),
+      el("div", { class:"notes-app" },
+        el("nav", { class:"nb-pane", id:"nbPane", "aria-label": t("notebooks") }),
+        el("div", { class:"pg-pane", id:"pgPane", "aria-label": t("pages") }),
+        el("div", { class:"ed-pane", id:"edPane" })
+      )
+    ));
+    render();
+    return;
+  }
+
   const quick = el("input", {
     id:"quick", class:"input", autocomplete:"off", "aria-label": t("add"), placeholder: t("quickAddPh"),
     onkeydown(e){
@@ -840,21 +1356,17 @@ function buildShell(){
     if (quick.value.trim()){ addTask(quick.value); quick.value = ""; quick.focus(); }
   }}, icon("plus"), t("add"));
 
-  const main = el("main", { class:"main" },
-    el("div", { id:"banners" }),
-    el("div", { class:"quickadd" }, quick, quickBtn),
-    el("div", { id:"list" })
+  host.append(
+    el("div", { class:"app" },
+      el("nav", { class:"sidebar", id:"sidebar", "aria-label": t("filter") }),
+      el("main", { class:"main" },
+        el("div", { id:"banners" }),
+        el("div", { class:"quickadd" }, quick, quickBtn),
+        el("div", { id:"list" })
+      )
+    ),
+    buildPanel()
   );
-
-  root.append(
-    topbar,
-    el("div", { class:"app" }, el("nav", { class:"sidebar", id:"sidebar", "aria-label": t("filter") }), main),
-    buildPanel(),
-    el("div", { class:"toasts", id:"toasts", "aria-live":"polite", "aria-atomic":"false" }),
-    buildImportDialog(),
-    el("input", { type:"file", id:"fileInput", accept:".json,application/json", class:"sr-only", onchange: onFileChosen })
-  );
-
   render();
 }
 
@@ -868,6 +1380,20 @@ function renderBanners(){
     box.append(el("div", { class:"banner danger", role:"alert" },
       el("span", { svg:ICON.warn, "aria-hidden":"true" }),
       el("span", { class:"grow" }, el("strong", { text: t("storageFailTitle") }), " ", t("storageFailText")),
+      el("button", { class:"btn", onclick: exportJson }, t("backupNow"))
+    ));
+  }
+  if (notesQuotaHit){
+    box.append(el("div", { class:"banner danger", role:"alert" },
+      el("span", { svg:ICON.warn, "aria-hidden":"true" }),
+      el("span", { class:"grow", text: t("notesQuotaFail") }),
+      el("button", { class:"btn", onclick: exportJson }, t("backupNow"))
+    ));
+  }
+  if (storageOK && !notesQuotaHit && storagePercent() >= 80){
+    box.append(el("div", { class:"banner warn" },
+      el("span", { svg:ICON.info, "aria-hidden":"true" }),
+      el("span", { class:"grow", text: t("storageWarn", { n: storagePercent() }) }),
       el("button", { class:"btn", onclick: exportJson }, t("backupNow"))
     ));
   }
@@ -1068,9 +1594,10 @@ function buildPanel(){
 }
 
 function openPanel(id, source){
+  const p = document.getElementById("panel");
+  if (!p) return;                       // notlar görünümünde panel takılı değil
   openTaskId = id;
   lastFocused = source || document.activeElement;
-  const p = document.getElementById("panel");
   p.classList.add("open");
   p.setAttribute("aria-hidden", "false");
   renderPanel();
@@ -1082,6 +1609,7 @@ function openPanel(id, source){
 function closePanel(){
   openTaskId = null;
   const p = document.getElementById("panel");
+  if (!p) return;
   p.classList.remove("open");
   p.setAttribute("aria-hidden", "true");
   document.getElementById("panelBody").textContent = "";
@@ -1158,6 +1686,17 @@ function renderPanel(){
     el("div", { class:"field" }, el("label", { class:"label", text: t("subLbl") }), subWrap, subInput)
   );
 
+  if (task.sourceNoteId){
+    const src = getPage(task.sourceNoteId.notebookId, task.sourceNoteId.pageId);
+    body.append(el("div", { class:"field" },
+      el("label", { class:"label", text: t("sourceNote") }),
+      src
+        ? el("button", { class:"btn", style:"width:100%;justify-content:flex-start",
+            onclick(){ openSourceNote(task); } }, icon("book"), pageTitleOf(src))
+        : el("p", { style:"margin:0;font-size:13px;color:var(--faint)", text: t("noteGone") })
+    ));
+  }
+
   renderTags(task, tagBox);
   renderSubs(task, subWrap);
 
@@ -1220,6 +1759,720 @@ function renderSubs(task, box){
   box.append(list);
 }
 
+/* ================================ NOTLAR ================================ */
+
+const getNotebook = id => notes.notebooks.find(n => n.id === id) || null;
+function getPage(nbId, pageId){
+  const nb = getNotebook(nbId);
+  return nb ? (nb.pages.find(p => p.id === pageId) || null) : null;
+}
+const currentNotebook = () => getNotebook(ui.nbId);
+const currentPage = () => getPage(ui.nbId, ui.pageId);
+
+function stampNote(nb, page){
+  const now = new Date().toISOString();
+  if (page) page.updatedAt = now;
+  if (nb) nb.updatedAt = now;
+}
+
+/** Seçili defter/sayfa hâlâ var mı; yoksa makul bir seçime düş. */
+function ensureNotebook(){
+  if (!notes.notebooks.length) addNotebook(t("firstNotebook"));
+  if (!getNotebook(ui.nbId)) { ui.nbId = notes.notebooks[0].id; ui.pageId = null; }
+  if (ui.pageId && !getPage(ui.nbId, ui.pageId)) ui.pageId = null;
+}
+
+function addNotebook(name){
+  const now = new Date().toISOString();
+  const nb = {
+    id: uid(),
+    name: (name || t("untitledNotebook")).trim() || t("untitledNotebook"),
+    color: NB_COLORS[notes.notebooks.length % NB_COLORS.length],
+    pages: [], createdAt: now, updatedAt: now
+  };
+  notes.notebooks.push(nb);
+  ui.nbId = nb.id; ui.pageId = null;
+  scheduleSaveNotes();
+  return nb;
+}
+
+function addPage(nbId){
+  const nb = getNotebook(nbId);
+  if (!nb) return null;
+  const now = new Date().toISOString();
+  const page = { id: uid(), title:"", html:"", createdAt: now, updatedAt: now };
+  nb.pages.unshift(page);
+  nb.updatedAt = now;
+  ui.pageId = page.id;
+  scheduleSaveNotes();
+  return page;
+}
+
+function deleteNotebook(id){
+  const i = notes.notebooks.findIndex(n => n.id === id);
+  if (i < 0) return;
+  const [nb] = notes.notebooks.splice(i, 1);
+  if (ui.nbId === id){ ui.nbId = null; ui.pageId = null; }
+  ensureNotebook();
+  scheduleSaveNotes(); renderNotesView();
+  // Defter silmek içindeki bütün sayfaları götürür; geri alma burada kritik.
+  toast(t("notebookDeleted") + " — " + nb.name, { label: t("undo"), run(){
+    notes.notebooks.splice(Math.min(i, notes.notebooks.length), 0, nb);
+    ui.nbId = nb.id; ui.pageId = null;
+    scheduleSaveNotes(); renderNotesView();
+    toast(t("notebookRestored"));
+  }}, 10000);
+}
+
+function deletePage(nbId, pageId){
+  const nb = getNotebook(nbId); if (!nb) return;
+  const i = nb.pages.findIndex(p => p.id === pageId);
+  if (i < 0) return;
+  const [page] = nb.pages.splice(i, 1);
+  if (ui.pageId === pageId) ui.pageId = null;
+  nb.updatedAt = new Date().toISOString();
+  scheduleSaveNotes(); renderNotesView();
+  toast(t("pageDeleted"), { label: t("undo"), run(){
+    nb.pages.splice(Math.min(i, nb.pages.length), 0, page);
+    ui.nbId = nb.id; ui.pageId = page.id;
+    scheduleSaveNotes(); renderNotesView();
+    toast(t("pageRestored"));
+  }}, 8000);
+}
+
+/* ------------------------------------------------------- not arama/önizleme */
+/* Sayfanın düz metni hem aramada hem önizlemede gerekiyor ve noteText her
+   çağrıda HTML ayrıştırıyor. Defterdeki her sayfa için her tuş vuruşunda
+   yeniden çıkarmak israf; updatedAt değişene kadar sonuç saklanır. */
+const plainCache = new Map();
+function pagePlain(page){
+  const hit = plainCache.get(page.id);
+  if (hit && hit.stamp === page.updatedAt) return hit.text;
+  const text = noteText(page.html);
+  plainCache.set(page.id, { stamp: page.updatedAt, text });
+  return text;
+}
+
+function pageMatches(page, q){
+  if (!q) return true;
+  const hay = foldTr(page.title + " " + pagePlain(page));
+  return foldTr(q).split(/\s+/).every(term => hay.indexOf(term) !== -1);
+}
+function pageTitleOf(page){ return page.title.trim() || t("untitledPage"); }
+
+/* ------------------------------------------------------------ defter paneli */
+let renamingNbId = null;
+
+function renderNotebooks(){
+  const pane = document.getElementById("nbPane");
+  if (!pane) return;
+  pane.textContent = "";
+  pane.append(el("div", { class:"pane-head" },
+    el("h2", { text: t("notebooks") }),
+    el("button", { class:"btn btn-ghost btn-icon", title: t("newNotebook"), "aria-label": t("newNotebook"),
+      onclick(){ addNotebook(); renamingNbId = ui.nbId; renderNotesView(); } }, icon("plus"))
+  ));
+
+  const list = el("ul", { class:"side-list" });
+  for (const nb of notes.notebooks){
+    if (renamingNbId === nb.id){
+      const input = el("input", { class:"input", value: nb.name, style:"padding:5px 8px",
+        onkeydown(e){
+          if (e.key === "Enter"){ commit(e.target.value); }
+          else if (e.key === "Escape"){ renamingNbId = null; renderNotebooks(); }
+        },
+        onblur(e){ commit(e.target.value); }
+      });
+      const commit = (v) => {
+        if (renamingNbId !== nb.id) return;
+        const name = String(v || "").trim();
+        if (name && name !== nb.name){ nb.name = name.slice(0, 120); nb.updatedAt = new Date().toISOString(); scheduleSaveNotes(); }
+        renamingNbId = null;
+        renderNotesView();
+      };
+      list.append(el("li", {}, input));
+      setTimeout(() => { input.focus(); input.select(); }, 0);
+      continue;
+    }
+    const row = el("li", { class:"nb-row" },
+      el("button", {
+        class:"nb-item", "aria-current": String(ui.nbId === nb.id),
+        onclick(){ ui.nbId = nb.id; ui.pageId = null; renderNotesView(); }
+      },
+        el("span", { class:"dot", style:"background:" + nb.color }),
+        el("span", { class:"nb-name", text: nb.name }),
+        el("span", { class:"count", text: String(nb.pages.length) })
+      ),
+      el("span", { class:"nb-acts" },
+        el("button", { title: t("renameNotebook"), "aria-label": t("renameNotebook"),
+          onclick(){ renamingNbId = nb.id; renderNotebooks(); } }, icon("pencil")),
+        el("button", { title: t("deleteNotebook"), "aria-label": t("deleteNotebook"),
+          onclick(){ deleteNotebook(nb.id); } }, icon("trash"))
+      )
+    );
+    list.append(row);
+  }
+  pane.append(list, storageMeter());
+}
+
+function storageMeter(){
+  const pct = storagePercent();
+  const cls = "meter" + (pct >= 95 ? " full" : pct >= 80 ? " warn" : "");
+  return el("div", { class: cls, id:"storageMeter" },
+    el("div", { class:"lbl" },
+      el("span", { text: t("storageUsed") }),
+      el("span", { text: formatBytes(storageBytes()) + " / " + formatBytes(STORAGE_BUDGET) })
+    ),
+    el("div", { class:"bar" }, el("i", { style:"width:" + Math.max(1, pct) + "%" }))
+  );
+}
+function renderStorageMeter(){
+  const old = document.getElementById("storageMeter");
+  if (old && old.parentNode) old.parentNode.replaceChild(storageMeter(), old);
+}
+
+/* ------------------------------------------------------------ sayfa listesi */
+function renderPageList(){
+  const pane = document.getElementById("pgPane");
+  if (!pane) return;
+  pane.textContent = "";
+  const nb = currentNotebook();
+  pane.append(el("div", { class:"pane-head" },
+    el("h2", { text: t("pages") }),
+    el("button", { class:"btn btn-ghost btn-icon", title: t("newPage"), "aria-label": t("newPage"),
+      disabled: !nb,
+      onclick(){ if (addPage(ui.nbId)) { renderNotesView(); focusPageTitle(); } } }, icon("plus"))
+  ));
+  if (!nb){
+    pane.append(el("div", { class:"empty" }, el("h2", { text: t("noNotebooks") }), el("p", { text: t("noNotebooksHint") })));
+    return;
+  }
+  const q = ui.q.trim();
+  const pages = nb.pages.filter(p => pageMatches(p, q));
+  if (!pages.length){
+    pane.append(el("div", { class:"empty" },
+      el("h2", { text: q ? t("noNoteMatch") : t("noPages") }),
+      el("p", { text: q ? t("emptyFilterText") : t("noPagesHint") })
+    ));
+    return;
+  }
+  const list = el("ul", { class:"pg-list" });
+  for (const page of pages){
+    const preview = pagePlain(page).slice(0, 160);
+    list.append(el("li", {},
+      el("button", {
+        class:"pg-item", "aria-current": String(ui.pageId === page.id),
+        onclick(){ openPage(page.id); }
+      },
+        el("div", { class:"pg-title", text: pageTitleOf(page) }),
+        el("div", { class:"pg-prev", text: preview || t("emptyPagePreview") }),
+        el("div", { class:"pg-date", text: formatStamp(page.updatedAt) })
+      )
+    ));
+  }
+  pane.append(list);
+}
+
+function openPage(pageId){
+  if (ui.pageId === pageId) return;
+  flushEditor(); saveNotesNow();
+  ui.pageId = pageId;
+  renderNotesView();
+}
+
+/* ================================ EDİTÖR ================================
+ * Editör yalnızca açık sayfa değiştiğinde yeniden kurulur. Her çizimde
+ * yeniden kurulsaydı imleç her tuşta başa atardı. */
+let editorPageId = null;
+let dirtyEditor = false;
+let pageListTimer = null;
+
+function renderNotesView(){
+  renderNotebooks();
+  renderPageList();
+  if (editorPageId !== ui.pageId) renderEditor();
+  else updateToolbarState();
+}
+
+function schedulePageListRefresh(){
+  clearTimeout(pageListTimer);
+  pageListTimer = setTimeout(() => { renderPageList(); renderStorageMeter(); }, 450);
+}
+
+/** Editördeki ham HTML'i süzüp modele yazar. Her tuşta değil, kaydetme
+ *  anında çalışır — hem ucuz hem imleç güvenli (geri yazma yok). */
+function flushEditor(){
+  if (!dirtyEditor) return;
+  dirtyEditor = false;
+  const ed = document.getElementById("editor");
+  const page = getPage(ui.nbId, editorPageId);
+  if (!ed || !page) return;
+  page.html = sanitizeHtml(ed.innerHTML);
+  stampNote(currentNotebook(), page);
+}
+
+function onEditorChanged(){
+  dirtyEditor = true;
+  scheduleSaveNotes();
+  schedulePageListRefresh();
+  updateToolbarState();
+}
+
+function focusPageTitle(){
+  const el0 = document.getElementById("pageTitle");
+  if (el0) el0.focus();
+}
+
+function renderEditor(){
+  const pane = document.getElementById("edPane");
+  if (!pane) return;
+  flushEditor();
+  pane.textContent = "";
+  editorPageId = ui.pageId;
+
+  const page = currentPage();
+  if (!page){
+    pane.append(el("div", { class:"ed-empty" },
+      el("span", { svg:ICON.page, "aria-hidden":"true" }),
+      el("div", {}, el("h2", { style:"margin:0 0 6px;font-size:16px;color:var(--muted)", text: t("noPageOpen") }),
+        el("p", { style:"margin:0", text: t("noPageOpenHint") }))
+    ));
+    return;
+  }
+
+  const title = el("input", {
+    id:"pageTitle", class:"ed-title", value: page.title, placeholder: t("pageTitlePh"),
+    "aria-label": t("pageTitlePh"),
+    oninput(e){
+      page.title = e.target.value.slice(0, 300);
+      stampNote(currentNotebook(), page);
+      scheduleSaveNotes(); schedulePageListRefresh();
+    },
+    onkeydown(e){
+      if (e.key === "Enter"){ e.preventDefault(); const ed = document.getElementById("editor"); if (ed) ed.focus(); }
+    }
+  });
+
+  const editor = el("div", {
+    id:"editor", class:"editor", contenteditable:"true", spellcheck:"false",
+    role:"textbox", "aria-multiline":"true", "aria-label": t("editorPh"),
+    oninput: onEditorChanged,
+    onkeyup: updateToolbarState,
+    onmouseup: updateToolbarState,
+    onpaste: onEditorPaste,
+    ondragover(e){ if (e.dataTransfer && e.dataTransfer.types && [].indexOf.call(e.dataTransfer.types, "Files") !== -1) e.preventDefault(); },
+    ondrop: onEditorDrop,
+    onclick: onEditorClick,
+    onkeydown: onEditorKeydown
+  });
+  editor.innerHTML = sanitizeHtml(page.html);
+  if (!editor.innerHTML.trim()) editor.innerHTML = "<p><br></p>";
+
+  pane.append(
+    title,
+    el("div", { class:"ed-meta", text: t("updated") + ": " + formatStamp(page.updatedAt) }),
+    buildToolbar(),
+    editor
+  );
+
+  // Etiket tabanlı biçimlendirme: kapalıyken tarayıcılar <span style> üretir,
+  // süzgeç style'ı attığı için biçim kaybolurdu.
+  try { document.execCommand("styleWithCSS", false, false); } catch(e){}
+  updateToolbarState();
+}
+
+/* ------------------------------------------------------------ araç çubuğu */
+const HILITES = [["hl-y","#fde68a"],["hl-g","#bbf7d0"],["hl-b","#bfdbfe"],["hl-p","#f5d0fe"]];
+
+function tbBtn(key, iconName, onclick, label){
+  return el("button", { type:"button", "data-tb":key, title: label, "aria-label": label,
+    onmousedown(e){ e.preventDefault(); },   // seçim kaybolmasın
+    onclick }, iconName ? icon(iconName) : null);
+}
+function tbText(key, textLabel, onclick, label){
+  return el("button", { type:"button", "data-tb":key, class:"tb-txt", title: label, "aria-label": label,
+    onmousedown(e){ e.preventDefault(); }, onclick }, textLabel);
+}
+
+function buildToolbar(){
+  const bar = el("div", { class:"toolbar", id:"toolbar", role:"toolbar", "aria-label": t("tbBold") });
+  bar.append(
+    tbBtn("bold", "bold", () => exec("bold"), t("tbBold")),
+    tbBtn("italic", "italic", () => exec("italic"), t("tbItalic")),
+    tbBtn("underline", "underline", () => exec("underline"), t("tbUnderline")),
+    tbBtn("strikeThrough", "strike", () => exec("strikeThrough"), t("tbStrike")),
+    el("span", { class:"tb-sep" }),
+    tbText("h1", "H1", () => block("h1"), t("tbH1")),
+    tbText("h2", "H2", () => block("h2"), t("tbH2")),
+    tbText("h3", "H3", () => block("h3"), t("tbH3")),
+    tbText("p", "¶", () => block("p"), t("tbP")),
+    el("span", { class:"tb-sep" }),
+    tbBtn("insertUnorderedList", "ul", () => exec("insertUnorderedList"), t("tbUl")),
+    tbBtn("insertOrderedList", "ol", () => exec("insertOrderedList"), t("tbOl")),
+    tbBtn("todo", "todo", toggleTodo, t("tbTodo")),
+    tbBtn("blockquote", "quote", () => block("blockquote"), t("tbQuote")),
+    tbBtn("pre", "code", () => block("pre"), t("tbCode")),
+    el("span", { class:"tb-sep" })
+  );
+  for (const [cls, color] of HILITES){
+    bar.append(el("button", { type:"button", title: t("tbHl"), "aria-label": t("tbHl"),
+      onmousedown(e){ e.preventDefault(); }, onclick(){ highlight(cls); } },
+      el("span", { class:"tb-hl", style:"background:" + color })));
+  }
+  bar.append(
+    // Silgi simgesi "biçimi temizle"ye ayrılır; vurgu kaldırma, diğer vurgu
+    // örnekleriyle aynı dili konuşsun diye üstü çizili bir örnek olarak çizilir.
+    el("button", { type:"button", title: t("tbHlNone"), "aria-label": t("tbHlNone"),
+      onmousedown(e){ e.preventDefault(); }, onclick(){ highlight(null); } },
+      el("span", { class:"tb-hl tb-hl-none" })),
+    el("span", { class:"tb-sep" }),
+    tbBtn("link", "link", insertLink, t("tbLink")),
+    tbBtn("image", "image", () => document.getElementById("imgInput").click(), t("tbImage")),
+    tbBtn("removeFormat", "eraser", () => { exec("removeFormat"); highlight(null); }, t("tbClear")),
+    el("span", { class:"tb-sep" }),
+    tbBtn("taskify", "taskify", taskifySelection, t("tbTaskify"))
+  );
+  return bar;
+}
+
+function editorEl(){ return document.getElementById("editor"); }
+
+function exec(cmd, val){
+  const ed = editorEl(); if (!ed) return;
+  ed.focus();
+  try { document.execCommand(cmd, false, val === undefined ? null : val); } catch(e){}
+  onEditorChanged();
+}
+function block(tag){
+  const cur = currentBlockTag();
+  // Aynı biçime ikinci kez basmak normal metne döndürür.
+  exec("formatBlock", "<" + (cur === tag.toUpperCase() ? "p" : tag) + ">");
+}
+
+function currentBlockTag(){
+  const ed = editorEl(); if (!ed) return null;
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  let n = sel.getRangeAt(0).startContainer;
+  while (n && n !== ed){
+    if (n.nodeType === 1 && /^(H1|H2|H3|P|PRE|BLOCKQUOTE|LI)$/.test(n.tagName)) return n.tagName;
+    n = n.parentNode;
+  }
+  return null;
+}
+function closestInEditor(node, test){
+  const ed = editorEl(); if (!ed) return null;
+  let n = node;
+  while (n && n !== ed){
+    if (n.nodeType === 1 && test(n)) return n;
+    n = n.parentNode;
+  }
+  return null;
+}
+function currentLi(){
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  return closestInEditor(sel.getRangeAt(0).startContainer, n => n.tagName === "LI");
+}
+
+function toggleTodo(){
+  const ed = editorEl(); if (!ed) return;
+  ed.focus();
+  let li = currentLi();
+  if (!li){ try { document.execCommand("insertUnorderedList"); } catch(e){} li = currentLi(); }
+  if (!li) return;
+  if (li.classList.contains("todo")) li.classList.remove("todo", "done");
+  else li.classList.add("todo");
+  onEditorChanged();
+}
+
+/** Vurgu: execCommand("hiliteColor") style niteliği üretir, süzgeç onu attığı
+ *  için burada doğrudan izinli sınıfla sarılır. cls null ise vurgu kaldırılır. */
+function highlight(cls){
+  const ed = editorEl(); if (!ed) return;
+  ed.focus();
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
+  const range = sel.getRangeAt(0);
+  if (cls === null){
+    const frag = range.extractContents();
+    const tmp = document.createElement("div");
+    tmp.appendChild(frag);
+    const spans = tmp.querySelectorAll("span.hl-y, span.hl-g, span.hl-b, span.hl-p");
+    for (let i = 0; i < spans.length; i++){
+      const s = spans[i];
+      while (s.firstChild) s.parentNode.insertBefore(s.firstChild, s);
+      s.parentNode.removeChild(s);
+    }
+    const out = document.createDocumentFragment();
+    while (tmp.firstChild) out.appendChild(tmp.firstChild);
+    range.insertNode(out);
+  } else {
+    const span = document.createElement("span");
+    span.className = cls;
+    try { range.surroundContents(span); }
+    catch(e){ span.appendChild(range.extractContents()); range.insertNode(span); }
+  }
+  sel.removeAllRanges();
+  onEditorChanged();
+}
+
+function insertLink(){
+  const ed = editorEl(); if (!ed) return;
+  ed.focus();
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
+  const url = window.prompt(t("linkPrompt"), "https://");
+  if (!url) return;
+  if (!safeUrl(url)){ toast(t("importBad")); return; }
+  try { document.execCommand("createLink", false, url); } catch(e){}
+  onEditorChanged();
+}
+
+function updateToolbarState(){
+  const bar = document.getElementById("toolbar");
+  if (!bar) return;
+  const blockTag = currentBlockTag();
+  const btns = bar.querySelectorAll("[data-tb]");
+  for (let i = 0; i < btns.length; i++){
+    const b = btns[i], key = b.getAttribute("data-tb");
+    let on = false;
+    if (/^(bold|italic|underline|strikeThrough|insertUnorderedList|insertOrderedList)$/.test(key)){
+      try { on = document.queryCommandState(key); } catch(e){ on = false; }
+    } else if (/^(h1|h2|h3|p|pre|blockquote)$/.test(key)){
+      on = blockTag === key.toUpperCase();
+    } else if (key === "todo"){
+      const li = currentLi();
+      on = !!(li && li.classList.contains("todo"));
+    }
+    b.classList.toggle("on", !!on);
+  }
+}
+
+/* ------------------------------------------------------------ resim hattı */
+const IMG_MAX = 1200, IMG_QUALITY = 0.82;
+
+function downscaleImage(file, cb){
+  const reader = new FileReader();
+  reader.onerror = () => cb(null);
+  reader.onload = () => {
+    const orig = String(reader.result || "");
+    const img = new Image();
+    img.onerror = () => cb(null);
+    img.onload = () => {
+      const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      if (!w || !h) return cb(null);
+      const scale = Math.min(1, IMG_MAX / Math.max(w, h));
+      const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+      let out = null;
+      try {
+        const c = document.createElement("canvas");
+        c.width = cw; c.height = ch;
+        const g = c.getContext("2d");
+        g.fillStyle = "#ffffff"; g.fillRect(0, 0, cw, ch);  // JPEG saydamlığı taşımaz
+        g.drawImage(img, 0, 0, cw, ch);
+        out = c.toDataURL("image/jpeg", IMG_QUALITY);
+      } catch(e){ out = null; }
+      // Küçültme işe yaramadıysa ve orijinal zaten kabul edilebilir bir tipse onu kullan.
+      if ((!out || out.length >= orig.length) && safeImgSrc(orig)) out = orig;
+      cb(out && safeImgSrc(out) ? out : null);
+    };
+    img.src = orig;
+  };
+  reader.readAsDataURL(file);
+}
+
+function insertImageFile(file){
+  if (!file || !/^image\//.test(file.type || "")) return;
+  if (storagePercent() >= 95){ toast(t("imgTooBig"), null, 10000); return; }
+  downscaleImage(file, dataUrl => {
+    if (!dataUrl){ toast(t("imgFailed")); return; }
+    const ed = editorEl(); if (!ed) return;
+    ed.focus();
+    const img = document.createElement("img");
+    img.className = "img-md";
+    img.src = dataUrl;
+    img.alt = "";
+    insertNodeAtCaret(img);
+    onEditorChanged();
+    renderStorageMeter();
+    toast(t("imgAdded", { n: formatBytes(Math.round(dataUrl.length * 0.75)) }));
+  });
+}
+
+function insertNodeAtCaret(node){
+  const ed = editorEl(); if (!ed) return;
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount && ed.contains(sel.getRangeAt(0).startContainer)){
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(node);
+    range.setStartAfter(node); range.collapse(true);
+    sel.removeAllRanges(); sel.addRange(range);
+  } else {
+    ed.appendChild(node);
+  }
+}
+
+function onEditorPaste(e){
+  const dt = e.clipboardData || window.clipboardData;
+  if (!dt) return;
+  const items = dt.items || [];
+  for (let i = 0; i < items.length; i++){
+    if (items[i].kind === "file" && /^image\//.test(items[i].type)){
+      const f = items[i].getAsFile();
+      if (f){ e.preventDefault(); insertImageFile(f); return; }
+    }
+  }
+  let html = "";
+  try { html = dt.getData("text/html"); } catch(err){ html = ""; }
+  if (html){
+    e.preventDefault();
+    // Web'den gelen her şey buradan geçer; süzgeç olmadan içerik diske yazılmaz.
+    try { document.execCommand("insertHTML", false, sanitizeHtml(html)); } catch(err){}
+    onEditorChanged();
+  }
+  // Düz metin yapıştırmada tarayıcının varsayılan davranışı yeterli.
+}
+
+function onEditorDrop(e){
+  const dt = e.dataTransfer;
+  if (!dt || !dt.files || !dt.files.length) return;
+  const f = dt.files[0];
+  if (/^image\//.test(f.type || "")){ e.preventDefault(); insertImageFile(f); }
+}
+
+function onEditorClick(e){
+  const link = closestInEditor(e.target, n => n.hasAttribute && n.hasAttribute("data-task"));
+  if (link){
+    e.preventDefault();
+    const id = link.getAttribute("data-task");
+    if (getTask(id)){ ui.view = "tasks"; buildShell(); setTimeout(() => openPanel(id, null), 0); }
+    else { link.classList.add("dead"); toast(t("taskGone")); }
+    return;
+  }
+  if (e.target && e.target.tagName === "IMG"){ selectImage(e.target); return; }
+  const li = closestInEditor(e.target, n => n.tagName === "LI" && n.classList.contains("todo"));
+  if (li){
+    // İşaretleyici madde kutusunun solunda çizildiği için tıklama oraya düşer.
+    const r = li.getBoundingClientRect();
+    if (e.clientX < r.left){
+      e.preventDefault();
+      li.classList.toggle("done");
+      onEditorChanged();
+    }
+  }
+}
+
+/** Vurgu bir kip değil, kalemle işaretlemedir: paragraf sonunda bitmeli.
+ *  Aksi halde Enter'dan sonra yazılan her şey vurgulu çıkar ve kullanıcının
+ *  onu kapatması için metin seçmesi gerekirdi. Kalın/italik taşınmaya devam
+ *  eder — orada Ctrl+B imleçte çalıştığı için kaçış yolu var. */
+function stripCaretHighlight(){
+  const ed = editorEl(); if (!ed) return;
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
+  const span = closestInEditor(sel.getRangeAt(0).startContainer,
+    n => n.tagName === "SPAN" && /(^|\s)hl-[ygbp](\s|$)/.test(n.className || ""));
+  if (!span) return;
+  if (String(span.textContent || "").trim() !== "") return;   // yalnızca boş vurgu kabuğu
+  const parent = span.parentNode; if (!parent) return;
+  while (span.firstChild) parent.insertBefore(span.firstChild, span);
+  parent.removeChild(span);
+  const r = document.createRange();
+  r.selectNodeContents(parent); r.collapse(false);
+  sel.removeAllRanges(); sel.addRange(r);
+}
+
+function onEditorKeydown(e){
+  if (e.key === "Escape"){ e.stopPropagation(); e.target.blur(); return; }
+  if (e.key === "Enter"){ setTimeout(stripCaretHighlight, 0); return; }
+  if (e.key === "Tab"){
+    // Liste içinde girinti; dışarıda odak sırası bozulmasın diye dokunulmaz.
+    if (currentLi()){
+      e.preventDefault();
+      try { document.execCommand(e.shiftKey ? "outdent" : "indent"); } catch(err){}
+      onEditorChanged();
+    }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && !e.altKey){
+    const k = e.key.toLowerCase();
+    if (k === "b" || k === "i" || k === "u"){
+      // Tarayıcı zaten yapıyor ama değişikliği kaydetmemiz gerek.
+      setTimeout(onEditorChanged, 0);
+    }
+  }
+}
+
+/* --------------------------------------------------- resim seçim baloncuğu */
+let imgPopover = null;
+function closeImgPopover(){
+  if (imgPopover && imgPopover.parentNode) imgPopover.parentNode.removeChild(imgPopover);
+  imgPopover = null;
+  const ed = editorEl();
+  if (ed){ const s = ed.querySelectorAll("img.sel"); for (let i = 0; i < s.length; i++) s[i].classList.remove("sel"); }
+}
+function selectImage(img){
+  closeImgPopover();
+  img.classList.add("sel");
+  const r = img.getBoundingClientRect();
+  const size = (cls) => () => {
+    img.className = cls;
+    onEditorChanged(); closeImgPopover();
+  };
+  imgPopover = el("div", { class:"toast", style:"position:fixed;z-index:70;padding:6px;gap:4px;top:" +
+      Math.max(8, r.top - 46) + "px;left:" + Math.max(8, r.left) + "px" },
+    el("button", { class:"btn", onclick: size("img-sm") }, t("imgSmall")),
+    el("button", { class:"btn", onclick: size("img-md") }, t("imgMedium")),
+    el("button", { class:"btn", onclick: size("img-lg") }, t("imgLarge")),
+    el("button", { class:"btn btn-danger", onclick(){
+      if (img.parentNode) img.parentNode.removeChild(img);
+      onEditorChanged(); closeImgPopover(); renderStorageMeter();
+    }}, icon("trash"))
+  );
+  document.body.appendChild(imgPopover);
+}
+document.addEventListener("mousedown", e => {
+  if (imgPopover && !imgPopover.contains(e.target) && !(e.target && e.target.tagName === "IMG")) closeImgPopover();
+});
+
+/* ----------------------------------------------------- nottan görev yapma */
+function taskifySelection(){
+  const ed = editorEl(); if (!ed) return;
+  ed.focus();
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
+  const text = String(sel.toString()).replace(/\s+/g, " ").trim();
+  if (!text){ toast(t("selectFirst")); return; }
+
+  const range = sel.getRangeAt(0).cloneRange();
+  const nb = currentNotebook(), page = currentPage();
+  const task = addTask(text.slice(0, 300));
+  task.sourceNoteId = (nb && page) ? { notebookId: nb.id, pageId: page.id } : null;
+  stamp(task); scheduleSave();
+
+  const span = document.createElement("span");
+  span.className = "note-link";
+  span.setAttribute("data-task", task.id);
+  try { range.surroundContents(span); }
+  catch(e){ span.appendChild(range.extractContents()); range.insertNode(span); }
+  sel.removeAllRanges();
+  onEditorChanged();
+  toast(t("taskFromNote") + " " + text.slice(0, 48));
+}
+
+/** Görev panelinden kaynak nota gitmek için. */
+function openSourceNote(task){
+  const link = task && task.sourceNoteId;
+  if (!link) return;
+  const page = getPage(link.notebookId, link.pageId);
+  if (!page){ toast(t("noteGone")); return; }
+  ui.view = "notes"; ui.nbId = link.notebookId; ui.pageId = link.pageId;
+  closePanel();
+  buildShell();
+}
+
 /* --------------------------------------------------------- tema ve dil */
 function themeIcon(){ return { auto:"auto", light:"sun", dark:"moon" }[state.settings.theme]; }
 function themeTitle(){ return { auto:t("themeAuto"), light:t("themeLight"), dark:t("themeDark") }[state.settings.theme]; }
@@ -1241,6 +2494,7 @@ function cycleTheme(){
   }
 }
 function toggleLang(){
+  flushEditor();
   state.settings.lang = state.settings.lang === "tr" ? "en" : "tr";
   document.documentElement.lang = state.settings.lang;
   scheduleSave();
@@ -1259,7 +2513,11 @@ function download(filename, text, mime){
 }
 
 function exportJson(){
-  const payload = { version:SCHEMA_VERSION, exportedAt:new Date().toISOString(), settings:state.settings, tasks:state.tasks };
+  flushEditor();
+  const payload = {
+    version: SCHEMA_VERSION, exportedAt: new Date().toISOString(),
+    settings: state.settings, tasks: state.tasks, notebooks: notes.notebooks
+  };
   download("taskhub-" + ymd(new Date()) + ".json", JSON.stringify(payload, null, 2), "application/json");
   state.settings.lastBackupAt = new Date().toISOString();
   ui.nagHidden = true;
@@ -1292,7 +2550,84 @@ function exportCsv(){
   toast(t("exported"));
 }
 
+/* Notları tek başına yeten bir HTML dosyasına döker. Zengin metnin kendi
+   biçimine kilitlenmesine karşı çıkış kapısı: dosya herhangi bir tarayıcıda
+   açılır, okunur ve yazdırılır. */
+function notesToHtml(){
+  const esc = s => String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const out = [
+    '<!doctype html><html lang="' + state.settings.lang + '"><head><meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    "<title>" + esc(t("notesHtmlTitle")) + "</title><style>",
+    "body{max-width:820px;margin:40px auto;padding:0 20px;font:16px/1.65 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#16181d}",
+    "h1.nb{margin:44px 0 4px;font-size:26px;border-bottom:2px solid #5b5bd6;padding-bottom:6px}",
+    "h2.pg{margin:30px 0 2px;font-size:20px}",
+    ".meta{color:#6b7280;font-size:12.5px;margin:0 0 12px}",
+    "img{max-width:100%;height:auto;border-radius:8px}",
+    "img.img-sm{max-width:220px}img.img-md{max-width:460px}",
+    ".hl-y{background:#fde68a}.hl-g{background:#bbf7d0}.hl-b{background:#bfdbfe}.hl-p{background:#f5d0fe}",
+    "ul li.todo{list-style:none}ul li.todo::before{content:'☐ ';margin-left:-1.2em}",
+    "ul li.todo.done::before{content:'☑ '}ul li.todo.done{color:#8b93a3;text-decoration:line-through}",
+    "blockquote{margin:0 0 10px;padding-left:14px;border-left:3px solid #c8cedb;color:#666e7d}",
+    "code{background:#f1f3f5;border-radius:4px;padding:1px 5px}",
+    "pre{background:#f1f3f5;border-radius:8px;padding:11px 13px;overflow-x:auto}",
+    "hr{border:0;border-top:1px solid #dfe3e9;margin:18px 0}",
+    "@media print{body{margin:0}h1.nb{page-break-before:always}}",
+    "</style></head><body>",
+    "<p class=\"meta\">" + esc(t("notesHtmlTitle")) + " · " + esc(formatStamp(new Date().toISOString())) + "</p>"
+  ];
+  for (const nb of notes.notebooks){
+    out.push('<h1 class="nb">' + esc(nb.name) + "</h1>");
+    if (!nb.pages.length) out.push('<p class="meta">' + esc(t("noPages")) + "</p>");
+    for (const page of nb.pages){
+      out.push('<h2 class="pg">' + esc(pageTitleOf(page)) + "</h2>");
+      out.push('<p class="meta">' + esc(formatStamp(page.updatedAt)) + "</p>");
+      out.push(sanitizeHtml(page.html) || '<p class="meta">' + esc(t("emptyPagePreview")) + "</p>");
+    }
+  }
+  out.push("</body></html>");
+  return out.join("\n");
+}
+
+function exportNotesHtml(){
+  flushEditor();
+  download("taskhub-notlar-" + ymd(new Date()) + ".html", notesToHtml(), "text/html;charset=utf-8");
+  toast(t("exportedNotes"));
+}
+
 function pickImport(){ document.getElementById("fileInput").click(); }
+
+/** Defterleri iki kademede birleştirir: defter kabuğu için "yeni kazanır",
+ *  sayfalar için mevcut mergeImport. Tek kademe olsaydı yeni bir defter
+ *  sürümü, yalnızca eskisinde bulunan sayfaları düşürürdü. */
+function mergeNotebooks(current, incoming){
+  const out = current.slice();
+  const idx = new Map();
+  out.forEach((n, i) => idx.set(n.id, i));
+  let added = 0, updated = 0, kept = 0, pAdded = 0, pUpdated = 0, pKept = 0;
+  for (const inc of incoming){
+    if (!idx.has(inc.id)){
+      idx.set(inc.id, out.length); out.push(inc);
+      added++; pAdded += inc.pages.length;
+      continue;
+    }
+    const i = idx.get(inc.id), cur = out[i];
+    const pr = mergeImport(cur.pages, inc.pages);
+    const incNewer = ts(inc.updatedAt) > ts(cur.updatedAt);
+    out[i] = {
+      id: cur.id,
+      name: incNewer ? inc.name : cur.name,
+      color: incNewer ? inc.color : cur.color,
+      createdAt: cur.createdAt,
+      updatedAt: incNewer ? inc.updatedAt : cur.updatedAt,
+      pages: pr.tasks
+    };
+    if (incNewer) updated++; else kept++;
+    pAdded += pr.added; pUpdated += pr.updated; pKept += pr.kept;
+  }
+  return { notebooks: out, added, updated, kept, pAdded, pUpdated, pKept };
+}
 
 let pendingImport = null;
 function onFileChosen(e){
@@ -1303,11 +2638,14 @@ function onFileChosen(e){
   reader.onload = () => {
     let parsed;
     try { parsed = JSON.parse(String(reader.result)); } catch(err){ toast(t("importBad")); return; }
-    const tasks = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.tasks) ? parsed.tasks : null);
-    if (!tasks){ toast(t("importBad")); return; }
-    pendingImport = tasks.map(normalizeTask).filter(Boolean);
-    if (!pendingImport.length){ toast(t("importBad")); return; }
-    document.getElementById("importText").textContent = t("importText", { n: pendingImport.length });
+    const rawTasks = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.tasks) ? parsed.tasks : []);
+    const rawNbs = (parsed && Array.isArray(parsed.notebooks)) ? parsed.notebooks : [];
+    const tasks = rawTasks.map(normalizeTask).filter(Boolean);
+    const notebooks = rawNbs.map(normalizeNotebook).filter(Boolean);
+    if (!tasks.length && !notebooks.length){ toast(t("importBad")); return; }
+    pendingImport = { tasks, notebooks };
+    const pageCount = notebooks.reduce((n, nb) => n + nb.pages.length, 0);
+    document.getElementById("importText").textContent = t("importCounts", { t: tasks.length, p: pageCount });
     openImportDlg();
   };
   reader.onerror = () => toast(t("importBad"));
@@ -1337,20 +2675,28 @@ function buildImportDialog(){
     el("div", { class:"dlg-foot" },
       el("button", { class:"btn", onclick(){ closeImportDlg(); pendingImport = null; } }, t("cancel")),
       el("button", { class:"btn", onclick(){
-        const n = pendingImport.length;
-        state.tasks = pendingImport; pendingImport = null;
-        closeImportDlg();
-        closePanel(); scheduleSave(); render();
+        const n = pendingImport.tasks.length;
+        state.tasks = pendingImport.tasks;
+        notes.notebooks = pendingImport.notebooks;
+        pendingImport = null;
+        closeImportDlg(); closePanel();
+        ui.nbId = null; ui.pageId = null; editorPageId = null; dirtyEditor = false;
+        scheduleSave(); scheduleSaveNotes();
+        mountView();
         toast(t("importReplaced", { n }));
       }}, t("replace")),
       el("button", { class:"btn btn-primary", onclick(){
-        const r = mergeImport(state.tasks, pendingImport);
+        const r = mergeImport(state.tasks, pendingImport.tasks);
+        const nr = mergeNotebooks(notes.notebooks, pendingImport.notebooks);
         pendingImport = null;
         state.tasks = r.tasks;
+        notes.notebooks = nr.notebooks;
         closeImportDlg();
         if (openTaskId && !getTask(openTaskId)) closePanel();
-        scheduleSave(); render();
-        toast(t("importDone", { a:r.added, u:r.updated, k:r.kept }));
+        editorPageId = null; dirtyEditor = false;
+        scheduleSave(); scheduleSaveNotes();
+        mountView();
+        toast(t("importDone", { a: r.added + nr.added + nr.pAdded, u: r.updated + nr.updated + nr.pUpdated, k: r.kept + nr.kept + nr.pKept }));
       }}, t("merge"))
     )
   );
@@ -1364,6 +2710,7 @@ function isTyping(e){
 document.addEventListener("keydown", e => {
   if (e.key === "Escape"){
     if (importDlgOpen()) return;
+    if (imgPopover){ e.preventDefault(); closeImgPopover(); return; }
     if (openTaskId) { e.preventDefault(); closePanel(); }
     return;
   }
@@ -1373,7 +2720,12 @@ document.addEventListener("keydown", e => {
     const q = document.getElementById("q"); if (q){ q.focus(); q.select(); }
   } else if (e.key === "n" || e.key === "N"){
     e.preventDefault();
-    const q = document.getElementById("quick"); if (q) q.focus();
+    // Kısayol bağlama duyarlı: görevlerde yeni görev, notlarda yeni sayfa.
+    if (ui.view === "notes"){
+      if (currentNotebook() && addPage(ui.nbId)){ renderNotesView(); focusPageTitle(); }
+    } else {
+      const q = document.getElementById("quick"); if (q) q.focus();
+    }
   }
 });
 
@@ -1391,7 +2743,11 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
 window.addEventListener("focus", checkRollover);
 
 /* ------------------------------------------------------------------ çizim */
-function render(){ renderBanners(); renderSidebar(); renderList(); }
+function render(){
+  renderBanners();
+  if (ui.view === "notes") renderNotesView();
+  else { renderSidebar(); renderList(); }
+}
 
 /* =============================== TESTLER ================================ */
 function runTests(){
@@ -1477,6 +2833,90 @@ function runTests(){
   ok("normalize: çöp girdi null döner", normalizeTask(null) === null && normalizeTask("metin") === null);
   ok("normalize: tamamlanan görevde completedAt dolar", !!normalizeTask({ title:"x", done:true }).completedAt);
 
+  // --- sanitizeHtml: özelliğin güvenlik çekirdeği ---
+  const S = sanitizeHtml;
+  ok("sanitize: <script> tamamen düşer", S('<p>a</p><script>alert(1)<\/script>').indexOf("script") === -1);
+  ok("sanitize: script içindeki metin de gitmeli", S('<script>KOTU<\/script>').indexOf("KOTU") === -1);
+  ok("sanitize: onerror niteliği düşer", S('<img src="data:image/png;base64,AAAA" onerror="alert(1)">').indexOf("onerror") === -1);
+  ok("sanitize: onclick niteliği düşer", S('<p onclick="alert(1)">x</p>').indexOf("onclick") === -1);
+  ok("sanitize: style niteliği düşer", S('<p style="position:fixed">x</p>').indexOf("style") === -1);
+  ok("sanitize: javascript: href reddedilir", S('<a href="javascript:alert(1)">x</a>').indexOf("javascript") === -1);
+  ok("sanitize: JaVaScRiPt: de reddedilir", S('<a href="JaVaScRiPt:alert(1)">x</a>').toLowerCase().indexOf("javascript") === -1);
+  ok("sanitize: data:text/html href reddedilir", S('<a href="data:text/html,<b>x">y</a>').indexOf("data:text") === -1);
+  ok("sanitize: https href korunur", S('<a href="https://ornek.com/a-b">x</a>').indexOf("https://ornek.com/a-b") !== -1);
+  ok("sanitize: tiredeki URL bozulmaz", S('<a href="https://a.com/bir-iki-uc">x</a>').indexOf("bir-iki-uc") !== -1);
+  ok("sanitize: dış bağlantıya rel eklenir", S('<a href="https://a.com">x</a>').indexOf("noopener") !== -1);
+  ok("sanitize: data:image src korunur", S('<img src="data:image/png;base64,iVBORw0KGgo=">').indexOf("data:image/png") !== -1);
+  ok("sanitize: data:text/html img reddedilir", S('<img src="data:text/html;base64,AAAA">').indexOf("<img") === -1);
+  ok("sanitize: http kaynaklı img reddedilir", S('<img src="http://iz.surucu/x.png">').indexOf("<img") === -1);
+  ok("sanitize: iframe düşer", S('<iframe src="https://a.com"></iframe>').indexOf("iframe") === -1);
+  ok("sanitize: svg düşer", S('<svg><script>alert(1)<\/script></svg>').indexOf("svg") === -1);
+  eq("sanitize: <div> korunur (satır sonları için)", S("<div>a</div>"), "<div>a</div>");
+  ok("sanitize: <table> açılır ama metin kalır", S("<table><tr><td>hucre</td></tr></table>").indexOf("hucre") !== -1);
+  ok("sanitize: <font> açılır, metin kalır", S('<font color="red">renk</font>').indexOf("renk") !== -1);
+  eq("sanitize: iç içe biçim korunur", S("<b><i>x</i></b>"), "<b><i>x</i></b>");
+  eq("sanitize: izinli class kalır", S('<span class="hl-y">x</span>'), '<span class="hl-y">x</span>');
+  ok("sanitize: izinsiz class atılır", S('<span class="evil">x</span>').indexOf("evil") === -1);
+  eq("sanitize: todo maddesi korunur", S('<li class="todo done">x</li>'), '<li class="todo done">x</li>');
+  ok("sanitize: data-task korunur", S('<span class="note-link" data-task="abc-123">x</span>').indexOf('data-task="abc-123"') !== -1);
+  ok("sanitize: bozuk data-task atılır", S('<span data-task="a b<c">x</span>').indexOf("data-task") === -1);
+  eq("sanitize: boş girdi", S(""), "");
+  eq("sanitize: null girdi", S(null), "");
+  ok("sanitize: kapanmamış etiketle çökmez", typeof S("<b><i>acik") === "string");
+  ok("sanitize: yorum düğümü düşer", S("<!-- gizli --><p>x</p>").indexOf("gizli") === -1);
+  ok("sanitize: iki kez süzmek sonucu değiştirmez", S(S('<p><b>x</b></p>')) === S('<p><b>x</b></p>'));
+
+  // --- noteText ---
+  eq("noteText: etiketler soyulur", noteText("<p>bir <b>iki</b></p>"), "bir iki");
+  eq("noteText: boşluklar tekilleşir", noteText("<p>a</p>\n\n<p>   b   </p>"), "a b");
+  eq("noteText: bloklar yapışmaz", noteText("<h2>Gündem</h2><p>Bu satır</p>"), "Gündem Bu satır");
+  eq("noteText: liste maddeleri ayrılır", noteText("<ul><li>bir</li><li>iki</li></ul>"), "bir iki");
+  eq("noteText: <br> boşluk sayılır", noteText("a<br>b"), "a b");
+  ok("noteText: bloklar arası arama eşleşir",
+     foldTr(noteText("<h2>Gündem</h2><p>maddeleri</p>")).indexOf(foldTr("gundem maddeleri")) !== -1);
+  eq("noteText: varlıklar çözülür", noteText("<p>a &amp; b</p>"), "a & b");
+  eq("noteText: boş girdi", noteText(""), "");
+  ok("noteText + foldTr: 'istanbul' araması 'İstanbul'u bulur",
+     foldTr(noteText("<p>İstanbul toplantısı</p>")).indexOf(foldTr("istanbul")) !== -1);
+
+  // --- not şeması ---
+  eq("normalizeNotePage: başlık kırpılır", normalizeNotePage({ title:"x" }).title, "x");
+  ok("normalizeNotePage: html süzgeçten geçer", normalizeNotePage({ title:"x", html:"<script>k<\/script><p>iyi</p>" }).html.indexOf("script") === -1);
+  ok("normalizeNotePage: çöp girdi null", normalizeNotePage(null) === null && normalizeNotePage(7) === null);
+  eq("normalizeNotebook: isimsiz deftere ad verilir", !!normalizeNotebook({}).name, true);
+  eq("normalizeNotebook: pages dizi değilse boşalır", normalizeNotebook({ name:"a", pages:"olmaz" }).pages, []);
+  eq("normalizeNotebook: geçersiz renk düzeltilir", normalizeNotebook({ name:"a", color:"kirmizi" }).color, NB_COLORS[0]);
+  eq("normalizeNotes: notebooks dizi değilse boşalır", normalizeNotes({ notebooks:{} }).notebooks, []);
+
+  // --- mergeNotebooks: iki kademeli birleştirme ---
+  const nbCur = [{ id:"n1", name:"Eski", color:"#111111", createdAt:"2026-01-01T00:00:00.000Z",
+    updatedAt:"2026-01-01T00:00:00.000Z", pages:[
+      { id:"p1", title:"Sayfa 1 eski", html:"", createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z" },
+      { id:"p2", title:"Yalnız burada", html:"", createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z" }
+    ]}];
+  const nbInc = [{ id:"n1", name:"Yeni", color:"#222222", createdAt:"2026-01-01T00:00:00.000Z",
+    updatedAt:"2026-06-01T00:00:00.000Z", pages:[
+      { id:"p1", title:"Sayfa 1 yeni", html:"", createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-06-01T00:00:00.000Z" },
+      { id:"p3", title:"Yeni sayfa", html:"", createdAt:"2026-06-01T00:00:00.000Z", updatedAt:"2026-06-01T00:00:00.000Z" }
+    ]}];
+  const nbr = mergeNotebooks(nbCur, nbInc);
+  eq("mergeNotebooks: defter sayısı", nbr.notebooks.length, 1);
+  eq("mergeNotebooks: yeni defter adı kazanır", nbr.notebooks[0].name, "Yeni");
+  eq("mergeNotebooks: sayfa sayısı (hiçbiri kaybolmaz)", nbr.notebooks[0].pages.length, 3);
+  eq("mergeNotebooks: yeni sayfa sürümü kazanır", nbr.notebooks[0].pages.find(p => p.id === "p1").title, "Sayfa 1 yeni");
+  ok("mergeNotebooks: yalnız yerelde olan sayfa korunur", !!nbr.notebooks[0].pages.find(p => p.id === "p2"));
+  eq("mergeNotebooks: girdi dizisi değişmedi", nbCur[0].pages.length, 2);
+  eq("mergeNotebooks: bilinmeyen defter eklenir", mergeNotebooks([], nbInc).added, 1);
+
+  // --- depolama ölçümü ---
+  ok("storageBytes: pozitif ve sayı", typeof storageBytes() === "number" && storageBytes() > 0);
+  eq("formatBytes: KB", formatBytes(2048), "2 KB");
+  eq("formatBytes: MB", formatBytes(1024 * 1024 * 3), "3.0 MB");
+  eq("formatBytes: B", formatBytes(500), "500 B");
+
+  // --- notlardan HTML üretimi ---
+  ok("notesToHtml: doctype ile başlar", notesToHtml().indexOf("<!doctype html>") === 0);
+
   const failed = results.filter(r => !r.pass);
   document.getElementById("root").append(el("div", { class:"testwrap" },
     el("h1", { text: "TaskHub — mantık testleri" }),
@@ -1493,6 +2933,7 @@ function runTests(){
 /* -------------------------------------------------------------- başlangıç */
 storageOK = probeStorage();
 state = load();
+notes = loadNotes();
 applyTheme();
 document.documentElement.lang = state.settings.lang;
 
