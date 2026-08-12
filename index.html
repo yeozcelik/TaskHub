@@ -333,6 +333,30 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .pg-item .pg-prev{font-size:12.5px;color:var(--muted);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2;overflow:hidden}
 .pg-item .pg-date{font-size:11px;color:var(--faint);margin-top:5px}
 .pg-list{display:flex;flex-direction:column;gap:2px;list-style:none;margin:0;padding:0}
+.pg-row{position:relative}
+.pg-acts{position:absolute;top:5px;right:5px;opacity:0;transition:opacity .12s}
+.pg-row:hover .pg-acts,.pg-row:focus-within .pg-acts{opacity:1}
+.pg-acts button{border:0;background:var(--surface);cursor:pointer;color:var(--faint);padding:5px;border-radius:5px;line-height:0;box-shadow:var(--sh-1)}
+.pg-acts button:hover{background:var(--danger-soft);color:var(--danger)}
+.pg-acts svg{width:13px;height:13px}
+@media (hover:none){.pg-acts{opacity:1}}
+
+.ed-head{display:flex;align-items:flex-start;gap:6px;padding-right:20px}
+.ed-head .ed-title{flex:1}
+.ed-head .btn{margin-top:20px;flex:none}
+
+/* Resim boyutlandırma tutamakları — sayfa akışını bozmasın diye body'ye
+   sabit konumla takılır, kaydırma ve pencere boyutunda yeniden konumlanır. */
+.img-handles{position:fixed;z-index:70;pointer-events:none;outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.img-handles .h{
+  position:absolute;width:12px;height:12px;background:var(--accent);border:2px solid var(--surface);
+  border-radius:3px;pointer-events:auto;touch-action:none;
+}
+.img-handles .h-nw{left:-7px;top:-7px;cursor:nwse-resize}
+.img-handles .h-ne{right:-7px;top:-7px;cursor:nesw-resize}
+.img-handles .h-sw{left:-7px;bottom:-7px;cursor:nesw-resize}
+.img-handles .h-se{right:-7px;bottom:-7px;cursor:nwse-resize}
+.img-pop{flex-wrap:wrap;max-width:min(92vw,340px)}
 
 /* ---------- Editör ---------- */
 .ed-pane{height:100%;display:flex;flex-direction:column;min-width:0}
@@ -537,6 +561,8 @@ const ICON = {
   eraser:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 15 6-6 7 7-4 4H8Z"/><path d="M11 9 15 5a2 2 0 0 1 3 0l3 3a2 2 0 0 1 0 3l-3 3M4 21h16"/></svg>',
   quote:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v2a2 2 0 0 1-2 2H4M20 6h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v2a2 2 0 0 1-2 2h-1"/></svg>',
   code:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg>',
+  undo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>',
+  redo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>',
   taskify:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11M3 12h7M3 18h7"/><circle cx="17" cy="16" r="5"/><path d="m15 16 1.5 1.5L19.5 14"/></svg>',
 };
 
@@ -605,6 +631,13 @@ const I18N = {
     tbQuote:"Alıntı", tbCode:"Kod", tbLink:"Bağlantı ekle", tbImage:"Resim ekle",
     tbClear:"Biçimi temizle", tbHl:"Vurgu", tbHlNone:"Vurguyu kaldır",
     tbTaskify:"Seçili metinden görev oluştur",
+    tbUndo:"Geri al (Ctrl+Z)", tbRedo:"Yinele (Ctrl+Y)",
+    histTooBig:"Bu sayfa geri alma geçmişi için fazla büyük; geçmiş sıfırlandı.",
+    imgLost:"{n} resim aktarılamadı (Word yerel dosya bağlantısı kullanıyor).",
+    imgAppended:"1 resim metnin sonuna eklendi — özgün konumu korunamadı.",
+    imgGifKept:"Animasyonlu GIF olduğu gibi saklandı ({n}).",
+    imgGifFlattened:"GIF çok büyüktü; ilk kare kaydedildi, animasyon kayboldu.",
+    imgResetSize:"Asıl boyuta döndürüldü.",
     linkPrompt:"Bağlantı adresi:",
     selectFirst:"Önce metni seç.",
     taskFromNote:"Görev oluşturuldu:", sourceNote:"Kaynak not", openNote:"Notu aç",
@@ -686,6 +719,13 @@ const I18N = {
     tbQuote:"Quote", tbCode:"Code", tbLink:"Insert link", tbImage:"Insert image",
     tbClear:"Clear formatting", tbHl:"Highlight", tbHlNone:"Remove highlight",
     tbTaskify:"Create a task from the selection",
+    tbUndo:"Undo (Ctrl+Z)", tbRedo:"Redo (Ctrl+Y)",
+    histTooBig:"This page is too large for undo history; history was reset.",
+    imgLost:"{n} image(s) could not be transferred (Word uses local file links).",
+    imgAppended:"1 image was appended at the end — its original position could not be kept.",
+    imgGifKept:"Animated GIF stored as-is ({n}).",
+    imgGifFlattened:"The GIF was too large; only the first frame was saved, animation lost.",
+    imgResetSize:"Reset to original size.",
     linkPrompt:"Link address:",
     selectFirst:"Select some text first.",
     taskFromNote:"Task created:", sourceNote:"Source note", openNote:"Open note",
@@ -842,6 +882,10 @@ function cleanFragment(src, doc, depth){
         if (u) out.setAttribute("src", u);
       } else if (name === "alt" && tag === "IMG"){
         out.setAttribute("alt", val.slice(0, 200));
+      } else if (name === "width" && tag === "IMG"){
+        // Genişlik satır içi stille değil HTML niteliğiyle saklanır; style süzgeçten geçmiyor.
+        const n = parseInt(val, 10);
+        if (isFinite(n) && n >= 40 && n <= 1600) out.setAttribute("width", String(n));
       } else if (name === "class"){
         const cls = val.split(/\s+/).filter(c => OK_CLASS[c]);
         if (cls.length) out.setAttribute("class", cls.join(" "));
@@ -1814,12 +1858,12 @@ function deleteNotebook(id){
   const [nb] = notes.notebooks.splice(i, 1);
   if (ui.nbId === id){ ui.nbId = null; ui.pageId = null; }
   ensureNotebook();
-  scheduleSaveNotes(); renderNotesView();
+  scheduleSaveNotes(); renderNotesView(true);
   // Defter silmek içindeki bütün sayfaları götürür; geri alma burada kritik.
   toast(t("notebookDeleted") + " — " + nb.name, { label: t("undo"), run(){
     notes.notebooks.splice(Math.min(i, notes.notebooks.length), 0, nb);
     ui.nbId = nb.id; ui.pageId = null;
-    scheduleSaveNotes(); renderNotesView();
+    scheduleSaveNotes(); renderNotesView(true);
     toast(t("notebookRestored"));
   }}, 10000);
 }
@@ -1829,13 +1873,20 @@ function deletePage(nbId, pageId){
   const i = nb.pages.findIndex(p => p.id === pageId);
   if (i < 0) return;
   const [page] = nb.pages.splice(i, 1);
-  if (ui.pageId === pageId) ui.pageId = null;
+  dropHistory(pageId);
+  plainCache.delete(pageId);
+  // Açık sayfa silindiyse: aynı sıradaki, yoksa bir önceki, o da yoksa hiçbiri.
+  if (ui.pageId === pageId){
+    const next = nb.pages[i] || nb.pages[i - 1] || null;
+    ui.pageId = next ? next.id : null;
+  }
+  if (editorPageId === pageId) editorPageId = null;
   nb.updatedAt = new Date().toISOString();
-  scheduleSaveNotes(); renderNotesView();
+  scheduleSaveNotes(); renderNotesView(true);
   toast(t("pageDeleted"), { label: t("undo"), run(){
     nb.pages.splice(Math.min(i, nb.pages.length), 0, page);
     ui.nbId = nb.id; ui.pageId = page.id;
-    scheduleSaveNotes(); renderNotesView();
+    scheduleSaveNotes(); renderNotesView(true);
     toast(t("pageRestored"));
   }}, 8000);
 }
@@ -1959,7 +2010,7 @@ function renderPageList(){
   const list = el("ul", { class:"pg-list" });
   for (const page of pages){
     const preview = pagePlain(page).slice(0, 160);
-    list.append(el("li", {},
+    list.append(el("li", { class:"pg-row" },
       el("button", {
         class:"pg-item", "aria-current": String(ui.pageId === page.id),
         onclick(){ openPage(page.id); }
@@ -1967,6 +2018,10 @@ function renderPageList(){
         el("div", { class:"pg-title", text: pageTitleOf(page) }),
         el("div", { class:"pg-prev", text: preview || t("emptyPagePreview") }),
         el("div", { class:"pg-date", text: formatStamp(page.updatedAt) })
+      ),
+      el("span", { class:"pg-acts" },
+        el("button", { title: t("deletePage"), "aria-label": t("deletePage") + ": " + pageTitleOf(page),
+          onclick(e){ e.stopPropagation(); deletePage(nb.id, page.id); } }, icon("trash"))
       )
     ));
   }
@@ -1987,9 +2042,11 @@ let editorPageId = null;
 let dirtyEditor = false;
 let pageListTimer = null;
 
-function renderNotesView(){
+const FORCE_EDITOR = { force: true };   // ui.pageId ile asla eşleşmeyen nöbetçi
+function renderNotesView(forceEditor){
   renderNotebooks();
   renderPageList();
+  if (forceEditor) editorPageId = FORCE_EDITOR;
   if (editorPageId !== ui.pageId) renderEditor();
   else updateToolbarState();
 }
@@ -2056,29 +2113,320 @@ function renderEditor(){
   const editor = el("div", {
     id:"editor", class:"editor", contenteditable:"true", spellcheck:"false",
     role:"textbox", "aria-multiline":"true", "aria-label": t("editorPh"),
-    oninput: onEditorChanged,
-    onkeyup: updateToolbarState,
-    onmouseup: updateToolbarState,
+    oninput: onEditorInput,
+    oncompositionstart(){ composing = true; },
+    oncompositionend(){ composing = false; onEditorInput(); },
+    onkeyup(){ updateToolbarState(); },
+    onmouseup(){ updateToolbarState(); },
     onpaste: onEditorPaste,
     ondragover(e){ if (e.dataTransfer && e.dataTransfer.types && [].indexOf.call(e.dataTransfer.types, "Files") !== -1) e.preventDefault(); },
     ondrop: onEditorDrop,
     onclick: onEditorClick,
+    ondblclick(e){ if (e.target && e.target.tagName === "IMG"){ e.preventDefault(); resetImgSize(e.target); } },
     onkeydown: onEditorKeydown
   });
   editor.innerHTML = sanitizeHtml(page.html);
   if (!editor.innerHTML.trim()) editor.innerHTML = "<p><br></p>";
 
   pane.append(
-    title,
+    el("div", { class:"ed-head" },
+      title,
+      el("button", { class:"btn btn-ghost btn-icon", title: t("deletePage"), "aria-label": t("deletePage"),
+        onclick(){ deletePage(ui.nbId, page.id); } }, icon("trash"))
+    ),
     el("div", { class:"ed-meta", text: t("updated") + ": " + formatStamp(page.updatedAt) }),
     buildToolbar(),
     editor
   );
 
+  // Geçmişin tabanı: bu sayfanın yığını korunur, geri dönünce devam eder.
+  clearTimeout(burstTimer); burstTimer = null; burstOpen = false; composing = false;
+  lastHtml = packImages(editor.innerHTML);
+  updateUndoButtons();
+
   // Etiket tabanlı biçimlendirme: kapalıyken tarayıcılar <span style> üretir,
   // süzgeç style'ı attığı için biçim kaybolurdu.
   try { document.execCommand("styleWithCSS", false, false); } catch(e){}
   updateToolbarState();
+}
+
+/* ========================= GERİ ALMA / YİNELEME =========================
+ * Tarayıcının kendi yığını yalnızca execCommand'i ve doğal yazmayı görür.
+ * Vurgu, kutucuk, resim ve boyutlandırma DOM'u doğrudan değiştirdiği için
+ * oraya hiç yazılmıyordu — üstelik araya giren doğrudan değişiklik mevcut
+ * geçmişi de tutarsızlaştırıyordu. Bu yüzden kendi anlık görüntü yığınımız. */
+
+const HIST_MAX_STEPS = 80;                    // sayfa başına adım
+const HIST_MAX_TOTAL = 12 * 1024 * 1024;      // UYGULAMA GENELİ bütçe
+const HIST_MAX_STATE = 2 * 1024 * 1024;       // tek durumun tavanı
+const BURST_MS = 500;
+
+const HISTORY = { perPage: new Map(), images: new Map(), totalBytes: 0 };
+let lastHtml = "";        // geçmişteki en son bilinen durum (seri açıkken güncellenmez)
+let burstTimer = null, burstOpen = false, composing = false, applyingHistory = false;
+
+/** Anlık görüntülerde resim verisi TEKRARLANMAZ: her data URL içerik anahtarıyla
+ *  tek bir haritada tutulur, HTML'de yalnızca "ref:" yer tutucusu kalır.
+ *  Aksi halde tek bir resim her tuş vuruşunda yeniden kopyalanır ve bütçe
+ *  birkaç adımda dolardı. */
+function imgKey(url){
+  let h = 0x811c9dc5;
+  for (let i = 0; i < url.length; i++){
+    h = (h ^ url.charCodeAt(i)) >>> 0;
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return h.toString(36) + "z" + url.length.toString(36);
+}
+function packImages(html){
+  return String(html).replace(/src="(data:image\/[^"]*)"/g, (m, url) => {
+    const k = imgKey(url);
+    if (!HISTORY.images.has(k)) HISTORY.images.set(k, url);
+    return 'src="ref:' + k + '"';
+  });
+}
+function unpackImages(html){
+  return String(html).replace(/src="ref:([a-z0-9]+z[a-z0-9]+)"/g, (m, k) => {
+    const url = HISTORY.images.get(k);
+    return url ? 'src="' + url + '"' : 'src=""';
+  });
+}
+
+/* --- seçim: düğüm yolu + düz metin sırası (yol geçersizse ona düşülür) --- */
+function nodePath(root, node){
+  const path = [];
+  let n = node;
+  while (n && n !== root){
+    const p = n.parentNode;
+    if (!p) return null;
+    path.unshift([].indexOf.call(p.childNodes, n));
+    n = p;
+  }
+  return n === root ? path : null;
+}
+function nodeAtPath(root, path){
+  let n = root;
+  for (let i = 0; i < path.length; i++){
+    if (!n || !n.childNodes || !n.childNodes[path[i]]) return null;
+    n = n.childNodes[path[i]];
+  }
+  return n;
+}
+function textOffsetOf(root, node, offset){
+  let total = 0, found = false;
+  (function walk(n){
+    if (found) return;
+    if (n === node && n.nodeType !== 3){
+      // eleman içi konum: ilk `offset` çocuğun metni kadar ilerle
+      for (let i = 0; i < offset && i < n.childNodes.length; i++) total += String(n.childNodes[i].textContent || "").length;
+      found = true; return;
+    }
+    if (n.nodeType === 3){
+      if (n === node){ total += offset; found = true; return; }
+      total += n.nodeValue.length; return;
+    }
+    for (let i = 0; i < n.childNodes.length; i++){ walk(n.childNodes[i]); if (found) return; }
+  })(root);
+  return found ? total : null;
+}
+function locateTextOffset(root, target){
+  let seen = 0, hit = null;
+  (function walk(n){
+    if (hit) return;
+    if (n.nodeType === 3){
+      const len = n.nodeValue.length;
+      if (seen + len >= target){ hit = { node: n, offset: Math.max(0, target - seen) }; return; }
+      seen += len; return;
+    }
+    for (let i = 0; i < n.childNodes.length; i++){ walk(n.childNodes[i]); if (hit) return; }
+  })(root);
+  return hit || { node: root, offset: root.childNodes.length };
+}
+function selectionBackward(sel){
+  if (!sel.anchorNode || !sel.focusNode || sel.isCollapsed) return false;
+  const pos = sel.anchorNode.compareDocumentPosition(sel.focusNode);
+  if (pos & Node.DOCUMENT_POSITION_PRECEDING) return true;
+  if (pos === 0) return sel.focusOffset < sel.anchorOffset;
+  return false;
+}
+function captureSel(ed){
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  if (!ed.contains(sel.anchorNode) || !ed.contains(sel.focusNode)) return null;
+  return {
+    aPath: nodePath(ed, sel.anchorNode), aOff: sel.anchorOffset,
+    fPath: nodePath(ed, sel.focusNode),  fOff: sel.focusOffset,
+    aText: textOffsetOf(ed, sel.anchorNode, sel.anchorOffset),
+    fText: textOffsetOf(ed, sel.focusNode, sel.focusOffset),
+    backward: selectionBackward(sel)
+  };
+}
+function restoreSel(ed, s){
+  if (!s) return;
+  const sel = window.getSelection(); if (!sel) return;
+  const resolve = (path, off, textOff) => {
+    let node = path ? nodeAtPath(ed, path) : null;
+    if (node){
+      const max = node.nodeType === 3 ? node.nodeValue.length : node.childNodes.length;
+      return { node, offset: Math.min(off, max) };
+    }
+    return locateTextOffset(ed, textOff == null ? 0 : textOff);   // yol geçersiz → metin sırası
+  };
+  const a = resolve(s.aPath, s.aOff, s.aText);
+  const f = resolve(s.fPath, s.fOff, s.fText);
+  try {
+    sel.removeAllRanges();
+    const r = document.createRange();
+    r.setStart(a.node, a.offset); r.setEnd(a.node, a.offset);
+    sel.addRange(r);
+    if (sel.extend && (f.node !== a.node || f.offset !== a.offset)) sel.extend(f.node, f.offset);
+  } catch(e){ /* yapı çok değiştiyse imleç neredeyse oraya düşer, sorun değil */ }
+}
+
+/* ------------------------------------------------------------ yığın işlemleri */
+function histFor(pageId){
+  let h = HISTORY.perPage.get(pageId);
+  if (!h){ h = { undo: [], redo: [], bytes: 0 }; HISTORY.perPage.set(pageId, h); }
+  return h;
+}
+function dropHistory(pageId){
+  const h = HISTORY.perPage.get(pageId);
+  if (!h) return;
+  HISTORY.totalBytes -= h.bytes;
+  HISTORY.perPage.delete(pageId);
+  gcHistoryImages();
+}
+function stateOf(html, sel){ return { html, sel, size: html.length * 2 }; }
+
+function pushUndo(html){
+  if (!editorPageId || applyingHistory) return;
+  const ed = editorEl(); if (!ed) return;
+  const h = histFor(editorPageId);
+  const last = h.undo[h.undo.length - 1];
+  if (last && last.html === html) return;         // değişmemişse adım açma
+  const st = stateOf(html, captureSel(ed));
+  if (st.size > HIST_MAX_STATE){
+    // Tek durum tavanı aşıldı: geçmişi tutmak belleği yer, kesip haber veriyoruz.
+    HISTORY.totalBytes -= h.bytes;
+    h.undo.length = 0; h.redo.length = 0; h.bytes = 0;
+    toast(t("histTooBig"), null, 7000);
+    return;
+  }
+  h.undo.push(st); h.bytes += st.size; HISTORY.totalBytes += st.size;
+  h.redo.length = 0;                              // yeni düzenleme ileri alma dalını siler
+  pruneHistory();
+  updateUndoButtons();
+}
+
+function pruneHistory(){
+  const h = histFor(editorPageId);
+  while (h.undo.length > HIST_MAX_STEPS){
+    const s = h.undo.shift(); h.bytes -= s.size; HISTORY.totalBytes -= s.size;
+  }
+  if (HISTORY.totalBytes <= HIST_MAX_TOTAL){ return; }
+  // Bütçe aşıldı: önce AKTİF OLMAYAN sayfaların geçmişi budanır.
+  const others = [];
+  HISTORY.perPage.forEach((v, k) => { if (k !== editorPageId) others.push(k); });
+  for (const id of others){
+    const hh = HISTORY.perPage.get(id);
+    while ((hh.undo.length || hh.redo.length) && HISTORY.totalBytes > HIST_MAX_TOTAL){
+      const s = hh.undo.length ? hh.undo.shift() : hh.redo.shift();
+      hh.bytes -= s.size; HISTORY.totalBytes -= s.size;
+    }
+    if (!hh.undo.length && !hh.redo.length) HISTORY.perPage.delete(id);
+    if (HISTORY.totalBytes <= HIST_MAX_TOTAL) break;
+  }
+  while (HISTORY.totalBytes > HIST_MAX_TOTAL && h.undo.length > 1){
+    const s = h.undo.shift(); h.bytes -= s.size; HISTORY.totalBytes -= s.size;
+  }
+  gcHistoryImages();
+}
+
+/** Artık hiçbir anlık görüntünün atıfta bulunmadığı resimleri haritadan at. */
+function gcHistoryImages(){
+  if (!HISTORY.images.size) return;
+  const alive = new Set();
+  const scan = (html) => {
+    const re = /src="ref:([a-z0-9]+z[a-z0-9]+)"/g;
+    let m; while ((m = re.exec(html))) alive.add(m[1]);
+  };
+  HISTORY.perPage.forEach(h => { h.undo.forEach(s => scan(s.html)); h.redo.forEach(s => scan(s.html)); });
+  scan(lastHtml);
+  HISTORY.images.forEach((v, k) => { if (!alive.has(k)) HISTORY.images.delete(k); });
+}
+
+/* ---------------------------------------------------- seri (burst) yönetimi */
+function closeBurst(){
+  clearTimeout(burstTimer); burstTimer = null;
+  if (!burstOpen) return;
+  burstOpen = false;
+  const ed = editorEl();
+  if (ed) lastHtml = packImages(ed.innerHTML);
+  updateUndoButtons();
+}
+
+/** Yapısal değişiklikler bunun içinde yapılır: açık seriyi kapatır, DEĞİŞİKLİKTEN
+ *  ÖNCEKİ durumu geçmişe yazar, sonra yeni durumu taban alır. */
+function withUndo(fn){
+  const ed = editorEl(); if (!ed) return;
+  if (applyingHistory) { fn(); return; }
+  closeBurst();
+  pushUndo(packImages(ed.innerHTML));
+  fn();
+  lastHtml = packImages(ed.innerHTML);
+  updateUndoButtons();
+}
+
+function onEditorInput(){
+  if (composing) return;                       // IME bileşimi bitene kadar bekle
+  if (!burstOpen){ pushUndo(lastHtml); burstOpen = true; }
+  clearTimeout(burstTimer);
+  burstTimer = setTimeout(closeBurst, BURST_MS);
+  onEditorChanged();
+}
+
+function applyState(ed, st){
+  applyingHistory = true;
+  ed.innerHTML = unpackImages(st.html);
+  restoreSel(ed, st.sel);
+  applyingHistory = false;
+  dirtyEditor = true;
+  scheduleSaveNotes();
+  schedulePageListRefresh();
+  updateToolbarState();
+  updateUndoButtons();
+  closeImgPopover();
+}
+
+function doUndo(){
+  const ed = editorEl(); if (!ed || !editorPageId) return;
+  closeBurst();
+  const h = histFor(editorPageId);
+  if (!h.undo.length) return;
+  const cur = stateOf(packImages(ed.innerHTML), captureSel(ed));
+  const prev = h.undo.pop();
+  h.bytes -= prev.size; HISTORY.totalBytes -= prev.size;
+  h.redo.push(cur); h.bytes += cur.size; HISTORY.totalBytes += cur.size;
+  applyState(ed, prev);
+  lastHtml = prev.html;
+}
+function doRedo(){
+  const ed = editorEl(); if (!ed || !editorPageId) return;
+  closeBurst();
+  const h = histFor(editorPageId);
+  if (!h.redo.length) return;
+  const cur = stateOf(packImages(ed.innerHTML), captureSel(ed));
+  const next = h.redo.pop();
+  h.bytes -= next.size; HISTORY.totalBytes -= next.size;
+  h.undo.push(cur); h.bytes += cur.size; HISTORY.totalBytes += cur.size;
+  applyState(ed, next);
+  lastHtml = next.html;
+}
+
+function updateUndoButtons(){
+  const h = editorPageId ? HISTORY.perPage.get(editorPageId) : null;
+  const u = document.getElementById("tbUndo"), r = document.getElementById("tbRedo");
+  if (u) u.disabled = !(h && h.undo.length);
+  if (r) r.disabled = !(h && h.redo.length);
 }
 
 /* ------------------------------------------------------------ araç çubuğu */
@@ -2097,6 +2445,11 @@ function tbText(key, textLabel, onclick, label){
 function buildToolbar(){
   const bar = el("div", { class:"toolbar", id:"toolbar", role:"toolbar", "aria-label": t("tbBold") });
   bar.append(
+    el("button", { type:"button", id:"tbUndo", title: t("tbUndo"), "aria-label": t("tbUndo"),
+      onmousedown(e){ e.preventDefault(); }, onclick: doUndo }, icon("undo")),
+    el("button", { type:"button", id:"tbRedo", title: t("tbRedo"), "aria-label": t("tbRedo"),
+      onmousedown(e){ e.preventDefault(); }, onclick: doRedo }, icon("redo")),
+    el("span", { class:"tb-sep" }),
     tbBtn("bold", "bold", () => exec("bold"), t("tbBold")),
     tbBtn("italic", "italic", () => exec("italic"), t("tbItalic")),
     tbBtn("underline", "underline", () => exec("underline"), t("tbUnderline")),
@@ -2140,8 +2493,10 @@ function editorEl(){ return document.getElementById("editor"); }
 function exec(cmd, val){
   const ed = editorEl(); if (!ed) return;
   ed.focus();
-  try { document.execCommand(cmd, false, val === undefined ? null : val); } catch(e){}
-  onEditorChanged();
+  withUndo(() => {
+    try { document.execCommand(cmd, false, val === undefined ? null : val); } catch(e){}
+    onEditorChanged();
+  });
 }
 function block(tag){
   const cur = currentBlockTag();
@@ -2181,9 +2536,11 @@ function toggleTodo(){
   let li = currentLi();
   if (!li){ try { document.execCommand("insertUnorderedList"); } catch(e){} li = currentLi(); }
   if (!li) return;
-  if (li.classList.contains("todo")) li.classList.remove("todo", "done");
-  else li.classList.add("todo");
-  onEditorChanged();
+  withUndo(() => {
+    if (li.classList.contains("todo")) li.classList.remove("todo", "done");
+    else li.classList.add("todo");
+    onEditorChanged();
+  });
 }
 
 /** Vurgu: execCommand("hiliteColor") style niteliği üretir, süzgeç onu attığı
@@ -2194,6 +2551,7 @@ function highlight(cls){
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
   const range = sel.getRangeAt(0);
+  withUndo(() => {
   if (cls === null){
     const frag = range.extractContents();
     const tmp = document.createElement("div");
@@ -2215,6 +2573,7 @@ function highlight(cls){
   }
   sel.removeAllRanges();
   onEditorChanged();
+  });
 }
 
 function insertLink(){
@@ -2250,53 +2609,115 @@ function updateToolbarState(){
 }
 
 /* ------------------------------------------------------------ resim hattı */
-const IMG_MAX = 1200, IMG_QUALITY = 0.82;
+const IMG_MAX = 1600, IMG_QUALITY = 0.82;
+const IMG_MIN_W = 40;
+const GIF_KEEP_MAX = 512 * 1024;   // bu boyuta kadar GIF'e dokunulmaz (animasyon korunsun)
 
-function downscaleImage(file, cb){
-  const reader = new FileReader();
-  reader.onerror = () => cb(null);
-  reader.onload = () => {
-    const orig = String(reader.result || "");
-    const img = new Image();
-    img.onerror = () => cb(null);
-    img.onload = () => {
-      const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-      if (!w || !h) return cb(null);
-      const scale = Math.min(1, IMG_MAX / Math.max(w, h));
-      const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
-      let out = null;
-      try {
-        const c = document.createElement("canvas");
-        c.width = cw; c.height = ch;
-        const g = c.getContext("2d");
-        g.fillStyle = "#ffffff"; g.fillRect(0, 0, cw, ch);  // JPEG saydamlığı taşımaz
-        g.drawImage(img, 0, 0, cw, ch);
-        out = c.toDataURL("image/jpeg", IMG_QUALITY);
-      } catch(e){ out = null; }
-      // Küçültme işe yaramadıysa ve orijinal zaten kabul edilebilir bir tipse onu kullan.
-      if ((!out || out.length >= orig.length) && safeImgSrc(orig)) out = orig;
-      cb(out && safeImgSrc(out) ? out : null);
-    };
-    img.src = orig;
-  };
-  reader.readAsDataURL(file);
+function readAsDataUrl(file, cb){
+  const r = new FileReader();
+  r.onerror = () => cb(null);
+  r.onload = () => cb(String(r.result || ""));
+  r.readAsDataURL(file);
 }
 
-function insertImageFile(file){
+/** Kaynağı çizilebilir hale getirir. createImageBitmap varsa EXIF yönü
+ *  uygulanır; yoksa <img> yoluna düşülür (o yolda yan yatmış fotoğraf riski var). */
+function loadDrawable(file, cb){
+  if (window.createImageBitmap){
+    let p = null;
+    try { p = createImageBitmap(file, { imageOrientation: "from-image" }); } catch(e){ p = null; }
+    if (p && p.then){ p.then(bmp => cb(bmp), () => viaImg()); return; }
+  }
+  viaImg();
+  function viaImg(){
+    readAsDataUrl(file, url => {
+      if (!url) return cb(null);
+      const img = new Image();
+      img.onload = () => cb(img);
+      img.onerror = () => cb(null);
+      img.src = url;
+    });
+  }
+}
+
+function hasAlpha(ctx, w, h){
+  try {
+    const d = ctx.getImageData(0, 0, w, h).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] < 250) return true;
+    return false;
+  } catch(e){ return true; }   // okuyamıyorsak güvenli taraf: PNG olarak sakla
+}
+
+/** Kodlama politikası: saydam PNG PNG kalır, küçük GIF olduğu gibi saklanır
+ *  (animasyon), gerisi JPEG. Eskiden her şey beyaz zeminli JPEG'e çevriliyordu;
+ *  bu saydamlığı ve animasyonu öldürüyordu. */
+function processImage(file, cb){
+  const type = String(file.type || "").toLowerCase();
+
+  if (type === "image/gif"){
+    if (file.size <= GIF_KEEP_MAX){
+      readAsDataUrl(file, url => cb(safeImgSrc(url) ? { url, note: t("imgGifKept", { n: formatBytes(file.size) }) } : null));
+      return;
+    }
+    // Çok büyük: ilk kare düzleştirilir, kullanıcıya söylenir.
+  }
+
+  loadDrawable(file, src => {
+    if (!src){ readAsDataUrl(file, url => cb(safeImgSrc(url) ? { url } : null)); return; }
+    const w = src.width || src.naturalWidth, h = src.height || src.naturalHeight;
+    if (!w || !h) return cb(null);
+    const scale = Math.min(1, IMG_MAX / Math.max(w, h));
+    const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+    let out = null, note = null;
+    try {
+      const c = document.createElement("canvas");
+      c.width = cw; c.height = ch;
+      const g = c.getContext("2d");
+      g.drawImage(src, 0, 0, cw, ch);
+      const keepPng = type === "image/png" && hasAlpha(g, cw, ch);
+      if (keepPng){
+        out = c.toDataURL("image/png");
+      } else {
+        const c2 = document.createElement("canvas");
+        c2.width = cw; c2.height = ch;
+        const g2 = c2.getContext("2d");
+        g2.fillStyle = "#ffffff"; g2.fillRect(0, 0, cw, ch);   // JPEG saydamlık taşımaz
+        g2.drawImage(src, 0, 0, cw, ch);
+        out = c2.toDataURL("image/jpeg", IMG_QUALITY);
+        if (type === "image/gif") note = t("imgGifFlattened");
+      }
+    } catch(e){ out = null; }
+    if (src.close) { try { src.close(); } catch(e){} }
+    if (!out || !safeImgSrc(out)) return cb(null);
+    cb({ url: out, width: cw, note });
+  });
+}
+
+function insertImageFile(file, opts){
   if (!file || !/^image\//.test(file.type || "")) return;
   if (storagePercent() >= 95){ toast(t("imgTooBig"), null, 10000); return; }
-  downscaleImage(file, dataUrl => {
-    if (!dataUrl){ toast(t("imgFailed")); return; }
+  processImage(file, res => {
+    if (!res || !res.url){ toast(t("imgFailed")); return; }
     const ed = editorEl(); if (!ed) return;
     ed.focus();
-    const img = document.createElement("img");
-    img.className = "img-md";
-    img.src = dataUrl;
-    img.alt = "";
-    insertNodeAtCaret(img);
-    onEditorChanged();
+    withUndo(() => {
+      const img = document.createElement("img");
+      img.src = res.url;
+      img.alt = "";
+      insertNodeAtCaret(img);
+      // Doğal genişlik yüklenince sınırlanmış başlangıç genişliği yazılır.
+      const applyWidth = () => {
+        const nat = img.naturalWidth || res.width || 0;
+        if (nat) img.setAttribute("width", String(Math.min(nat, IMG_MAX)));
+        lastHtml = packImages(ed.innerHTML);
+        onEditorChanged();
+      };
+      if (img.complete && img.naturalWidth) applyWidth(); else img.onload = applyWidth;
+      onEditorChanged();
+    });
     renderStorageMeter();
-    toast(t("imgAdded", { n: formatBytes(Math.round(dataUrl.length * 0.75)) }));
+    toast(res.note || t("imgAdded", { n: formatBytes(Math.round(res.url.length * 0.75)) }));
+    if (opts && opts.note) toast(opts.note, null, 7000);
   });
 }
 
@@ -2314,25 +2735,65 @@ function insertNodeAtCaret(node){
   }
 }
 
+function clipboardImageFiles(dt){
+  const out = [];
+  const items = dt.items || [];
+  for (let i = 0; i < items.length; i++){
+    if (items[i].kind === "file" && /^image\//.test(items[i].type || "")){
+      const f = items[i].getAsFile();
+      if (f) out.push(f);
+    }
+  }
+  if (!out.length && dt.files){
+    for (let i = 0; i < dt.files.length; i++){
+      if (/^image\//.test(dt.files[i].type || "")) out.push(dt.files[i]);
+    }
+  }
+  return out;
+}
+function countImgs(html){
+  try { return scratchDoc(html).body.querySelectorAll("img").length; } catch(e){ return 0; }
+}
+
+/* Karar ağacı — eski sürüm panoda resim görünce hemen dönüyor ve Word'ün
+   zengin metnini tamamen düşürüyordu ("sadece resim geliyor" şikâyeti):
+     1. text/html varsa süz; içinde metin YA DA kullanılabilir resim varsa onu kullan
+     2. süzgeçte resim kaybolduysa ve panoda tam bir resim dosyası varsa,
+        onu metnin SONUNA ekle (özgün konum korunamaz, bunu söylüyoruz)
+     3. kullanılabilir HTML yoksa pano resmini kullan
+     4. o da yoksa tarayıcının düz metin davranışı                                */
 function onEditorPaste(e){
   const dt = e.clipboardData || window.clipboardData;
   if (!dt) return;
-  const items = dt.items || [];
-  for (let i = 0; i < items.length; i++){
-    if (items[i].kind === "file" && /^image\//.test(items[i].type)){
-      const f = items[i].getAsFile();
-      if (f){ e.preventDefault(); insertImageFile(f); return; }
+  const files = clipboardImageFiles(dt);
+
+  let html = "";
+  try { html = dt.getData("text/html") || ""; } catch(err){ html = ""; }
+
+  if (html){
+    const normalized = sanitizeHtml(html);
+    const srcImgs = countImgs(html), keptImgs = countImgs(normalized);
+    const hasText = noteText(normalized).length > 0;
+    if (hasText || keptImgs > 0){
+      e.preventDefault();
+      closeBurst();
+      withUndo(() => {
+        try { document.execCommand("insertHTML", false, normalized); } catch(err){}
+        onEditorChanged();
+      });
+      const lost = Math.max(0, srcImgs - keptImgs);
+      if (lost > 0 && keptImgs === 0 && files.length === 1){
+        // Word resimleri file:/// ile bağlar; süzgeç reddeder. En az birini kurtar.
+        insertImageFile(files[0], { note: t("imgAppended") });
+      } else if (lost > 0){
+        toast(t("imgLost", { n: lost }), null, 7000);   // sessiz kayıp yok
+      }
+      return;
     }
   }
-  let html = "";
-  try { html = dt.getData("text/html"); } catch(err){ html = ""; }
-  if (html){
-    e.preventDefault();
-    // Web'den gelen her şey buradan geçer; süzgeç olmadan içerik diske yazılmaz.
-    try { document.execCommand("insertHTML", false, sanitizeHtml(html)); } catch(err){}
-    onEditorChanged();
-  }
-  // Düz metin yapıştırmada tarayıcının varsayılan davranışı yeterli.
+  if (files.length){ e.preventDefault(); insertImageFile(files[0]); return; }
+  // Düz metin: tarayıcının varsayılan davranışı yeterli, ama seri kapansın.
+  closeBurst();
 }
 
 function onEditorDrop(e){
@@ -2343,6 +2804,9 @@ function onEditorDrop(e){
 }
 
 function onEditorClick(e){
+  // Resim, kendisini saran bir görev bağlantısından önce gelir: resme tıklamak
+  // resmi seçmelidir, sayfayı terk etmemeli.
+  if (e.target && e.target.tagName === "IMG"){ selectImage(e.target); return; }
   const link = closestInEditor(e.target, n => n.hasAttribute && n.hasAttribute("data-task"));
   if (link){
     e.preventDefault();
@@ -2351,15 +2815,13 @@ function onEditorClick(e){
     else { link.classList.add("dead"); toast(t("taskGone")); }
     return;
   }
-  if (e.target && e.target.tagName === "IMG"){ selectImage(e.target); return; }
   const li = closestInEditor(e.target, n => n.tagName === "LI" && n.classList.contains("todo"));
   if (li){
     // İşaretleyici madde kutusunun solunda çizildiği için tıklama oraya düşer.
     const r = li.getBoundingClientRect();
     if (e.clientX < r.left){
       e.preventDefault();
-      li.classList.toggle("done");
-      onEditorChanged();
+      withUndo(() => { li.classList.toggle("done"); onEditorChanged(); });
     }
   }
 }
@@ -2382,11 +2844,21 @@ function stripCaretHighlight(){
   const r = document.createRange();
   r.selectNodeContents(parent); r.collapse(false);
   sel.removeAllRanges(); sel.addRange(r);
+  lastHtml = packImages(ed.innerHTML);   // kendi başına bir geri alma adımı değil
 }
 
 function onEditorKeydown(e){
-  if (e.key === "Escape"){ e.stopPropagation(); e.target.blur(); return; }
-  if (e.key === "Enter"){ setTimeout(stripCaretHighlight, 0); return; }
+  if ((e.ctrlKey || e.metaKey) && !e.altKey){
+    const k = e.key.toLowerCase();
+    if (k === "z" && !e.shiftKey){ e.preventDefault(); doUndo(); return; }
+    if ((k === "z" && e.shiftKey) || k === "y"){ e.preventDefault(); doRedo(); return; }
+  }
+  if (e.key === "Escape"){
+    if (resizing){ e.preventDefault(); e.stopPropagation(); cancelResize(); return; }
+    e.stopPropagation(); e.target.blur(); return;
+  }
+  // Enter, kes ve yapıştır açık yazma serisini kapatır: ayrı geri alma adımları olsun.
+  if (e.key === "Enter"){ closeBurst(); setTimeout(stripCaretHighlight, 0); return; }
   if (e.key === "Tab"){
     // Liste içinde girinti; dışarıda odak sırası bozulmasın diye dokunulmaz.
     if (currentLi()){
@@ -2399,42 +2871,164 @@ function onEditorKeydown(e){
   if ((e.ctrlKey || e.metaKey) && !e.altKey){
     const k = e.key.toLowerCase();
     if (k === "b" || k === "i" || k === "u"){
-      // Tarayıcı zaten yapıyor ama değişikliği kaydetmemiz gerek.
-      setTimeout(onEditorChanged, 0);
+      // Tarayıcı biçimi kendi uyguluyor; biz yalnızca ayrı bir geri alma adımı
+      // açılsın diye seriyi kapatıyoruz. Kayıt `input` olayından geliyor.
+      closeBurst();
     }
   }
 }
 
-/* --------------------------------------------------- resim seçim baloncuğu */
-let imgPopover = null;
+/* ------------------------------------------- resim seçimi, tutamak, boyut */
+let imgPopover = null, handleBox = null, resizing = null;
+
+/** Üst sınır işlenmiş doğal genişliktir — resim zaten en fazla IMG_MAX'e
+ *  indirildiği için ötesi anlamsız büyütme ve bulanıklık olurdu. */
+function maxImgWidth(img){ return Math.min(img.naturalWidth || IMG_MAX, IMG_MAX); }
+function currentImgWidth(img){ return Math.round(img.getBoundingClientRect().width); }
+
+function setImgWidth(img, w){
+  img.style.width = "";
+  img.setAttribute("width", String(Math.max(IMG_MIN_W, Math.min(maxImgWidth(img), Math.round(w)))));
+  // Hazır boyut sınıfları serbest genişlikle çakışmasın.
+  img.className = String(img.className || "").replace(/\bimg-(sm|md|lg)\b/g, "").replace(/\s+/g, " ").trim();
+}
+
 function closeImgPopover(){
   if (imgPopover && imgPopover.parentNode) imgPopover.parentNode.removeChild(imgPopover);
   imgPopover = null;
+  hideHandles();
   const ed = editorEl();
   if (ed){ const s = ed.querySelectorAll("img.sel"); for (let i = 0; i < s.length; i++) s[i].classList.remove("sel"); }
 }
+
+function positionHandles(){
+  if (!handleBox || !handleBox.__img || !handleBox.__img.isConnected) return;
+  const r = handleBox.__img.getBoundingClientRect();
+  handleBox.style.left = r.left + "px"; handleBox.style.top = r.top + "px";
+  handleBox.style.width = r.width + "px"; handleBox.style.height = r.height + "px";
+  if (imgPopover) {
+    imgPopover.style.top = Math.max(8, r.top - 46) + "px";
+    imgPopover.style.left = Math.max(8, r.left) + "px";
+  }
+}
+function hideHandles(){
+  if (!handleBox) return;
+  window.removeEventListener("scroll", positionHandles, true);
+  window.removeEventListener("resize", positionHandles);
+  if (handleBox.parentNode) handleBox.parentNode.removeChild(handleBox);
+  handleBox = null;
+}
+function showHandles(img){
+  hideHandles();
+  handleBox = el("div", { class:"img-handles" },
+    ["nw","ne","sw","se"].map(p => el("i", { class:"h h-" + p, dataset:{ pos:p } }))
+  );
+  handleBox.__img = img;
+  document.body.appendChild(handleBox);
+  positionHandles();
+  handleBox.addEventListener("pointerdown", onHandleDown);
+  window.addEventListener("scroll", positionHandles, true);
+  window.addEventListener("resize", positionHandles);
+}
+
+function onHandleDown(e){
+  const h = e.target && e.target.classList && e.target.classList.contains("h") ? e.target : null;
+  if (!h || !handleBox) return;
+  e.preventDefault();
+  const img = handleBox.__img;
+  const ed = editorEl(); if (!ed) return;
+  closeBurst();
+  resizing = {
+    img, dir: h.dataset.pos, startX: e.clientX,
+    startW: currentImgWidth(img),
+    prevHtml: packImages(ed.innerHTML),
+    prevAttr: img.getAttribute("width"),
+    prevClass: img.className,
+    handle: h, pointerId: e.pointerId
+  };
+  try { h.setPointerCapture(e.pointerId); } catch(err){}
+  h.addEventListener("pointermove", onHandleMove);
+  h.addEventListener("pointerup", onHandleUp);
+  h.addEventListener("pointercancel", cancelResize);
+}
+function onHandleMove(e){
+  if (!resizing) return;
+  const dx = e.clientX - resizing.startX;
+  const sign = /e$/.test(resizing.dir) ? 1 : -1;
+  const w = Math.max(IMG_MIN_W, Math.min(maxImgWidth(resizing.img), Math.round(resizing.startW + sign * dx)));
+  resizing.img.style.width = w + "px";      // sürükleme boyunca YALNIZCA önizleme
+  positionHandles();
+}
+function endResizeListeners(){
+  if (!resizing) return;
+  const h = resizing.handle;
+  h.removeEventListener("pointermove", onHandleMove);
+  h.removeEventListener("pointerup", onHandleUp);
+  h.removeEventListener("pointercancel", cancelResize);
+  try { h.releasePointerCapture(resizing.pointerId); } catch(err){}
+}
+function onHandleUp(){
+  if (!resizing) return;
+  const { img, prevHtml } = resizing;
+  const w = currentImgWidth(img);
+  endResizeListeners();
+  resizing = null;
+  // Bırakınca TEK model güncellemesi ve TEK geri alma adımı.
+  pushUndo(prevHtml);
+  setImgWidth(img, w);
+  const ed = editorEl();
+  if (ed) lastHtml = packImages(ed.innerHTML);
+  onEditorChanged();
+  positionHandles();
+}
+function cancelResize(){
+  if (!resizing) return;
+  // Önizleme yalnızca satır içi stille yapıldığı için geri almak onu silmek kadar basit.
+  resizing.img.style.width = "";
+  endResizeListeners();
+  resizing = null;
+  positionHandles();
+}
+
 function selectImage(img){
   closeImgPopover();
   img.classList.add("sel");
-  const r = img.getBoundingClientRect();
-  const size = (cls) => () => {
-    img.className = cls;
-    onEditorChanged(); closeImgPopover();
+  showHandles(img);
+  const preset = (frac) => () => {
+    const ed = editorEl(); if (!ed) return;
+    withUndo(() => { setImgWidth(img, maxImgWidth(img) * frac); onEditorChanged(); });
+    positionHandles();
   };
-  imgPopover = el("div", { class:"toast", style:"position:fixed;z-index:70;padding:6px;gap:4px;top:" +
-      Math.max(8, r.top - 46) + "px;left:" + Math.max(8, r.left) + "px" },
-    el("button", { class:"btn", onclick: size("img-sm") }, t("imgSmall")),
-    el("button", { class:"btn", onclick: size("img-md") }, t("imgMedium")),
-    el("button", { class:"btn", onclick: size("img-lg") }, t("imgLarge")),
+  imgPopover = el("div", { class:"toast img-pop", style:"position:fixed;z-index:71;padding:6px;gap:4px" },
+    el("button", { class:"btn", onclick: preset(0.25) }, t("imgSmall")),
+    el("button", { class:"btn", onclick: preset(0.55) }, t("imgMedium")),
+    el("button", { class:"btn", onclick: preset(1) }, t("imgLarge")),
     el("button", { class:"btn btn-danger", onclick(){
-      if (img.parentNode) img.parentNode.removeChild(img);
-      onEditorChanged(); closeImgPopover(); renderStorageMeter();
+      const ed = editorEl(); if (!ed) return;
+      withUndo(() => {
+        if (img.parentNode) img.parentNode.removeChild(img);
+        onEditorChanged();
+      });
+      closeImgPopover(); renderStorageMeter();
     }}, icon("trash"))
   );
   document.body.appendChild(imgPopover);
+  positionHandles();
 }
+
+/** Çift tıklama işlenmiş doğal genişliğe döndürür — yüklemeden önceki özgün
+ *  boyuta değil; o veri saklanmıyor. */
+function resetImgSize(img){
+  withUndo(() => { setImgWidth(img, maxImgWidth(img)); onEditorChanged(); });
+  positionHandles();
+  toast(t("imgResetSize"));
+}
+
 document.addEventListener("mousedown", e => {
-  if (imgPopover && !imgPopover.contains(e.target) && !(e.target && e.target.tagName === "IMG")) closeImgPopover();
+  if (resizing) return;
+  const inPop = imgPopover && imgPopover.contains(e.target);
+  const inHandles = handleBox && handleBox.contains(e.target);
+  if (imgPopover && !inPop && !inHandles && !(e.target && e.target.tagName === "IMG")) closeImgPopover();
 });
 
 /* ----------------------------------------------------- nottan görev yapma */
@@ -2913,6 +3507,39 @@ function runTests(){
   eq("formatBytes: KB", formatBytes(2048), "2 KB");
   eq("formatBytes: MB", formatBytes(1024 * 1024 * 3), "3.0 MB");
   eq("formatBytes: B", formatBytes(500), "500 B");
+
+  // --- resim genişliği (serbest boyutlandırmanın kalıcı temsili) ---
+  ok("width: 420 korunur", S('<img width="420" src="data:image/png;base64,AAA=">').indexOf('width="420"') !== -1);
+  ok("width: alt sınır 40 korunur", S('<img width="40" src="data:image/png;base64,AAA=">').indexOf('width="40"') !== -1);
+  ok("width: üst sınır 1600 korunur", S('<img width="1600" src="data:image/png;base64,AAA=">').indexOf('width="1600"') !== -1);
+  ok("width: 39 düşer", S('<img width="39" src="data:image/png;base64,AAA=">').indexOf("width") === -1);
+  ok("width: 99999 düşer", S('<img width="99999" src="data:image/png;base64,AAA=">').indexOf("width") === -1);
+  ok("width: 'abc' düşer", S('<img width="abc" src="data:image/png;base64,AAA=">').indexOf("width") === -1);
+  ok("width: negatif düşer", S('<img width="-5" src="data:image/png;base64,AAA=">').indexOf("width") === -1);
+  ok("width yalnızca IMG'de", S('<p width="100">x</p>').indexOf("width") === -1);
+
+  // --- geçmişte resim tekrarını önleyen yer tutucu ---
+  const dURL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==";
+  const packed = packImages('<p>a</p><img src="' + dURL + '"><img src="' + dURL + '">');
+  ok("packImages: data URL yer tutucuya döner", packed.indexOf("data:image") === -1 && packed.indexOf('src="ref:') !== -1);
+  eq("packImages: aynı resim haritada bir kez tutulur",
+     (packed.match(/ref:/g) || []).length === 2 && HISTORY.images.size >= 1, true);
+  eq("unpackImages: gidiş-dönüş aslına döner", unpackImages(packed),
+     '<p>a</p><img src="' + dURL + '"><img src="' + dURL + '">');
+  ok("packImages: iki kez paketlemek bozmaz", unpackImages(packImages(packed)) === unpackImages(packed));
+  ok("unpackImages: bilinmeyen anahtar boş src verir", unpackImages('<img src="ref:zzzzzz">').indexOf('src=""') !== -1);
+  ok("imgKey: aynı içerik aynı anahtar", imgKey(dURL) === imgKey(dURL));
+  ok("imgKey: farklı içerik farklı anahtar", imgKey(dURL) !== imgKey(dURL + "A"));
+  eq("packImages: resimsiz HTML değişmez", packImages("<p>x</p>"), "<p>x</p>");
+
+  // --- yapıştırma karar ağacının sayaçları ---
+  eq("countImgs: kaynakta iki resim", countImgs('<p>a</p><img src="file:///x.png"><img src="cid:1">'), 2);
+  eq("countImgs: süzgeç sonrası sıfır", countImgs(S('<img src="file:///x.png">')), 0);
+  eq("countImgs: data URL korunur", countImgs(S('<img src="' + dURL + '">')), 1);
+  ok("file: şemalı resim reddedilir", S('<img src="file:///C:/a.png">').indexOf("<img") === -1);
+  ok("cid: şemalı resim reddedilir", S('<img src="cid:image001.png@01D9">').indexOf("<img") === -1);
+  ok("blob: şemalı resim reddedilir", S('<img src="blob:https://a.com/1-2-3">').indexOf("<img") === -1);
+  ok("http: şemalı resim reddedilir (çevrimdışı + iz sürme)", S('<img src="http://a.com/x.png">').indexOf("<img") === -1);
 
   // --- notlardan HTML üretimi ---
   ok("notesToHtml: doctype ile başlar", notesToHtml().indexOf("<!doctype html>") === 0);

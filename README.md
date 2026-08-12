@@ -40,18 +40,42 @@ Biçimlendirme araç çubuğu: kalın, italik, altı/üstü çizili, üç başl�
 madde ve numaralı liste, yapılacak maddesi, alıntı, kod, dört vurgu rengi,
 bağlantı, resim. **Kaydet düğmesi yok**, yazdıkça kaydedilir.
 
+- **Geri alma**: `Ctrl+Z` geri, `Ctrl+Y` (ya da `Ctrl+Shift+Z`) ileri. Yazma,
+  biçimlendirme, vurgu, kutucuk, resim ekleme/silme/boyutlandırma — hepsi kapsam
+  içinde. Art arda yazdıkların tek adımda birleşir; her sayfanın kendi geçmişi
+  vardır ve sayfalar arasında gidip gelince kaybolmaz.
 - **Yapılacak maddesi**: listedeki bir satıra araç çubuğundan kutucuk ekle;
   kutucuğa tıklayınca tamamlanır.
 - **Vurgu paragraf sonunda biter.** Kalın ve italik yeni satıra taşınır (Ctrl+B
   ile kapatabilirsin) ama vurgu bir kip değil, kalemle işaretlemedir.
-- **Resim**: yapıştır ya da sürükle. En uzun kenarı 1200 piksele indirilip
-  sıkıştırılır — 4 MB'lık bir ekran görüntüsü ~20 KB'a iner. Resme tıklayınca
-  boyut ve silme seçenekleri çıkar.
+- **Sayfa silme**: sayfa listesinde üzerine gelince çıkan çöp kutusundan ya da
+  editörde başlığın yanındaki düğmeden. Her ikisi de "Geri al" bildirimi verir
+  ve sayfayı özgün sırasına koyar.
+- **Resim**: yapıştır ya da sürükle. En uzun kenarı 1600 piksele indirilip
+  sıkıştırılır — 4 MB'lık bir ekran görüntüsü ~20 KB'a iner. Saydamlığı olan
+  PNG'ler PNG kalır; 512 KB'a kadar GIF'lere hiç dokunulmaz, animasyonu korunur.
+- **Resim boyutu**: resme tıkla, köşelerdeki tutamaklardan sürükle. Oran korunur,
+  `Esc` sürüklemeyi iptal eder, çift tıklama asıl boyuta döndürür. Baloncukta
+  hazır boyutlar ve silme de var. Boyut değişiklikleri geri alınabilir.
 - **Nottan görev**: editörde bir satırı seç, araç çubuğundaki son düğmeye bas.
   Görev listesine düşer, notta bağlantı işareti kalır, görev panelinden nota
   tek tıkla dönersin.
 - `N` yeni sayfa, `/` arama, `Esc` çıkış. Arama başlıkta ve sayfa içeriğinde
   çalışır, Türkçe harflere duyarsızdır ("istanbul" → "İstanbul").
+
+### Word / OneNote'tan yapıştırma
+
+Panoda hem zengin metin hem resim varsa **ikisi de** alınır. Word resimleri
+`file:///…` gibi yerel dosya bağlantılarıyla taşır; bu bağlantılar güvenlik
+süzgecinden geçemez, dolayısıyla:
+
+- Panodaki gerçek resim dosyası kurtarılabiliyorsa **metnin sonuna** eklenir —
+  özgün konumu korunamaz ve bu sana söylenir.
+- Kurtarılamayan resimler sessizce yutulmaz; "N resim aktarılamadı" uyarısı çıkar.
+
+> **Not:** Bu sürümde Word'ün `style` ile taşıdığı kalın/renk/punto bilgisi
+> henüz çevrilmiyor, yani biçim büyük ölçüde düz metne iniyor. O çeviri
+> (ve tablolar) bir sonraki turda geliyor.
 
 ### Dışarıdan yapıştırdığın içerik temizlenir
 
@@ -124,10 +148,11 @@ modül yüklemeleri ve `fetch` çağrıları CORS'a takılır.
 
 Hatası kolay saf fonksiyonlar (`sanitizeHtml`, `noteText`, `foldTr`, `bucketOf`,
 `csvEscape`, `mergeImport`, `mergeNotebooks`, `sortTasks`, `normalizeTask`,
-`normalizeNotebook`) yerleşik bir iddia setiyle sınanır:
+`normalizeNotebook`, `packImages`/`unpackImages`) yerleşik bir iddia setiyle
+sınanır:
 
 ```
-index.html?test=1      → 104 iddia, geçen/kalan dökümüyle
+index.html?test=1      → 127 iddia, geçen/kalan dökümüyle
 index.html?nostorage=1 → depolama uyarı şeridini görmek için
 ```
 
@@ -135,6 +160,15 @@ Editör yalnızca açık sayfa değiştiğinde yeniden kurulur; her çizimde kur
 imleç her tuşta başa atardı. Editördeki ham HTML modele her tuşta değil,
 kaydetme anında (`flushEditor`) süzülerek yazılır — geri yazma olmadığı için
 imleç güvende, süzgeç de tuş başına değil kayıt başına bir kez çalışır.
+
+Geri alma tarayıcının kendi yığınına bırakılamadı: o yığın yalnızca
+`execCommand`'i ve doğal yazmayı görür, oysa vurgu, kutucuk ve resim işlemleri
+DOM'u doğrudan değiştiriyor. Bu yüzden sayfa başına anlık görüntü yığını var.
+Görüntülerde resim verisi **tekrarlanmaz** — her data URL içerik anahtarıyla tek
+bir haritada tutulur, geçmişte yalnızca `ref:` yer tutucusu durur; aksi halde tek
+bir resim her tuş vuruşunda yeniden kopyalanırdı. Bellek bütçesi uygulama
+genelindedir (12 MB), sayfa başına 80 adımla sınırlıdır ve budama önce aktif
+olmayan sayfalardan yapılır.
 
 `document.execCommand` resmen "deprecated" ama bugün tüm tarayıcılarda çalışıyor
 ve kütüphanesiz tek pratik yol. Riski sınırlı: ona bağımlı olan şey düzenleme
