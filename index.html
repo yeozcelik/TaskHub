@@ -339,6 +339,10 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .pg-acts button{border:0;background:var(--surface);cursor:pointer;color:var(--faint);padding:5px;border-radius:5px;line-height:0;box-shadow:var(--sh-1)}
 .pg-acts button:hover{background:var(--danger-soft);color:var(--danger)}
 .pg-acts svg{width:13px;height:13px}
+.pg-acts button:disabled{opacity:.35;cursor:default}
+.pg-row[draggable="true"]{cursor:grab}
+.pg-row.drop-above{box-shadow:inset 0 2px 0 var(--accent)}
+.pg-row.drop-below{box-shadow:inset 0 -2px 0 var(--accent)}
 @media (hover:none){.pg-acts{opacity:1}}
 
 .ed-head{display:flex;align-items:flex-start;gap:6px;padding-right:20px}
@@ -461,6 +465,23 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .bootfail p{margin:0 0 9px;line-height:1.55}
 .bootfail-detail{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#7a3b3b;word-break:break-word}
 
+/* ---------- Araç çubuğu açılır kutuları ---------- */
+.tb-menu{
+  position:fixed;z-index:72;background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:var(--r);box-shadow:var(--sh-2);padding:10px;max-width:250px;
+}
+.tb-menu-lbl{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:7px}
+.tb-menu-sep{height:1px;background:var(--border);margin:9px 0}
+.tb-menu-row{display:flex;align-items:center;gap:7px;font-size:13px;margin-top:8px;cursor:pointer}
+.tb-menu-ops{display:flex;flex-wrap:wrap;gap:4px}
+.tb-menu-ops .btn{padding:4px 8px;font-size:12.5px}
+.tb-grid{display:grid;grid-template-columns:repeat(10,16px);gap:2px}
+.tb-grid .gc{width:16px;height:16px;border:1px solid var(--border);border-radius:2px;background:var(--surface-2);cursor:pointer}
+.tb-grid .gc.on{background:var(--accent);border-color:var(--accent)}
+.tb-colors{display:grid;grid-template-columns:repeat(8,20px);gap:5px}
+.tb-colors .cs{width:20px;height:20px;border-radius:5px;cursor:pointer;border:1px solid var(--border-strong)}
+.tb-colors .cs:hover{outline:2px solid var(--accent);outline-offset:1px}
+
 /* ---------- Test ekranı ---------- */
 .testwrap{max-width:820px;margin:40px auto;padding:0 20px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
 .testwrap h1{font-family:system-ui,sans-serif;font-size:20px;margin:0 0 4px}
@@ -568,6 +589,10 @@ const ICON = {
   eraser:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 15 6-6 7 7-4 4H8Z"/><path d="M11 9 15 5a2 2 0 0 1 3 0l3 3a2 2 0 0 1 0 3l-3 3M4 21h16"/></svg>',
   quote:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v2a2 2 0 0 1-2 2H4M20 6h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v2a2 2 0 0 1-2 2h-1"/></svg>',
   code:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg>',
+  table:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>',
+  palette:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="m6 16 6-12 6 12"/><path d="M8.5 12h7"/></svg>',
+  fontsize:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18 8 6l5 12M4.6 14.5h6.8"/><path d="m15 18 3-8 3 8M15.9 15.5h4.2"/></svg>',
+  grip:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
   undo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>',
   redo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>',
   taskify:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11M3 12h7M3 18h7"/><circle cx="17" cy="16" r="5"/><path d="m15 16 1.5 1.5L19.5 14"/></svg>',
@@ -639,6 +664,18 @@ const I18N = {
     tbClear:"Biçimi temizle", tbHl:"Vurgu", tbHlNone:"Vurguyu kaldır",
     tbTaskify:"Seçili metinden görev oluştur",
     tbUndo:"Geri al (Ctrl+Z)", tbRedo:"Yinele (Ctrl+Y)",
+    tbTable:"Tablo ekle", tbColor:"Yazı rengi", tbSize:"Punto",
+    tblRows:"{r} × {c} tablo", tblHeader:"Başlık satırı",
+    tblRowAbove:"Üste satır", tblRowBelow:"Alta satır", tblRowDel:"Satırı sil",
+    tblColLeft:"Sola sütun", tblColRight:"Sağa sütun", tblColDel:"Sütunu sil",
+    tblNoCell:"Önce tablonun içine tıkla.",
+    tblMerged:"Bu tabloda birleştirilmiş hücre var; satır/sütun düzenleme kapalı.",
+    tblNested:"Tablo içine tablo eklenemez.",
+    tblGone:"Son satır/sütun silindi, tablo kaldırıldı.",
+    fsXs:"Çok küçük", fsS:"Küçük", fsM:"Normal", fsL:"Büyük", fsXl:"Çok büyük",
+    colorDefault:"Varsayılan",
+    moveUp2:"Yukarı taşı", moveDown2:"Aşağı taşı",
+    reorderOff:"Sıralama arama açıkken kapalı — önce aramayı temizle.",
     histTooBig:"Bu sayfa geri alma geçmişi için fazla büyük; geçmiş sıfırlandı.",
     imgLost:"{n} resim aktarılamadı (Word yerel dosya bağlantısı kullanıyor).",
     imgAppended:"1 resim metnin sonuna eklendi — özgün konumu korunamadı.",
@@ -727,6 +764,18 @@ const I18N = {
     tbClear:"Clear formatting", tbHl:"Highlight", tbHlNone:"Remove highlight",
     tbTaskify:"Create a task from the selection",
     tbUndo:"Undo (Ctrl+Z)", tbRedo:"Redo (Ctrl+Y)",
+    tbTable:"Insert table", tbColor:"Text colour", tbSize:"Font size",
+    tblRows:"{r} × {c} table", tblHeader:"Header row",
+    tblRowAbove:"Row above", tblRowBelow:"Row below", tblRowDel:"Delete row",
+    tblColLeft:"Column left", tblColRight:"Column right", tblColDel:"Delete column",
+    tblNoCell:"Click inside a table first.",
+    tblMerged:"This table has merged cells; row/column editing is disabled.",
+    tblNested:"A table cannot be nested inside another table.",
+    tblGone:"Last row/column removed, the table was deleted.",
+    fsXs:"Tiny", fsS:"Small", fsM:"Normal", fsL:"Large", fsXl:"Huge",
+    colorDefault:"Default",
+    moveUp2:"Move up", moveDown2:"Move down",
+    reorderOff:"Reordering is off while searching — clear the search first.",
     histTooBig:"This page is too large for undo history; history was reset.",
     imgLost:"{n} image(s) could not be transferred (Word uses local file links).",
     imgAppended:"1 image was appended at the end — its original position could not be kept.",
@@ -1123,6 +1172,18 @@ function rebuildRuns(src, doc, st, depth){
     if (KEEP_VOID2[tag]){
       const e = doc.createElement(tag);
       copyStructAttrs(n, e, tag);
+      frag.appendChild(e);
+      continue;
+    }
+    // Görev bağlantısı (data-task) korunmalı: notlar arasında kopyala-yapıştır
+    // yaptığında bağ kopmasın.
+    if (n.hasAttribute && n.hasAttribute("data-task")){
+      const e = doc.createElement(tag === "A" ? "a" : "span");
+      copyStructAttrs(n, e, tag);
+      e.setAttribute("data-task", n.getAttribute("data-task"));
+      const cls = String(n.className || "");
+      if (/note-link/.test(cls)) e.setAttribute("class", "note-link");
+      e.appendChild(rebuildRuns(n, doc, styleContribution(n, st), depth + 1));
       frag.appendChild(e);
       continue;
     }
@@ -1611,7 +1672,7 @@ function switchView(v){
 function buildShell(){
   const root = document.getElementById("root");
   root.textContent = "";
-  closeImgPopover();
+  closeImgPopover(); closeMenu();
   const isNotes = ui.view === "notes";
 
   const onSearch = (val) => {
@@ -2296,6 +2357,11 @@ function renderStorageMeter(){
 function renderPageList(){
   const pane = document.getElementById("pgPane");
   if (!pane) return;
+  /* Liste her tazelendiğinde DOM baştan kuruluyor ve odaklı sayfa düğmesi yok
+     oluyordu; bu da Alt+ok ile sıralamayı imkânsız kılıyordu. Odak YALNIZCA
+     zaten liste üzerindeyse geri verilir — editörde yazarken çalınmasın. */
+  const hadFocus = !!(document.activeElement && document.activeElement.classList
+    && document.activeElement.classList.contains("pg-item"));
   pane.textContent = "";
   const nb = currentNotebook();
   pane.append(el("div", { class:"pane-head" },
@@ -2320,22 +2386,104 @@ function renderPageList(){
   const list = el("ul", { class:"pg-list" });
   for (const page of pages){
     const preview = pagePlain(page).slice(0, 160);
-    list.append(el("li", { class:"pg-row" },
+    const canDrag = reorderAllowed();
+    list.append(el("li", { class:"pg-row", dataset:{ id: page.id },
+      draggable: canDrag ? "true" : null,
+      ondragstart(e){
+        if (!canDrag){ e.preventDefault(); return; }
+        dragPageId = page.id;
+        e.dataTransfer.effectAllowed = "move";
+        try { e.dataTransfer.setData("text/plain", page.id); } catch(err){}
+      },
+      ondragend(){ dragPageId = null; clearDropMarks(); },
+      ondragover(e){
+        if (!dragPageId || dragPageId === page.id || !canDrag) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const r = e.currentTarget.getBoundingClientRect();
+        const below = (e.clientY - r.top) > r.height / 2;
+        clearDropMarks();
+        e.currentTarget.classList.add(below ? "drop-below" : "drop-above");
+      },
+      ondragleave(e){ e.currentTarget.classList.remove("drop-above", "drop-below"); },
+      ondrop(e){
+        e.preventDefault();
+        const rowEl = e.currentTarget;
+        const below = rowEl.classList.contains("drop-below");
+        clearDropMarks();
+        if (!dragPageId || dragPageId === page.id) return;
+        const from = nb.pages.findIndex(p => p.id === dragPageId);
+        let to = nb.pages.findIndex(p => p.id === page.id);
+        if (from < 0 || to < 0) return;
+        if (below && from > to) to += 1;
+        if (!below && from < to) to -= 1;
+        if (movePage(nb.id, from, to)) renderPageList();
+        dragPageId = null;
+      }
+    },
       el("button", {
         class:"pg-item", "aria-current": String(ui.pageId === page.id),
-        onclick(){ openPage(page.id); }
+        onclick(){ openPage(page.id); },
+        onkeydown(e){
+          // Sürükle-bırak fare gerektiriyor; klavye karşılığı yalnızca liste odaklıyken.
+          if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")){
+            e.preventDefault();
+            movePageBy(page.id, e.key === "ArrowUp" ? -1 : 1);
+          }
+        }
       },
         el("div", { class:"pg-title", text: pageTitleOf(page) }),
         el("div", { class:"pg-prev", text: preview || t("emptyPagePreview") }),
         el("div", { class:"pg-date", text: formatStamp(page.updatedAt) })
       ),
       el("span", { class:"pg-acts" },
+        el("button", { title: t("moveUp2"), "aria-label": t("moveUp2"), disabled: !canDrag,
+          onclick(e){ e.stopPropagation(); movePageBy(page.id, -1); } }, icon("up")),
+        el("button", { title: t("moveDown2"), "aria-label": t("moveDown2"), disabled: !canDrag,
+          onclick(e){ e.stopPropagation(); movePageBy(page.id, 1); } }, icon("down")),
         el("button", { title: t("deletePage"), "aria-label": t("deletePage") + ": " + pageTitleOf(page),
           onclick(e){ e.stopPropagation(); deletePage(nb.id, page.id); } }, icon("trash"))
       )
     ));
   }
   pane.append(list);
+  if (hadFocus){
+    const back = pane.querySelector('.pg-row[data-id="' + String(ui.pageId) + '"] .pg-item') || pane.querySelector(".pg-item");
+    if (back) back.focus({ preventScroll:true });
+  }
+}
+
+/* --------------------------------------------------------- sayfa sıralama */
+let dragPageId = null;
+
+const reorderAllowed = () => !ui.q.trim();   // filtreliyken görünen sıra gerçek sıra değil
+
+function movePage(nbId, from, to){
+  const nb = getNotebook(nbId); if (!nb) return false;
+  if (from < 0 || from >= nb.pages.length) return false;
+  to = Math.max(0, Math.min(nb.pages.length - 1, to));
+  if (to === from) return false;
+  const [p] = nb.pages.splice(from, 1);
+  nb.pages.splice(to, 0, p);
+  nb.updatedAt = new Date().toISOString();
+  scheduleSaveNotes();
+  return true;
+}
+function movePageBy(pageId, delta){
+  if (!reorderAllowed()){ toast(t("reorderOff"), null, 5000); return; }
+  const nb = currentNotebook(); if (!nb) return;
+  const i = nb.pages.findIndex(p => p.id === pageId);
+  if (i < 0) return;
+  if (movePage(nb.id, i, i + delta)){
+    renderPageList();
+    const row = document.querySelector('.pg-row[data-id="' + pageId + '"] .pg-item');
+    if (row) row.focus({ preventScroll:true });   // arka arkaya Alt+ok çalışsın
+  }
+}
+
+function clearDropMarks(){
+  const rows = document.querySelectorAll(".pg-row");
+  for (let i = 0; i < rows.length; i++) rows[i].classList.remove("drop-above", "drop-below");
 }
 
 function openPage(pageId){
@@ -2793,6 +2941,13 @@ function buildToolbar(){
       onmousedown(e){ e.preventDefault(); }, onclick(){ highlight(null, null); } },
       el("span", { class:"tb-hl tb-hl-none" })),
     el("span", { class:"tb-sep" }),
+    el("button", { type:"button", title: t("tbTable"), "aria-label": t("tbTable"),
+      onmousedown(e){ e.preventDefault(); }, onclick(e){ openTableMenu(e.currentTarget); } }, icon("table")),
+    el("button", { type:"button", title: t("tbColor"), "aria-label": t("tbColor"),
+      onmousedown(e){ e.preventDefault(); }, onclick(e){ openColorMenu(e.currentTarget); } }, icon("palette")),
+    el("button", { type:"button", title: t("tbSize"), "aria-label": t("tbSize"),
+      onmousedown(e){ e.preventDefault(); }, onclick(e){ openSizeMenu(e.currentTarget); } }, icon("fontsize")),
+    el("span", { class:"tb-sep" }),
     tbBtn("link", "link", insertLink, t("tbLink")),
     tbBtn("image", "image", () => document.getElementById("imgInput").click(), t("tbImage")),
     tbBtn("removeFormat", "eraser", () => { exec("removeFormat"); highlight(null, null); }, t("tbClear")),
@@ -2889,6 +3044,226 @@ function highlight(bg, fg){
   sel.removeAllRanges();
   onEditorChanged();
   });
+}
+
+/* ================================ TABLOLAR ============================== */
+const TBL_MAX = 10;
+const currentTable = () => { const s = window.getSelection(); return (s && s.rangeCount) ? closestInEditor(s.getRangeAt(0).startContainer, n => n.tagName === "TABLE") : null; };
+const currentCell = () => { const s = window.getSelection(); return (s && s.rangeCount) ? closestInEditor(s.getRangeAt(0).startContainer, n => n.tagName === "TD" || n.tagName === "TH") : null; };
+
+/** Birleştirilmiş hücre içeren tabloda yapısal düzenleme kapalı: tam ızgara
+ *  modeli yazmadan satır/sütun eklemek düzeni sessizce bozar. */
+function hasMergedCells(table){
+  const c = table.querySelectorAll("[colspan],[rowspan]");
+  for (let i = 0; i < c.length; i++){
+    if (parseInt(c[i].getAttribute("colspan") || "1", 10) > 1) return true;
+    if (parseInt(c[i].getAttribute("rowspan") || "1", 10) > 1) return true;
+  }
+  return false;
+}
+function removeTableEl(table){
+  const wrap = (table.parentNode && table.parentNode.classList && table.parentNode.classList.contains("tbl-wrap"))
+    ? table.parentNode : table;
+  if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+}
+
+function insertTable(rows, cols, header){
+  const ed = editorEl(); if (!ed) return;
+  ed.focus();
+  if (currentTable()){ toast(t("tblNested")); return; }
+  const cell = "<td><br></td>";
+  let html = "<table>";
+  if (header){
+    html += "<thead><tr>";
+    for (let c = 0; c < cols; c++) html += "<th><br></th>";
+    html += "</tr></thead>";
+    rows = Math.max(1, rows - 1);
+  }
+  html += "<tbody>";
+  for (let r = 0; r < rows; r++){
+    html += "<tr>";
+    for (let c = 0; c < cols; c++) html += cell;
+    html += "</tr>";
+  }
+  html += "</tbody></table><p><br></p>";
+  withUndo(() => {
+    try { document.execCommand("insertHTML", false, html); } catch(e){}
+    wrapWideTables(ed);
+    onEditorChanged();
+  });
+}
+
+function tableOp(op){
+  const ed = editorEl(); if (!ed) return;
+  ed.focus();
+  const cell = currentCell(), table = currentTable();
+  if (!cell || !table){ toast(t("tblNoCell")); return; }
+  if (hasMergedCells(table)){ toast(t("tblMerged"), null, 6000); return; }
+  const row = cell.parentNode;
+  const idx = [].indexOf.call(row.children, cell);
+  const allRows = table.querySelectorAll("tr");
+  withUndo(() => {
+    if (op === "rowAbove" || op === "rowBelow"){
+      const tr = document.createElement("tr");
+      for (let i = 0; i < row.children.length; i++){
+        const td = document.createElement("td");
+        td.innerHTML = "<br>";
+        tr.appendChild(td);
+      }
+      row.parentNode.insertBefore(tr, op === "rowBelow" ? row.nextSibling : row);
+    } else if (op === "colLeft" || op === "colRight"){
+      for (let i = 0; i < allRows.length; i++){
+        const cells = allRows[i].children;
+        const ref = cells[Math.min(idx, cells.length - 1)];
+        if (!ref) continue;
+        const nc = document.createElement(ref.tagName);
+        nc.innerHTML = "<br>";
+        allRows[i].insertBefore(nc, op === "colRight" ? ref.nextSibling : ref);
+      }
+    } else if (op === "rowDel"){
+      if (allRows.length <= 1){ removeTableEl(table); toast(t("tblGone")); }
+      else row.parentNode.removeChild(row);
+    } else if (op === "colDel"){
+      if (row.children.length <= 1){ removeTableEl(table); toast(t("tblGone")); }
+      else for (let i = 0; i < allRows.length; i++){
+        const c = allRows[i].children[Math.min(idx, allRows[i].children.length - 1)];
+        if (c) allRows[i].removeChild(c);
+      }
+    } else if (op === "header"){
+      const first = allRows[0];
+      if (!first) return;
+      const toTh = first.children.length && first.children[0].tagName === "TD";
+      for (let i = first.children.length - 1; i >= 0; i--){
+        const old = first.children[i];
+        const nc = document.createElement(toTh ? "th" : "td");
+        while (old.firstChild) nc.appendChild(old.firstChild);
+        ["colspan","rowspan"].forEach(a => { if (old.getAttribute(a)) nc.setAttribute(a, old.getAttribute(a)); });
+        first.replaceChild(nc, old);
+      }
+    }
+    onEditorChanged();
+  });
+}
+
+/** Son hücrede Tab yeni satır açar; aradaki hücrelerde bir sonrakine geçer. */
+function tabInTable(shift){
+  const cell = currentCell(), table = currentTable();
+  if (!cell || !table) return false;
+  const cells = [].slice.call(table.querySelectorAll("td,th"));
+  const i = cells.indexOf(cell);
+  if (i < 0) return false;
+  if (!shift && i === cells.length - 1 && !hasMergedCells(table)){
+    tableOp("rowBelow");
+    const after = [].slice.call(table.querySelectorAll("td,th"));
+    const next = after[after.length - table.querySelectorAll("tr")[0].children.length];
+    if (next) placeCaretIn(next);
+    return true;
+  }
+  const target = cells[shift ? i - 1 : i + 1];
+  if (!target) return false;
+  placeCaretIn(target);
+  return true;
+}
+function placeCaretIn(el){
+  const sel = window.getSelection(); if (!sel) return;
+  const r = document.createRange();
+  r.selectNodeContents(el); r.collapse(true);
+  sel.removeAllRanges(); sel.addRange(r);
+}
+
+/* -------------------------------------------- renk / punto / açılır kutular */
+const TEXT_COLORS = ["#16181d","#c92a2a","#a86100","#0b7a55","#0369a1","#5b5bd6","#b4309b","#666e7d"];
+
+let menuEl = null;
+function closeMenu(){
+  if (menuEl && menuEl.parentNode) menuEl.parentNode.removeChild(menuEl);
+  menuEl = null;
+}
+function openMenu(anchor, content){
+  closeMenu();
+  const r = anchor.getBoundingClientRect();
+  menuEl = el("div", { class:"tb-menu", style:"top:" + (r.bottom + 6) + "px;left:" + Math.max(8, Math.min(r.left, window.innerWidth - 260)) + "px",
+    onmousedown(e){ e.preventDefault(); } }, content);
+  document.body.appendChild(menuEl);
+}
+document.addEventListener("mousedown", e => {
+  if (menuEl && !menuEl.contains(e.target)) closeMenu();
+});
+
+/** Seçimi bir span'a sarar. Renk ve punto aynı yolu kullanır; vurgu ile aynı
+ *  kanonik temsil (doğrulanmış satır içi renk / izinli punto sınıfı). */
+function wrapSelectionWith(mutate){
+  const ed = editorEl(); if (!ed) return;
+  ed.focus();
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
+  const range = sel.getRangeAt(0);
+  withUndo(() => {
+    const span = document.createElement("span");
+    mutate(span);
+    try { range.surroundContents(span); }
+    catch(e){ span.appendChild(range.extractContents()); range.insertNode(span); }
+    sel.removeAllRanges();
+    onEditorChanged();
+  });
+}
+
+function openTableMenu(btn){
+  let sel = { r:0, c:0 };
+  const grid = el("div", { class:"tb-grid" });
+  const label = el("div", { class:"tb-menu-lbl", text: t("tbTable") });
+  const header = el("label", { class:"tb-menu-row" },
+    el("input", { type:"checkbox", id:"tblHeaderChk", checked:true }), t("tblHeader"));
+  for (let r = 1; r <= TBL_MAX; r++){
+    for (let c = 1; c <= TBL_MAX; c++){
+      grid.append(el("i", { class:"gc", dataset:{ r:String(r), c:String(c) },
+        onmouseenter(){
+          sel = { r, c };
+          label.textContent = t("tblRows", { r, c });
+          const cells = grid.querySelectorAll(".gc");
+          for (let k = 0; k < cells.length; k++){
+            const rr = +cells[k].dataset.r, cc = +cells[k].dataset.c;
+            cells[k].classList.toggle("on", rr <= r && cc <= c);
+          }
+        },
+        onclick(){
+          const h = document.getElementById("tblHeaderChk");
+          insertTable(sel.r, sel.c, !!(h && h.checked));
+          closeMenu();
+        }
+      }));
+    }
+  }
+  const ops = el("div", { class:"tb-menu-ops" },
+    [["rowAbove","tblRowAbove"],["rowBelow","tblRowBelow"],["rowDel","tblRowDel"],
+     ["colLeft","tblColLeft"],["colRight","tblColRight"],["colDel","tblColDel"],
+     ["header","tblHeader"]].map(([op, key]) =>
+       el("button", { class:"btn", onclick(){ tableOp(op); closeMenu(); } }, t(key)))
+  );
+  openMenu(btn, [label, grid, header, el("div", { class:"tb-menu-sep" }), ops]);
+}
+
+function openColorMenu(btn){
+  const sw = TEXT_COLORS.map(c => el("i", { class:"cs", style:"background:" + c, title:c,
+    onclick(){ wrapSelectionWith(sp => sp.setAttribute("style", "color:" + c)); closeMenu(); } }));
+  openMenu(btn, [
+    el("div", { class:"tb-menu-lbl", text: t("tbColor") }),
+    el("div", { class:"tb-colors" }, sw),
+    el("button", { class:"btn", style:"width:100%;margin-top:8px",
+      onclick(){ exec("removeFormat"); closeMenu(); } }, t("colorDefault"))
+  ]);
+}
+
+function openSizeMenu(btn){
+  const steps = [["fs-xs","fsXs"],["fs-s","fsS"],["fs-m","fsM"],["fs-l","fsL"],["fs-xl","fsXl"]];
+  openMenu(btn, [
+    el("div", { class:"tb-menu-lbl", text: t("tbSize") }),
+    el("div", { class:"tb-menu-ops" }, steps.map(([cls, key]) =>
+      el("button", { class:"btn " + cls, onclick(){
+        wrapSelectionWith(sp => { if (cls !== "fs-m") sp.setAttribute("class", cls); });
+        closeMenu();
+      }}, t(key))))
+  ]);
 }
 
 function insertLink(){
@@ -3193,6 +3568,11 @@ function onEditorKeydown(e){
   // Enter, kes ve yapıştır açık yazma serisini kapatır: ayrı geri alma adımları olsun.
   if (e.key === "Enter"){ closeBurst(); setTimeout(stripCaretHighlight, 0); return; }
   if (e.key === "Tab"){
+    if (currentCell()){
+      e.preventDefault();
+      if (!tabInTable(e.shiftKey)) { /* tablo dışına çıkmaya çalışma */ }
+      return;
+    }
     // Liste içinde girinti; dışarıda odak sırası bozulmasın diye dokunulmaz.
     if (currentLi()){
       e.preventDefault();
@@ -3641,6 +4021,7 @@ function isTyping(e){
 document.addEventListener("keydown", e => {
   if (e.key === "Escape"){
     if (importDlgOpen()) return;
+    if (menuEl){ e.preventDefault(); closeMenu(); return; }
     if (imgPopover){ e.preventDefault(); closeImgPopover(); return; }
     if (openTaskId) { e.preventDefault(); closePanel(); }
     return;

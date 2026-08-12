@@ -36,9 +36,10 @@ günlerce açık kalsa bile gruplar gece yarısında kendiliğinden tazelenir.
 OneNote tarzı, iki seviyeli: **defter → sayfa**. Solda defterler, ortada seçili
 defterin sayfaları, sağda yazdığın alan.
 
-Biçimlendirme araç çubuğu: kalın, italik, altı/üstü çizili, üç başlık düzeyi,
-madde ve numaralı liste, yapılacak maddesi, alıntı, kod, dört vurgu rengi,
-bağlantı, resim. **Kaydet düğmesi yok**, yazdıkça kaydedilir.
+Biçimlendirme araç çubuğu: geri/ileri al, kalın, italik, altı/üstü çizili, üç
+başlık düzeyi, madde ve numaralı liste, yapılacak maddesi, alıntı, kod, dört
+vurgu rengi, **tablo**, **yazı rengi**, **punto**, bağlantı, resim.
+**Kaydet düğmesi yok**, yazdıkça kaydedilir.
 
 - **Geri alma**: `Ctrl+Z` geri, `Ctrl+Y` (ya da `Ctrl+Shift+Z`) ileri. Yazma,
   biçimlendirme, vurgu, kutucuk, resim ekleme/silme/boyutlandırma — hepsi kapsam
@@ -57,6 +58,17 @@ bağlantı, resim. **Kaydet düğmesi yok**, yazdıkça kaydedilir.
 - **Resim boyutu**: resme tıkla, köşelerdeki tutamaklardan sürükle. Oran korunur,
   `Esc` sürüklemeyi iptal eder, çift tıklama asıl boyuta döndürür. Baloncukta
   hazır boyutlar ve silme de var. Boyut değişiklikleri geri alınabilir.
+- **Tablo**: araç çubuğundaki tablo düğmesi ızgara açar, en fazla 10×10 seçersin;
+  ilk satırı başlık yapma seçeneği var. İmleç tablodayken aynı menüden satır/sütun
+  ekleyip silersin, `Tab` bir sonraki hücreye geçer, son hücrede yeni satır açar.
+  Son satır ya da sütun silinince tablo tümden kaldırılır.
+  **Birleştirilmiş hücre içeren tabloda satır/sütun düzenleme kapalıdır** — tam
+  bir ızgara modeli yazmadan bunu yapmak düzeni sessizce bozardı; yapıştırılan
+  birleşik hücreler korunur, yalnızca düzenleme kısıtlanır. Tablo içine tablo
+  eklenemez.
+- **Sayfa sıralama**: sayfaları sürükleyerek taşı, ya da satırdaki yukarı/aşağı
+  düğmeleriyle. Klavyeyle: sayfa listesi odaklıyken `Alt+↑` / `Alt+↓`. Arama
+  açıkken sıralama kapalıdır — görünen sıra gerçek sıra olmadığı için yanıltırdı.
 - **Nottan görev**: editörde bir satırı seç, araç çubuğundaki son düğmeye bas.
   Görev listesine düşer, notta bağlantı işareti kalır, görev panelinden nota
   tek tıkla dönersin.
@@ -219,5 +231,5 @@ gelmez), takvim ve pano görünümü, cihazlar arası senkronizasyon.
 Notlar tarafında: üçüncü seviye (bölüm), çizim/kalem, ses kaydı, sayfa şablonu,
 sürüm geçmişi, serbest yerleşim (metin kutuları), alt sayfa.
 
-Sıradaki tur: tablo **oluşturma** ve satır/sütun düzenleme, yazı rengi ve punto
-düğmeleri, sayfaları sürükleyerek sıralama.
+Tablolarda birleştirilmiş hücre **oluşturma** (yapıştırılanlar korunur), iç içe
+tablo, sütun genişliği ayarı.
