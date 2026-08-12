@@ -402,6 +402,13 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .editor .hl-g{background:#bbf7d0;color:#05321d;border-radius:3px;padding:0 2px}
 .editor .hl-b{background:#bfdbfe;color:#0a2540;border-radius:3px;padding:0 2px}
 .editor .hl-p{background:#f5d0fe;color:#3b0a3e;border-radius:3px;padding:0 2px}
+.editor table{border-collapse:collapse;margin:0 0 12px;font-size:.95em;max-width:100%}
+.editor .tbl-wrap{overflow-x:auto;margin:0 0 12px}
+.editor th,.editor td{border:1px solid var(--border-strong);padding:6px 9px;vertical-align:top;min-width:52px}
+.editor th{background:var(--surface-2);font-weight:700;text-align:left}
+.editor caption{caption-side:top;text-align:left;color:var(--muted);font-size:.9em;padding-bottom:4px}
+.editor .fs-xs{font-size:.78em} .editor .fs-s{font-size:.9em}
+.editor .fs-l{font-size:1.3em} .editor .fs-xl{font-size:1.7em}
 .editor .note-link{
   color:var(--accent);border-bottom:1px dashed var(--accent);cursor:pointer;
   text-decoration:none;padding-bottom:1px;
@@ -839,15 +846,21 @@ const DROP_TAGS = {
 // <div> ile üretir, atılırsa her yeniden yüklemede satırlar birleşir.
 const OK_TAGS = {
   P:1, DIV:1, BR:1, H1:1, H2:1, H3:1, B:1, STRONG:1, I:1, EM:1, U:1, S:1, STRIKE:1,
-  UL:1, OL:1, LI:1, A:1, CODE:1, PRE:1, BLOCKQUOTE:1, HR:1, MARK:1, SPAN:1, IMG:1
+  UL:1, OL:1, LI:1, A:1, CODE:1, PRE:1, BLOCKQUOTE:1, HR:1, MARK:1, SPAN:1, IMG:1,
+  TABLE:1, THEAD:1, TBODY:1, TFOOT:1, TR:1, TD:1, TH:1, CAPTION:1
 };
 const VOID_TAGS = { BR:1, HR:1, IMG:1 };
 // class niteliğinde yalnızca bu adlar kalır.
 const OK_CLASS = {
+  // hl-* eski notlarda kalan vurgu sınıfları; yeni içerik satır içi
+  // background-color yazar (tek kanonik temsil). Eskiler okunur kalsın diye durur.
   "hl-y":1, "hl-g":1, "hl-b":1, "hl-p":1,
   "todo":1, "done":1,
   "img-sm":1, "img-md":1, "img-lg":1,
-  "note-link":1
+  "note-link":1,
+  "fs-xs":1, "fs-s":1, "fs-m":1, "fs-l":1, "fs-xl":1,
+  // Kaydedilmezse her yüklemede yeni bir sarmalayıcı eklenip birikirdi.
+  "tbl-wrap":1
 };
 const MAX_DEPTH = 40;
 
@@ -860,7 +873,7 @@ function safeImgSrc(u){
   return /^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=]+$/i.test(s) ? s : null;
 }
 
-function cleanFragment(src, doc, depth){
+function cleanFragment(src, doc, depth, inTable){
   const frag = doc.createDocumentFragment();
   for (let n = src.firstChild; n; n = n.nextSibling){
     if (n.nodeType === 3){ frag.appendChild(doc.createTextNode(n.nodeValue)); continue; }
@@ -868,7 +881,7 @@ function cleanFragment(src, doc, depth){
     const tag = n.tagName.toUpperCase();
     if (DROP_TAGS[tag]) continue;
     // İzinsiz ama zararsız etiket (table, font, section…): açılır, metni korunur.
-    if (!OK_TAGS[tag] || depth >= MAX_DEPTH){ frag.appendChild(cleanFragment(n, doc, depth + 1)); continue; }
+    if (!OK_TAGS[tag] || depth >= MAX_DEPTH){ frag.appendChild(cleanFragment(n, doc, depth + 1, inTable)); continue; }
 
     const out = doc.createElement(tag);
     const attrs = n.attributes;
@@ -891,20 +904,317 @@ function cleanFragment(src, doc, depth){
         if (cls.length) out.setAttribute("class", cls.join(" "));
       } else if (name === "data-task"){
         if (/^[A-Za-z0-9_-]{1,64}$/.test(val)) out.setAttribute("data-task", val);
+      } else if (name === "style"){
+        // DAR GEÇİT: yalnızca iki özellik ve yalnızca doğrulanmış renk değerleri.
+        // Değer YENİDEN ÜRETİLİR; ham stil dizesi hiçbir yoldan geçmez, bu yüzden
+        // position/url()/expression() gibi hiçbir şey hayatta kalamaz.
+        const decls = parseStyleDecls(val), keep = [];
+        const fg = normColor(decls["color"]);
+        const bg = normColor(decls["background-color"]);
+        if (fg) keep.push("color:" + fg);
+        if (bg) keep.push("background-color:" + bg);
+        if (keep.length) out.setAttribute("style", keep.join(";"));
+      } else if ((name === "colspan" || name === "rowspan") && (tag === "TD" || tag === "TH")){
+        const n2 = parseInt(val, 10);
+        if (isFinite(n2) && n2 >= 1 && n2 <= 99) out.setAttribute(name, String(n2));
       }
       // Geri kalan her şey — özellikle style ve on* — düşer.
     }
     if (tag === "IMG" && !out.getAttribute("src")) continue;
     if (VOID_TAGS[tag]){ frag.appendChild(out); continue; }
-    // Bağlantı hedefi hayatta kalmadıysa etiketi tutmanın anlamı yok, açılır.
-    if (tag === "A" && !out.hasAttribute("href") && !out.hasAttribute("data-task")){
-      frag.appendChild(cleanFragment(n, doc, depth + 1));
+    if (tag === "TABLE" && inTable){
+      // İç içe tablo açılır: düzenleme modelini çözümsüz hale getirirdi.
+      frag.appendChild(cleanFragment(n, doc, depth + 1, inTable));
       continue;
     }
-    out.appendChild(cleanFragment(n, doc, depth + 1));
+    // Bağlantı hedefi hayatta kalmadıysa etiketi tutmanın anlamı yok, açılır.
+    if (tag === "A" && !out.hasAttribute("href") && !out.hasAttribute("data-task")){
+      frag.appendChild(cleanFragment(n, doc, depth + 1, inTable));
+      continue;
+    }
+    out.appendChild(cleanFragment(n, doc, depth + 1, inTable || tag === "TABLE"));
     frag.appendChild(out);
   }
   return frag;
+}
+
+/* ============ SUNUM BİÇİMİNİ ANLAMSAL ETİKETE ÇEVİRME (Word/OneNote) ======
+ * Word ve OneNote biçimi neredeyse tamamen style="font-weight:700" gibi
+ * niteliklerle taşır. Süzgeç style'ı attığı için geriye çıplak metin kalıyordu.
+ * Çözüm: ATMADAN ÖNCE niteliğin anlamını okuyup izinli etiketlere çevirmek.
+ *
+ * Naif "öğeyi <b> ile sar" yaklaşımı iç içe çelişen stillerde bozulur:
+ * font-weight:700 içindeki font-weight:400 temsil edilemez. Bu yüzden çeviri
+ * ÇALIŞMA TABANLIDIR — her metin parçası için etkin biçim atalardan hesaplanır
+ * ve çıktı sıfırdan, sabit bir sırayla üretilir. İdempotentlik bunun sonucudur:
+ * f(f(x)) === f(x). */
+
+const CSS_NAMES = {
+  black:"#000000", silver:"#c0c0c0", gray:"#808080", grey:"#808080", white:"#ffffff",
+  maroon:"#800000", red:"#ff0000", purple:"#800080", fuchsia:"#ff00ff", magenta:"#ff00ff",
+  green:"#008000", lime:"#00ff00", olive:"#808000", yellow:"#ffff00", navy:"#000080",
+  blue:"#0000ff", teal:"#008080", aqua:"#00ffff", cyan:"#00ffff", orange:"#ffa500",
+  windowtext:"#000000"
+};
+/** Yalnızca hex, rgb() ve temel adlar. rgba/hsl/yüzde/transparent/currentColor
+ *  bilerek desteklenmiyor — değer daima #rrggbb olarak YENİDEN ÜRETİLİR, ham
+ *  dize hiçbir yoldan geçmez. */
+function normColor(v){
+  const s = String(v == null ? "" : v).trim().toLowerCase();
+  if (!s) return null;
+  if (CSS_NAMES[s]) return CSS_NAMES[s];
+  let m = /^#([0-9a-f]{3})$/.exec(s);
+  if (m) return "#" + m[1].charAt(0) + m[1].charAt(0) + m[1].charAt(1) + m[1].charAt(1) + m[1].charAt(2) + m[1].charAt(2);
+  m = /^#([0-9a-f]{6})$/.exec(s);
+  if (m) return "#" + m[1];
+  m = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/.exec(s);
+  if (m){
+    const h = n => { const x = Math.max(0, Math.min(255, parseInt(n, 10))); return (x < 16 ? "0" : "") + x.toString(16); };
+    return "#" + h(m[1]) + h(m[2]) + h(m[3]);
+  }
+  return null;
+}
+
+/* Serbest px saklanmaz, beş kademeye yuvarlanır: sayfa düzenini bozmasın.
+   Aralıklar Word'ün gerçek puntolarına göre seçildi — 11pt (=14.67px) Word'ün
+   varsayılan gövde puntosudur ve "normal" sayılmalıdır, aksi halde her Word
+   belgesi küçük görünürdü. 14pt=18.67 ve 16pt=21.3 başlık sayılır. */
+const FS_RANGES = [
+  [12.5, "fs-xs"],   // < 12.5px  (≤ 9pt)
+  [14.0, "fs-s"],    // 12.5–14   (10pt)
+  [18.0, null],      // 14–18     (11pt, 12pt, 13pt → normal)
+  [26.0, "fs-l"],    // 18–26     (14pt, 16pt, 18pt)
+  [Infinity, "fs-xl"]
+];
+function normFontSize(v){
+  const s = String(v == null ? "" : v).trim().toLowerCase();
+  let px = null, m;
+  if ((m = /^([\d.]+)\s*pt$/.exec(s))) px = parseFloat(m[1]) * 4 / 3;
+  else if ((m = /^([\d.]+)\s*px$/.exec(s))) px = parseFloat(m[1]);
+  else if ((m = /^([\d.]+)\s*em$/.exec(s))) px = parseFloat(m[1]) * 16;
+  else if ((m = /^([\d.]+)\s*%$/.exec(s))) px = parseFloat(m[1]) / 100 * 16;
+  if (px === null || !isFinite(px) || px <= 0) return null;
+  for (let i = 0; i < FS_RANGES.length; i++) if (px < FS_RANGES[i][0]) return FS_RANGES[i][1];
+  return "fs-xl";
+}
+
+function parseStyleDecls(styleStr){
+  const out = {};
+  String(styleStr == null ? "" : styleStr).split(";").forEach(part => {
+    const i = part.indexOf(":");
+    if (i < 0) return;
+    const k = part.slice(0, i).trim().toLowerCase();
+    const v = part.slice(i + 1).replace(/!important/ig, "").trim();
+    if (k && v) out[k] = v;
+  });
+  return out;
+}
+
+const EMPTY_STYLE = { b:false, i:false, u:false, s:false, color:null, bg:null, fs:null };
+
+/** Bir öğenin etkin biçime katkısı. Sıfırlayan değerler (normal / 400 / none)
+ *  bayrağı KAPATIR — iç içe çelişkinin doğru çözüldüğü yer burası. */
+function styleContribution(el, st){
+  const n = { b:st.b, i:st.i, u:st.u, s:st.s, color:st.color, bg:st.bg, fs:st.fs };
+  const tag = el.tagName.toUpperCase();
+  if (tag === "B" || tag === "STRONG") n.b = true;
+  if (tag === "I" || tag === "EM") n.i = true;
+  if (tag === "U" || tag === "INS") n.u = true;
+  if (tag === "S" || tag === "STRIKE" || tag === "DEL") n.s = true;
+  if (tag === "MARK" && !n.bg) n.bg = "#fde68a";
+  if (tag === "FONT"){
+    const c = normColor(el.getAttribute("color"));
+    if (c) n.color = c;
+    const sz = parseInt(el.getAttribute("size"), 10);
+    if (isFinite(sz)) n.fs = normFontSize([10,13,16,18,24,32,48][Math.max(1, Math.min(7, sz)) - 1] + "px");
+  }
+  // Kendi çıktımızı geri okumak zorundayız, yoksa ikinci geçiş bilgiyi düşürür
+  // ve f(f(x)) === f(x) bozulur.
+  const ownCls = String(el.className || "");
+  const fsm = /(^|\s)(fs-(?:xs|s|m|l|xl))(\s|$)/.exec(ownCls);
+  if (fsm) n.fs = fsm[2] === "fs-m" ? null : fsm[2];
+  const hlm = /(^|\s)hl-([ygbp])(\s|$)/.exec(ownCls);   // eski notlardaki vurgu sınıfları
+  if (hlm) n.bg = { y:"#fde68a", g:"#bbf7d0", b:"#bfdbfe", p:"#f5d0fe" }[hlm[2]];
+
+  const d = parseStyleDecls(el.getAttribute("style"));
+  if (d["font-weight"]){
+    const w = d["font-weight"].toLowerCase(), num = parseFloat(w);
+    if (w === "bold" || w === "bolder" || (isFinite(num) && num >= 600)) n.b = true;
+    else if (w === "normal" || w === "lighter" || (isFinite(num) && num < 600)) n.b = false;
+  }
+  if (d["font-style"]){
+    const v = d["font-style"].toLowerCase();
+    if (v === "italic" || v === "oblique") n.i = true;
+    else if (v === "normal") n.i = false;
+  }
+  const td = String(d["text-decoration"] || d["text-decoration-line"] || "").toLowerCase();
+  if (td){
+    if (/\bnone\b/.test(td)){ n.u = false; n.s = false; }
+    if (/underline/.test(td)) n.u = true;
+    if (/line-through/.test(td)) n.s = true;
+  }
+  if (d["color"]){ const c = normColor(d["color"]); if (c) n.color = c; }
+  const bgRaw = d["background-color"] || d["background"];
+  if (bgRaw){ const c = normColor(String(bgRaw).split(/\s+/)[0]); if (c) n.bg = c; }
+  if (d["font-size"]) n.fs = normFontSize(d["font-size"]);
+  return n;
+}
+
+/** Metin parçasını etkin biçimden SIFIRDAN sarar. Sıra sabittir (b > i > u > s
+ *  > span), böylece ikinci geçiş aynı çıktıyı üretir. */
+function wrapRun(doc, text, st){
+  let node = doc.createTextNode(text);
+  if (st.color || st.bg || st.fs){
+    const span = doc.createElement("span");
+    const decls = [];
+    if (st.color) decls.push("color:" + st.color);
+    if (st.bg) decls.push("background-color:" + st.bg);
+    if (decls.length) span.setAttribute("style", decls.join(";"));
+    if (st.fs) span.setAttribute("class", st.fs);
+    span.appendChild(node);
+    node = span;
+  }
+  const order = [["s","s"],["u","u"],["i","i"],["b","b"]];
+  for (let i = 0; i < order.length; i++){
+    if (st[order[i][0]]){
+      const e = doc.createElement(order[i][1]);
+      e.appendChild(node);
+      node = e;
+    }
+  }
+  return node;
+}
+
+const KEEP_BLOCK = { P:1, DIV:1, H1:1, H2:1, H3:1, UL:1, OL:1, LI:1, BLOCKQUOTE:1, PRE:1,
+                     TABLE:1, THEAD:1, TBODY:1, TFOOT:1, TR:1, TD:1, TH:1, CAPTION:1 };
+const KEEP_VOID2 = { BR:1, HR:1, IMG:1 };
+const KEEP_INLINE = { A:1, CODE:1 };
+
+function copyStructAttrs(src, dst, tag){
+  if (tag === "A" && src.getAttribute("href")) dst.setAttribute("href", src.getAttribute("href"));
+  if (tag === "IMG"){
+    if (src.getAttribute("src")) dst.setAttribute("src", src.getAttribute("src"));
+    if (src.getAttribute("alt")) dst.setAttribute("alt", src.getAttribute("alt"));
+    if (src.getAttribute("width")) dst.setAttribute("width", src.getAttribute("width"));
+  }
+  if (tag === "TD" || tag === "TH"){
+    ["colspan","rowspan"].forEach(a => { if (src.getAttribute(a)) dst.setAttribute(a, src.getAttribute(a)); });
+  }
+  // Yalnızca kendi sınıflarımız taşınır; Mso* ve benzeri düşer.
+  const cls = String(src.className || "").split(/\s+/).filter(c => OK_CLASS[c]);
+  if (cls.length) dst.setAttribute("class", cls.join(" "));
+  if (src.hasAttribute && src.hasAttribute("data-task")) dst.setAttribute("data-task", src.getAttribute("data-task"));
+}
+
+function rebuildRuns(src, doc, st, depth){
+  const frag = doc.createDocumentFragment();
+  for (let n = src.firstChild; n; n = n.nextSibling){
+    if (n.nodeType === 3){
+      if (!n.nodeValue) continue;
+      // Yalnızca boşluktan ibaret parçaları sarmalamak <b> </b> gibi artık üretir.
+      if (!/\S/.test(n.nodeValue)) frag.appendChild(doc.createTextNode(n.nodeValue));
+      else frag.appendChild(wrapRun(doc, n.nodeValue, st));
+      continue;
+    }
+    if (n.nodeType !== 1) continue;
+    const tag = n.tagName.toUpperCase();
+    if (DROP_TAGS[tag]) continue;
+    if (depth > MAX_DEPTH){ frag.appendChild(rebuildRuns(n, doc, st, depth + 1)); continue; }
+    if (KEEP_VOID2[tag]){
+      const e = doc.createElement(tag);
+      copyStructAttrs(n, e, tag);
+      frag.appendChild(e);
+      continue;
+    }
+    if (KEEP_BLOCK[tag] || KEEP_INLINE[tag]){
+      const e = doc.createElement(tag);
+      copyStructAttrs(n, e, tag);
+      e.appendChild(rebuildRuns(n, doc, styleContribution(n, st), depth + 1));
+      frag.appendChild(e);
+      continue;
+    }
+    // span, font, b, i, u, s, mark, section, o:p … : açılır, biçimi biriktirilir
+    frag.appendChild(rebuildRuns(n, doc, styleContribution(n, st), depth + 1));
+  }
+  return frag;
+}
+
+/* ------------------------------------------------ Word listeleri (tek seviye)
+ * DESTEKLENEN: tek seviyeli madde işaretli ve ondalık numaralı listeler.
+ * DESTEKLENMEYEN ama KAYBOLMAYAN: çok seviyeli (level2+), a./A./i./IV. biçimleri,
+ * 1'den farklı başlangıç — bunlar paragraf olarak korunur. */
+const WL_BULLET = /^\s*[·•●▪■◦§]\s*/;
+const WL_DECIMAL = /^\s*\d{1,3}[.)]\s+/;
+
+function wordListInfo(el){
+  const style = String(el.getAttribute("style") || "");
+  const cls = String(el.className || "");
+  const isWord = /mso-list/i.test(style) || /MsoListParagraph|MsoListBullet|MsoListNumber/i.test(cls);
+  const lvl = /level\s*(\d+)/i.exec(style);
+  if (isWord && lvl && parseInt(lvl[1], 10) > 1) return null;   // çok seviyeli: paragraf kalsın
+  const text = String(el.textContent || "");
+  if (WL_DECIMAL.test(text)) return { type:"ol", re: WL_DECIMAL };
+  if (WL_BULLET.test(text)) return { type:"ul", re: WL_BULLET };
+  if (isWord && /^\s*o\s+\S/.test(text)) return { type:"ul", re: /^\s*o\s+/ };  // Word'ün "o" madde işareti
+  if (isWord) return { type:"ul", re: null };
+  return null;
+}
+function firstTextNode(el){
+  const w = [el];
+  while (w.length){
+    const n = w.shift();
+    if (n.nodeType === 3 && /\S/.test(n.nodeValue)) return n;
+    for (let c = n.firstChild; c; c = c.nextSibling) w.push(c);
+  }
+  return null;
+}
+function wordListPass(doc){
+  // Word işaretçiyi ayrı bir kapta taşır. Çok seviyeli maddeleri listeye
+  // ÇEVİRMİYORUZ ama işaretçi kabını yine de atmalıyız; yoksa paragrafın
+  // başında yazım hatası gibi duran bir "o" ya da "·" kalır.
+  const markers = doc.body.querySelectorAll('span[style*="mso-list"]');
+  for (let m = 0; m < markers.length; m++){
+    const el = markers[m];
+    if (/ignore/i.test(el.getAttribute("style") || "") && el.parentNode) el.parentNode.removeChild(el);
+  }
+  const blocks = [].slice.call(doc.body.querySelectorAll("p,div"));
+  let i = 0;
+  while (i < blocks.length){
+    const info = wordListInfo(blocks[i]);
+    if (!info){ i++; continue; }
+    const group = [blocks[i]];
+    let j = i + 1;
+    while (j < blocks.length){
+      const inf2 = wordListInfo(blocks[j]);
+      if (!inf2 || inf2.type !== info.type) break;
+      if (blocks[j].parentNode !== blocks[j - 1].parentNode) break;
+      if (blocks[j].previousElementSibling !== blocks[j - 1]) break;  // araya normal paragraf girdiyse kes
+      group.push(blocks[j]); j++;
+    }
+    const list = doc.createElement(info.type);
+    for (let k = 0; k < group.length; k++){
+      const p = group[k];
+      if (info.re){
+        const tn = firstTextNode(p);
+        if (tn) tn.nodeValue = tn.nodeValue.replace(info.re, "");
+      }
+      const li = doc.createElement("li");
+      while (p.firstChild) li.appendChild(p.firstChild);
+      list.appendChild(li);
+    }
+    group[0].parentNode.insertBefore(list, group[0]);
+    for (let k = 0; k < group.length; k++) if (group[k].parentNode) group[k].parentNode.removeChild(group[k]);
+    i = j;
+  }
+}
+
+function presentationalToSemantic(html){
+  let doc;
+  try { doc = scratchDoc(html); } catch(e){ return String(html == null ? "" : html); }
+  try { wordListPass(doc); } catch(e){ /* liste sezimi başarısızsa içerik yine gelsin */ }
+  const out = document.implementation.createHTMLDocument("");
+  out.body.appendChild(rebuildRuns(doc.body, out, EMPTY_STYLE, 0));
+  return out.body.innerHTML;
 }
 
 /** Canlı belgeye hiç değmeden ayrıştırır: createHTMLDocument'in tarama bağlamı
@@ -919,7 +1229,7 @@ function sanitizeHtml(html){
   let doc;
   try { doc = scratchDoc(html); } catch(e){ return ""; }
   const out = document.implementation.createHTMLDocument("");
-  out.body.appendChild(cleanFragment(doc.body, out, 0));
+  out.body.appendChild(cleanFragment(doc.body, out, 0, false));
   return out.body.innerHTML;
 }
 
@@ -2126,6 +2436,7 @@ function renderEditor(){
     onkeydown: onEditorKeydown
   });
   editor.innerHTML = sanitizeHtml(page.html);
+  wrapWideTables(editor);
   if (!editor.innerHTML.trim()) editor.innerHTML = "<p><br></p>";
 
   pane.append(
@@ -2430,7 +2741,10 @@ function updateUndoButtons(){
 }
 
 /* ------------------------------------------------------------ araç çubuğu */
-const HILITES = [["hl-y","#fde68a"],["hl-g","#bbf7d0"],["hl-b","#bfdbfe"],["hl-p","#f5d0fe"]];
+/* Vurgu artık Word'den gelenle AYNI temsili yazar: doğrulanmış satır içi
+   background-color + okunabilir bir color. Böylece tek kanonik model var.
+   (Eski notlardaki hl-* sınıfları okunur kalmaya devam eder.) */
+const HILITES = [["#fde68a","#3a2f05"],["#bbf7d0","#05321d"],["#bfdbfe","#0a2540"],["#f5d0fe","#3b0a3e"]];
 
 function tbBtn(key, iconName, onclick, label){
   return el("button", { type:"button", "data-tb":key, title: label, "aria-label": label,
@@ -2467,21 +2781,21 @@ function buildToolbar(){
     tbBtn("pre", "code", () => block("pre"), t("tbCode")),
     el("span", { class:"tb-sep" })
   );
-  for (const [cls, color] of HILITES){
+  for (const [bg, fg] of HILITES){
     bar.append(el("button", { type:"button", title: t("tbHl"), "aria-label": t("tbHl"),
-      onmousedown(e){ e.preventDefault(); }, onclick(){ highlight(cls); } },
-      el("span", { class:"tb-hl", style:"background:" + color })));
+      onmousedown(e){ e.preventDefault(); }, onclick(){ highlight(bg, fg); } },
+      el("span", { class:"tb-hl", style:"background:" + bg })));
   }
   bar.append(
     // Silgi simgesi "biçimi temizle"ye ayrılır; vurgu kaldırma, diğer vurgu
     // örnekleriyle aynı dili konuşsun diye üstü çizili bir örnek olarak çizilir.
     el("button", { type:"button", title: t("tbHlNone"), "aria-label": t("tbHlNone"),
-      onmousedown(e){ e.preventDefault(); }, onclick(){ highlight(null); } },
+      onmousedown(e){ e.preventDefault(); }, onclick(){ highlight(null, null); } },
       el("span", { class:"tb-hl tb-hl-none" })),
     el("span", { class:"tb-sep" }),
     tbBtn("link", "link", insertLink, t("tbLink")),
     tbBtn("image", "image", () => document.getElementById("imgInput").click(), t("tbImage")),
-    tbBtn("removeFormat", "eraser", () => { exec("removeFormat"); highlight(null); }, t("tbClear")),
+    tbBtn("removeFormat", "eraser", () => { exec("removeFormat"); highlight(null, null); }, t("tbClear")),
     el("span", { class:"tb-sep" }),
     tbBtn("taskify", "taskify", taskifySelection, t("tbTaskify"))
   );
@@ -2545,18 +2859,19 @@ function toggleTodo(){
 
 /** Vurgu: execCommand("hiliteColor") style niteliği üretir, süzgeç onu attığı
  *  için burada doğrudan izinli sınıfla sarılır. cls null ise vurgu kaldırılır. */
-function highlight(cls){
+const HL_SEL = 'span.hl-y, span.hl-g, span.hl-b, span.hl-p, span[style*="background-color"]';
+function highlight(bg, fg){
   const ed = editorEl(); if (!ed) return;
   ed.focus();
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
   const range = sel.getRangeAt(0);
   withUndo(() => {
-  if (cls === null){
+  if (bg === null){
     const frag = range.extractContents();
     const tmp = document.createElement("div");
     tmp.appendChild(frag);
-    const spans = tmp.querySelectorAll("span.hl-y, span.hl-g, span.hl-b, span.hl-p");
+    const spans = tmp.querySelectorAll(HL_SEL);
     for (let i = 0; i < spans.length; i++){
       const s = spans[i];
       while (s.firstChild) s.parentNode.insertBefore(s.firstChild, s);
@@ -2567,7 +2882,7 @@ function highlight(cls){
     range.insertNode(out);
   } else {
     const span = document.createElement("span");
-    span.className = cls;
+    span.setAttribute("style", "background-color:" + bg + ";color:" + fg);
     try { range.surroundContents(span); }
     catch(e){ span.appendChild(range.extractContents()); range.insertNode(span); }
   }
@@ -2735,6 +3050,20 @@ function insertNodeAtCaret(node){
   }
 }
 
+/** Geniş tablolar sayfayı taşırmasın: her tablo kendi kaydırma kabına alınır.
+ *  Kap süzgeçte kalıcı değil, yalnızca görüntüleme için eklenir. */
+function wrapWideTables(root){
+  const tables = root.querySelectorAll("table");
+  for (let i = 0; i < tables.length; i++){
+    const tb = tables[i];
+    if (tb.parentNode && tb.parentNode.classList && tb.parentNode.classList.contains("tbl-wrap")) continue;
+    const w = document.createElement("div");
+    w.className = "tbl-wrap";
+    tb.parentNode.insertBefore(w, tb);
+    w.appendChild(tb);
+  }
+}
+
 function clipboardImageFiles(dt){
   const out = [];
   const items = dt.items || [];
@@ -2771,7 +3100,8 @@ function onEditorPaste(e){
   try { html = dt.getData("text/html") || ""; } catch(err){ html = ""; }
 
   if (html){
-    const normalized = sanitizeHtml(html);
+    // Önce sunum biçimi anlamsal etikete çevrilir, SONRA süzgeç çalışır.
+    const normalized = sanitizeHtml(presentationalToSemantic(html));
     const srcImgs = countImgs(html), keptImgs = countImgs(normalized);
     const hasText = noteText(normalized).length > 0;
     if (hasText || keptImgs > 0){
@@ -2779,6 +3109,7 @@ function onEditorPaste(e){
       closeBurst();
       withUndo(() => {
         try { document.execCommand("insertHTML", false, normalized); } catch(err){}
+        const ed = editorEl(); if (ed) wrapWideTables(ed);
         onEditorChanged();
       });
       const lost = Math.max(0, srcImgs - keptImgs);
@@ -2835,7 +3166,9 @@ function stripCaretHighlight(){
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
   const span = closestInEditor(sel.getRangeAt(0).startContainer,
-    n => n.tagName === "SPAN" && /(^|\s)hl-[ygbp](\s|$)/.test(n.className || ""));
+    n => n.tagName === "SPAN" &&
+      (/(^|\s)hl-[ygbp](\s|$)/.test(n.className || "") ||
+       /background-color/i.test(n.getAttribute("style") || "")));
   if (!span) return;
   if (String(span.textContent || "").trim() !== "") return;   // yalnızca boş vurgu kabuğu
   const parent = span.parentNode; if (!parent) return;
@@ -3167,6 +3500,10 @@ function notesToHtml(){
     "code{background:#f1f3f5;border-radius:4px;padding:1px 5px}",
     "pre{background:#f1f3f5;border-radius:8px;padding:11px 13px;overflow-x:auto}",
     "hr{border:0;border-top:1px solid #dfe3e9;margin:18px 0}",
+    "table{border-collapse:collapse;margin:0 0 12px;font-size:.95em}",
+    "th,td{border:1px solid #c8cedb;padding:6px 9px;vertical-align:top}",
+    "th{background:#f1f3f5;text-align:left}",
+    ".fs-xs{font-size:.78em}.fs-s{font-size:.9em}.fs-l{font-size:1.3em}.fs-xl{font-size:1.7em}",
     "@media print{body{margin:0}h1.nb{page-break-before:always}}",
     "</style></head><body>",
     "<p class=\"meta\">" + esc(t("notesHtmlTitle")) + " · " + esc(formatStamp(new Date().toISOString())) + "</p>"
@@ -3541,6 +3878,130 @@ function runTests(){
   ok("blob: şemalı resim reddedilir", S('<img src="blob:https://a.com/1-2-3">').indexOf("<img") === -1);
   ok("http: şemalı resim reddedilir (çevrimdışı + iz sürme)", S('<img src="http://a.com/x.png">').indexOf("<img") === -1);
 
+  /* ===== TUR 2: sunum biçimini anlamsal etikete çevirme ===== */
+  const P = presentationalToSemantic;
+  const PS = h => sanitizeHtml(presentationalToSemantic(h));   // gerçek yapıştırma yolu
+
+  // kalın / italik / altı-üstü çizili
+  eq("p2s: font-weight:700 → <b>", P('<span style="font-weight:700">x</span>'), "<b>x</b>");
+  eq("p2s: font-weight:bold → <b>", P('<span style="font-weight:bold">x</span>'), "<b>x</b>");
+  eq("p2s: font-weight:600.0 → <b>", P('<span style="font-weight:600.0">x</span>'), "<b>x</b>");
+  eq("p2s: boşluklu/büyük harf değer", P('<span style="FONT-WEIGHT:  BOLD  ">x</span>'), "<b>x</b>");
+  eq("p2s: font-weight:400 sarmalamaz", P('<span style="font-weight:400">x</span>'), "x");
+  eq("p2s: font-weight:normal sarmalamaz", P('<span style="font-weight:normal">x</span>'), "x");
+  eq("p2s: font-style:italic → <i>", P('<span style="font-style:italic">x</span>'), "<i>x</i>");
+  eq("p2s: text-decoration:underline → <u>", P('<span style="text-decoration:underline">x</span>'), "<u>x</u>");
+  eq("p2s: iki süsleme birden", P('<span style="text-decoration:underline line-through">x</span>'), "<u><s>x</s></u>");
+  eq("p2s: text-decoration:none temizler", P('<u><span style="text-decoration:none">x</span></u>'), "x");
+
+  // İÇ İÇE ÇELİŞKİ — naif sarmalamanın bozulduğu yer
+  eq("p2s: 700 içindeki 400 doğru çıkar",
+     P('<span style="font-weight:700">A<span style="font-weight:400">B</span></span>'), "<b>A</b>B");
+  eq("p2s: <b> içindeki normal doğru çıkar",
+     P('<b>A<span style="font-weight:normal">B</span></b>'), "<b>A</b>B");
+  eq("p2s: italik içinde italik-değil",
+     P('<i>A<span style="font-style:normal">B</span></i>'), "<i>A</i>B");
+
+  // İDEMPOTENTLİK — kabul kriteri
+  const idemCases = [
+    '<span style="font-weight:700">x</span>',
+    '<b><i>x</i></b>',
+    '<p style="font-weight:700">A<span style="font-weight:400">B</span></p>',
+    '<span style="color:#ff0000;background-color:#ffff00;font-size:24px">renk</span>',
+    '<ul><li>bir</li><li>iki</li></ul>',
+    '<table><tr><td>a</td><td>b</td></tr></table>'
+  ];
+  for (let ci = 0; ci < idemCases.length; ci++){
+    ok("p2s idempotent #" + (ci + 1), P(P(idemCases[ci])) === P(idemCases[ci]));
+    ok("süzgeç idempotent #" + (ci + 1), sanitizeHtml(PS(idemCases[ci])) === PS(idemCases[ci]));
+  }
+
+  // <font>
+  eq("p2s: <font color> çevrilir", P('<font color="#ff0000">x</font>'), '<span style="color:#ff0000">x</span>');
+  eq("p2s: <font color=red> ad çevrilir", P('<font color="red">x</font>'), '<span style="color:#ff0000">x</span>');
+  ok("p2s: <font size=6> punto sınıfı verir", P('<font size="6">x</font>').indexOf("fs-") !== -1);
+
+  // renk geçidi — desteklenen ve BİLEREK desteklenmeyen yazımlar
+  eq("renk: #f00 genişletilir", normColor("#f00"), "#ff0000");
+  eq("renk: #FF0000 küçültülür", normColor("#FF0000"), "#ff0000");
+  eq("renk: rgb() çevrilir", normColor("rgb(255, 0, 0)"), "#ff0000");
+  eq("renk: 'red' adı", normColor("red"), "#ff0000");
+  eq("renk: 'windowtext' siyaha", normColor("windowtext"), "#000000");
+  eq("renk: rgba() DESTEKLENMİYOR", normColor("rgba(255,0,0,.5)"), null);
+  eq("renk: hsl() DESTEKLENMİYOR", normColor("hsl(0,100%,50%)"), null);
+  eq("renk: yüzdeli rgb DESTEKLENMİYOR", normColor("rgb(100%,0%,0%)"), null);
+  eq("renk: transparent DESTEKLENMİYOR", normColor("transparent"), null);
+  eq("renk: currentColor DESTEKLENMİYOR", normColor("currentColor"), null);
+  eq("renk: bilinmeyen ad", normColor("kirmizimsi"), null);
+
+  // stil geçidi güvenliği — genişleme gedik açmadı
+  ok("stil: color korunur", PS('<span style="color:#ff0000">x</span>').indexOf("color:#ff0000") !== -1);
+  ok("stil: background-color korunur", PS('<span style="background-color:#ffff00">x</span>').indexOf("background-color:#ffff00") !== -1);
+  ok("stil: position:fixed düşer", PS('<span style="position:fixed;top:0">x</span>').indexOf("position") === -1);
+  ok("stil: url(javascript:) düşer", PS('<span style="background:url(javascript:alert(1))">x</span>').indexOf("javascript") === -1);
+  ok("stil: expression() düşer", PS('<span style="width:expression(alert(1))">x</span>').indexOf("expression") === -1);
+  ok("stil: !important sızmaz", PS('<span style="color:#ff0000 !important">x</span>').indexOf("important") === -1);
+  ok("stil: karışıkta yalnızca renk kalır",
+     PS('<span style="color:#ff0000;position:fixed;z-index:9">x</span>').indexOf("position") === -1 &&
+     PS('<span style="color:#ff0000;position:fixed;z-index:9">x</span>').indexOf("color:#ff0000") !== -1);
+  ok("stil: behavior/-moz-binding düşer", PS('<span style="behavior:url(#x)">y</span>').indexOf("behavior") === -1);
+
+  // punto
+  eq("punto: 24px → fs-l", normFontSize("24px"), "fs-l");
+  eq("punto: 11pt (Word varsayılanı) normal sayılır", normFontSize("11pt"), null);
+  eq("punto: 8px en küçüğe sıkışır", normFontSize("8px"), "fs-xs");
+  eq("punto: 90px en büyüğe sıkışır", normFontSize("90px"), "fs-xl");
+  eq("punto: geçersiz", normFontSize("kocaman"), null);
+  ok("punto sınıfı süzgeçten geçer", PS('<span style="font-size:28px">x</span>').indexOf("fs-xl") !== -1);
+  ok("serbest px saklanmaz", PS('<span style="font-size:28px">x</span>').indexOf("28px") === -1);
+
+  // tablolar
+  ok("tablo: yapı korunur", PS("<table><tr><td>a</td><td>b</td></tr></table>").indexOf("<td>a</td>") !== -1);
+  ok("tablo: thead/th korunur", PS("<table><thead><tr><th>B</th></tr></thead></table>").indexOf("<th>B</th>") !== -1);
+  ok("tablo: colspan=2 korunur", PS('<table><tr><td colspan="2">a</td></tr></table>').indexOf('colspan="2"') !== -1);
+  ok("tablo: colspan='abc' düşer", PS('<table><tr><td colspan="abc">a</td></tr></table>').indexOf("colspan") === -1);
+  ok("tablo: colspan=999 düşer", PS('<table><tr><td colspan="999">a</td></tr></table>').indexOf("colspan") === -1);
+  ok("tablo: rowspan=3 korunur", PS('<table><tr><td rowspan="3">a</td></tr></table>').indexOf('rowspan="3"') !== -1);
+  ok("tablo: iç içe tablo açılır", (PS("<table><tr><td><table><tr><td>ic</td></tr></table></td></tr></table>").match(/<table/g) || []).length === 1);
+  ok("tablo: içindeki script yine düşer", PS("<table><tr><td><script>k<\/script>hucre</td></tr></table>").indexOf("script") === -1);
+  ok("tablo: bozuk yapı çökertmez", typeof PS("<table><td>kopuk</table>") === "string");
+
+  // Word listeleri — dürüst kapsam
+  const wordUl = '<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">·<span>&nbsp;</span></span>Birinci</p>' +
+                 '<p class="MsoListParagraph" style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">·<span>&nbsp;</span></span>İkinci</p>';
+  const wl = PS(wordUl);
+  ok("Word listesi: tek <ul> oluştu", (wl.match(/<ul>/g) || []).length === 1);
+  eq("Word listesi: iki madde", (wl.match(/<li>/g) || []).length, 2);
+  ok("Word listesi: madde işareti metinden ayıklandı", wl.indexOf("·") === -1);
+  ok("Word listesi: metin korundu", wl.indexOf("Birinci") !== -1 && wl.indexOf("İkinci") !== -1);
+  const wordOl = "<p>1. Bir</p><p>2. İki</p>";
+  ok("Ondalık liste <ol> olur", PS(wordOl).indexOf("<ol>") !== -1);
+  ok("Ondalık liste numarası ayıklandı", PS(wordOl).indexOf("1.") === -1);
+  const wordL2 = '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1">Alt seviye</p>';
+  ok("Çok seviyeli DESTEKLENMİYOR ama KAYBOLMUYOR",
+     PS(wordL2).indexOf("<ul>") === -1 && PS(wordL2).indexOf("Alt seviye") !== -1);
+  const wordL2m = '<p class="MsoListParagraph" style="mso-list:l0 level2 lfo1">' +
+                  '<span style="mso-list:Ignore">o<span>&nbsp;</span></span>Alt seviye</p>';
+  ok("Çevrilmeyen maddede işaretçi çöpü kalmaz", /^\s*o\s/.test(noteText(PS(wordL2m))) === false);
+  ok("Çevrilmeyen maddenin metni korunur", noteText(PS(wordL2m)).indexOf("Alt seviye") !== -1);
+  const wordAlpha = "<p>a. Alfabetik</p><p>b. Madde</p>";
+  ok("Alfabetik liste DESTEKLENMİYOR ama KAYBOLMUYOR",
+     PS(wordAlpha).indexOf("<ol>") === -1 && PS(wordAlpha).indexOf("Alfabetik") !== -1);
+  const interleaved = "<p>1. Bir</p><p>Normal paragraf</p><p>2. İki</p>";
+  eq("Araya paragraf girince liste bölünür", (PS(interleaved).match(/<ol>/g) || []).length, 2);
+
+  // Word artıkları
+  const wordJunk = '<!--[if gte mso 9]><xml><o:OfficeDocumentSettings/></xml><![endif]-->' +
+                   '<p class="MsoNormal"><o:p></o:p><span lang="TR" style="font-family:Calibri;mso-fareast-language:TR">Metin</span></p>';
+  ok("mso artığı kalmaz", PS(wordJunk).toLowerCase().indexOf("mso") === -1);
+  ok("Word metni korunur", PS(wordJunk).indexOf("Metin") !== -1);
+  ok("yazı tipi ailesi saklanmaz (bilinçli)", PS(wordJunk).indexOf("Calibri") === -1);
+
+  // ESKİ GÜVENLİK İDDİALARI hâlâ geçerli mi (genişleme gedik açtı mı?)
+  ok("genişleme sonrası: script yine düşer", PS('<table><tr><td><script>x<\/script></td></tr></table>').indexOf("script") === -1);
+  ok("genişleme sonrası: onerror yine düşer", PS('<td style="color:#f00" onerror="alert(1)">x</td>').indexOf("onerror") === -1);
+  ok("genişleme sonrası: javascript: yine düşer", PS('<a href="javascript:alert(1)" style="color:#f00">x</a>').indexOf("javascript") === -1);
+
   // --- notlardan HTML üretimi ---
   ok("notesToHtml: doctype ile başlar", notesToHtml().indexOf("<!doctype html>") === 0);
 
@@ -3557,6 +4018,62 @@ function runTests(){
   window.__testResult = { total: results.length, failed: failed.length, names: failed.map(r => r.name) };
 }
 
+/* =========================== PANO TANILAMA ==============================
+ * Bu ortamda Windows ve Word yok; gerçek masaüstü yapıştırması
+ * otomatikleştirilemiyor. Sentetik ClipboardEvent yalnızca bizim
+ * ayrıştırıcımızı sınar. Bu kip, kullanıcının kendi makinesinde panonun HAM
+ * içeriğini görüp gönderebilmesi için var — gelen her örnek test fikstürü olur. */
+function runClipDebug(){
+  const root = document.getElementById("root");
+  root.textContent = "";
+  const out = el("textarea", { class:"input", readonly:true, spellcheck:"false",
+    style:"width:100%;height:46vh;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px" });
+  const meta = el("pre", { style:"background:var(--surface-2);padding:10px;border-radius:8px;overflow-x:auto;font-size:12px" });
+  const drop = el("div", {
+    contenteditable:"true", id:"clipTarget",
+    style:"min-height:120px;border:2px dashed var(--border-strong);border-radius:10px;padding:14px;outline:none;background:var(--surface)",
+    onpaste(e){
+      const dt = e.clipboardData; if (!dt) return;
+      e.preventDefault();
+      const types = [].slice.call(dt.types || []);
+      let html = ""; try { html = dt.getData("text/html") || ""; } catch(err){ html = "(okunamadı)"; }
+      let text = ""; try { text = dt.getData("text/plain") || ""; } catch(err){ text = ""; }
+      const files = clipboardImageFiles(dt).map(f => f.type + " " + formatBytes(f.size));
+      meta.textContent =
+        "types: " + JSON.stringify(types) +
+        "\nresim dosyaları: " + (files.length ? files.join(", ") : "yok") +
+        "\ntext/html uzunluğu: " + html.length +
+        "\ntext/plain: " + JSON.stringify(text.slice(0, 200));
+      out.value = html;
+      // Bizim ayrıştırıcımızın ne ürettiğini de göster
+      prev.innerHTML = sanitizeHtml(presentationalToSemantic(html));
+      wrapWideTables(prev);
+      sanOut.value = prev.innerHTML;
+    }
+  }, el("p", { style:"margin:0;color:var(--muted)", text:"Word / OneNote'tan kopyaladığın içeriği BURAYA yapıştır (Ctrl+V)." }));
+
+  const prev = el("div", { class:"editor", style:"border:1px solid var(--border);border-radius:10px;padding:14px;max-height:40vh;overflow:auto" });
+  const sanOut = el("textarea", { class:"input", readonly:true, spellcheck:"false",
+    style:"width:100%;height:20vh;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px" });
+
+  const copyBtn = el("button", { class:"btn btn-primary", onclick(){
+    out.select();
+    try { document.execCommand("copy"); toast("Ham HTML panoya kopyalandı."); } catch(e){}
+  }}, "Ham HTML'i kopyala");
+
+  root.append(el("div", { style:"max-width:900px;margin:28px auto;padding:0 20px;display:flex;flex-direction:column;gap:14px" },
+    el("h1", { style:"margin:0;font-size:20px", text:"Pano tanılama" }),
+    el("p", { style:"margin:0;color:var(--muted);font-size:14px",
+      text:"Word veya OneNote'tan bir parça kopyala, aşağıdaki kutuya yapıştır ve 'Ham HTML'i kopyala' ile bana gönder. Gelen örnek test fikstürü olarak eklenir." }),
+    drop, meta,
+    el("h2", { style:"margin:0;font-size:15px", text:"1) Panodaki ham HTML" }), out, copyBtn,
+    el("h2", { style:"margin:0;font-size:15px", text:"2) Bizim çevirimizin sonucu" }), prev,
+    el("h2", { style:"margin:0;font-size:15px", text:"3) Saklanacak HTML" }), sanOut,
+    el("div", { class:"toasts", id:"toasts", "aria-live":"polite" })
+  ));
+  document.title = "TaskHub — pano tanılama";
+}
+
 /* -------------------------------------------------------------- başlangıç */
 storageOK = probeStorage();
 state = load();
@@ -3564,7 +4081,9 @@ notes = loadNotes();
 applyTheme();
 document.documentElement.lang = state.settings.lang;
 
-if (params.get("test") === "1"){
+if (params.get("clipdebug") === "1"){
+  runClipDebug();
+} else if (params.get("test") === "1"){
   runTests();
 } else {
   buildShell();

@@ -65,17 +65,34 @@ bağlantı, resim. **Kaydet düğmesi yok**, yazdıkça kaydedilir.
 
 ### Word / OneNote'tan yapıştırma
 
-Panoda hem zengin metin hem resim varsa **ikisi de** alınır. Word resimleri
-`file:///…` gibi yerel dosya bağlantılarıyla taşır; bu bağlantılar güvenlik
-süzgecinden geçemez, dolayısıyla:
+**Korunanlar:** kalın, italik, altı/üstü çizili, başlıklar, yazı rengi, vurgu
+(zemin rengi), punto (beş kademeye yuvarlanır), bağlantılar, **tablolar**
+(`colspan`/`rowspan` dahil) ve tek seviyeli madde/numaralı listeler.
 
-- Panodaki gerçek resim dosyası kurtarılabiliyorsa **metnin sonuna** eklenir —
-  özgün konumu korunamaz ve bu sana söylenir.
-- Kurtarılamayan resimler sessizce yutulmaz; "N resim aktarılamadı" uyarısı çıkar.
+**Bilerek korunmayanlar:** yazı tipi aileleri, kenar boşlukları, satır aralıkları,
+sütun genişlikleri. Sayfa Word'deki gibi *görünmez* — biçimi taşır, düzenini değil.
 
-> **Not:** Bu sürümde Word'ün `style` ile taşıdığı kalın/renk/punto bilgisi
-> henüz çevrilmiyor, yani biçim büyük ölçüde düz metne iniyor. O çeviri
-> (ve tablolar) bir sonraki turda geliyor.
+**Listelerde dürüst sınır:** Word listeleri gerçek liste değil, sahte işaretçili
+paragraflardır. Tek seviyeli madde ve `1.` `2.` biçimindeki numaralı listeler
+gerçek listeye çevrilir. Çok seviyeli listeler, `a.` / `IV.` gibi biçimler ve
+1'den farklı başlangıçlar **paragraf olarak korunur** — kaybolmaz ama liste olmaz.
+Word'ün işaretçi çöpü ("·", "o") metinden temizlenir.
+
+**Resimler:** Word resimleri `file:///…` yerel yollarıyla taşır ve bu yollar
+güvenlik süzgecinden geçemez. Panoda gerçek bir resim dosyası varsa **metnin
+sonuna** eklenir — özgün konumu korunamaz ve bu sana söylenir. Kurtarılamayanlar
+sessizce yutulmaz, "N resim aktarılamadı" uyarısı çıkar.
+
+#### Bende çalışmazsa
+
+Masaüstü Word'ün panoya tam olarak ne koyduğu sürüme ve ayarlara göre değişir ve
+bu geliştirme ortamında gerçek Word yok. `index.html?clipdebug=1` adresini aç,
+Word'den kopyaladığını oradaki kutuya yapıştır: panonun ham HTML'ini, bizim
+çevirimizin sonucunu ve saklanacak hâli yan yana görürsün. "Ham HTML'i kopyala"
+ile bana gönderirsen test fikstürü olarak eklerim.
+
+Elle sınamaya değer matris: Word masaüstü / OneNote masaüstü / Word Web / normal
+web sayfası × Chrome ve Edge × `file://`.
 
 ### Dışarıdan yapıştırdığın içerik temizlenir
 
@@ -85,8 +102,12 @@ listesinden geçer: betikler, olay nitelikleri, `style`, çerçeveler ve
 olmasa, yapıştırdığın içerik dosyana kod taşıyabilir ve o kod sen notu her
 açtığında çalışırdı.
 
-Bunun bir bedeli var: **tablo yapıştırırsan düzeni gider, metni kalır.**
-Bilinçli takas — izin listesini dar tutup sonra genişletmek güvenli, tersi değil.
+Renk için dar bir geçit var: yalnızca `color` ve `background-color`, değeri
+`#rrggbb` / `rgb()` / temel renk adı kalıbına uyuyorsa. Değer **yeniden
+üretilerek** yazılır, ham stil dizesi hiçbir yoldan geçmez — bu yüzden
+`position:fixed`, `url(javascript:…)`, `expression()` ve `behavior:` düşmeye
+devam eder. `rgba()`, `hsl()`, yüzdeli değerler ve `transparent` bilerek
+desteklenmiyor.
 
 ### Depolama göstergesi
 
@@ -148,18 +169,27 @@ modül yüklemeleri ve `fetch` çağrıları CORS'a takılır.
 
 Hatası kolay saf fonksiyonlar (`sanitizeHtml`, `noteText`, `foldTr`, `bucketOf`,
 `csvEscape`, `mergeImport`, `mergeNotebooks`, `sortTasks`, `normalizeTask`,
-`normalizeNotebook`, `packImages`/`unpackImages`) yerleşik bir iddia setiyle
-sınanır:
+`normalizeNotebook`, `packImages`/`unpackImages`, `presentationalToSemantic`,
+`normColor`, `normFontSize`) yerleşik bir iddia setiyle sınanır:
 
 ```
-index.html?test=1      → 127 iddia, geçen/kalan dökümüyle
+index.html?test=1      → 207 iddia, geçen/kalan dökümüyle
 index.html?nostorage=1 → depolama uyarı şeridini görmek için
+index.html?clipdebug=1 → panonun ham içeriğini incelemek için
 ```
 
 Editör yalnızca açık sayfa değiştiğinde yeniden kurulur; her çizimde kurulsaydı
 imleç her tuşta başa atardı. Editördeki ham HTML modele her tuşta değil,
 kaydetme anında (`flushEditor`) süzülerek yazılır — geri yazma olmadığı için
 imleç güvende, süzgeç de tuş başına değil kayıt başına bir kez çalışır.
+
+Word biçimi `style` nitelikleriyle gelir ve süzgeç `style`'ı atar; bu yüzden
+araya `presentationalToSemantic` girer: **atmadan önce** niteliğin anlamını okuyup
+izinli etiketlere çevirir. Naif "öğeyi `<b>` ile sar" yaklaşımı iç içe çelişen
+stillerde bozulduğu için (`font-weight:700` içindeki `400` temsil edilemez) çeviri
+çalışma tabanlıdır: her metin parçasının etkin biçimi atalardan hesaplanır ve
+çıktı sabit bir sırayla sıfırdan üretilir. İdempotentlik bunun sonucudur ve
+`f(f(x)) === f(x)` bir kabul kriteri olarak sınanır.
 
 Geri alma tarayıcının kendi yığınına bırakılamadı: o yığın yalnızca
 `execCommand`'i ve doğal yazmayı görür, oysa vurgu, kutucuk ve resim işlemleri
@@ -187,4 +217,7 @@ Tekrarlayan görevler, çöp kutusu, hatırlatma bildirimleri (sayfa kapalıyken
 gelmez), takvim ve pano görünümü, cihazlar arası senkronizasyon.
 
 Notlar tarafında: üçüncü seviye (bölüm), çizim/kalem, ses kaydı, sayfa şablonu,
-sürüm geçmişi, tablo düzeni.
+sürüm geçmişi, serbest yerleşim (metin kutuları), alt sayfa.
+
+Sıradaki tur: tablo **oluşturma** ve satır/sütun düzenleme, yazı rengi ve punto
+düğmeleri, sayfaları sürükleyerek sıralama.
