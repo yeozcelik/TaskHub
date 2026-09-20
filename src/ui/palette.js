@@ -144,6 +144,23 @@ const isNotes = () => ui.view === "notes";
     run(){ const q = document.getElementById("q"); if (q){ q.focus(); q.select(); } } },
   { id:"filters.clear", label:() => t("clearFilters"), when:() => isTasks() && filtersActive(),
     run(){ clearFilters(); } },
+  /* Linear yasası: toplu işlemler de klavyeden ulaşılabilir olmalı. Yalnız
+     seçim varken listelenir — boş bir seçime uygulanacak komut gürültüdür. */
+  { id:"sel.all", label:() => t("cmdSelAll"), when:() => isTasks() && ui.selOrder.length,
+    run(){ applySel(ui.selOrder, "add"); } },
+  { id:"sel.clear", label:() => t("cmdSelClear"), when:() => isTasks() && ui.sel.size,
+    run(){ clearSelection(); } },
+  { id:"bulk.done", label:() => t("bulkDoneAct"), when:() => isTasks() && ui.sel.size,
+    run(){ bulkDone(true); } },
+  { id:"bulk.undone", label:() => t("bulkUndoneAct"), when:() => isTasks() && ui.sel.size,
+    run(){ bulkDone(false); } },
+  { id:"bulk.due.today", label:() => t("bulkDueToday"), when:() => isTasks() && ui.sel.size,
+    run(){ bulkDue(today); } },
+  { id:"bulk.due.clear", label:() => t("bulkDueClear"), when:() => isTasks() && ui.sel.size,
+    run(){ bulkDue(null); } },
+  { id:"bulk.delete", label:() => t("bulkDeleteAct"), when:() => isTasks() && ui.sel.size,
+    run(){ bulkDelete(); } },
+
   { id:"completed.toggle", label:() => t("cmdToggleCompleted"), when:isTasks,
     run(){ ui.showCompleted = !ui.showCompleted; renderList(); } },
 

@@ -64,8 +64,11 @@ const STATES = [
   { id: "komut-paleti", setup: `(() => { try { closePalette(); openPalette(); } catch (e){} return true; })()` },
   { id: "pano", setup: `(() => { try { switchTaskView("board"); } catch (e){} return true; })()` },
   { id: "takvim", setup: `(() => { try { switchTaskView("calendar"); } catch (e){} return true; })()` },
+  { id: "toplu-secim", setup: `(() => { try { switchTaskView("list");
+      applySel(state.tasks.map(t => t.id).slice(0, 2), "add"); } catch (e){} return true; })()` },
 ];
 const RESET = `(() => {
+  try { clearSelection(); } catch (e){}
   try { switchTaskView("list"); } catch (e){}
   try { closePalette(); } catch (e){}
   try { closePanel(); } catch (e){}

@@ -87,3 +87,28 @@ neden dört farklı durumda sayılıyor.
 Bunun bir sonucu var: **her yeni görünüm borcu büyütüyor.** Takvim (T3.5)
 eklendiğinde üç kayıt daha eklenecek. T2.8 kökü düzelttiğinde hepsi birden
 düşecek — yani T2.8 ertelendikçe kazancı da büyüyor.
+
+
+## Güncelleme (T4.1): kapı BENİM hatamı yakaladı — ve az kalsın tabana alıyordum
+
+Çoklu seçim eklenirken karta `aria-selected` konuldu. Kart `role="button"`
+taşıyor ve **`aria-selected` bu rolde geçerli değil** — axe `aria-allowed-attr`
+ile beş ayrı durumda, 40 tarama kombinasyonunda uyardı.
+
+**Az kalsın tabana alınıyordu.** Yeni durum ("toplu-seçim") eklendiği için
+taban zaten büyüyecekti; sayının 13'ten 21'e çıkmasını "aynı borç, yeni durum"
+diye geçiştirmek kolaydı. Beklenen artış **16**'ydı; 21 görünce durup
+**tabanın içine bakmak** gerçek sebebi ortaya çıkardı: yeni bir kural, ve
+devralınmış değil, **bu oturumda yazılmış**.
+
+Ders, kapının kendisinden daha önemli: **taban güncellemesi refleks olmamalı.**
+Sayı beklenenden farklıysa dur ve neyin eklendiğine bak. "Yeni ihlal yok"
+yazısını görmek için tabanı büyütmek, kapıyı kapatmakla aynı şey.
+
+Düzeltme: `aria-selected` kaldırıldı, seçim durumu erişilebilir **adın**
+parçası oldu (`"görev 2 — seçili"`). Her rolde geçerli, her ekran okuyucuda
+okunur; `#selLive` canlı bölgesi seçim sayısını ayrıca duyuruyor. Doğru uzun
+vadeli çözüm yine T2.8: kartın rolünü düzeltmek.
+
+Taban 13 → **16**: üç devralınan ihlal, yeni bir durumda tekrar sayılıyor.
+Kusur sayısı yine değişmedi.

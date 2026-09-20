@@ -848,7 +848,7 @@ doğar doğmaz gecikmiş olurdu. Erken tamamlarsanız seri kaymaz
 
 ## Faz 4 — `select` + `link`: güç
 
-### T4.1: Çoklu seçim ve aralık seçimi
+### T4.1: Çoklu seçim ve aralık seçimi — ✅ BİTTİ
 
 **Kabul ölçütleri:**
 - [ ] `Ctrl/Cmd+tık` tekil ekler, `Shift+tık` ve `Shift+ok` aralık seçer
@@ -856,13 +856,36 @@ doğar doğmaz gecikmiş olurdu. Erken tamamlarsanız seri kaymaz
 - [ ] Seçim yokken arayüz **bugünkü hâliyle aynı** (S8 — araç çubuğu ancak seçimle belirir)
 - [ ] `Esc` seçimi temizler
 
-**Doğrulama:** `node --test tests/selection.test.js` (aralık mantığı saf); axe; elle klavye.
+**Doğrulama:** `node --test` → `tests/selection.test.js` (**10 test**);
+`node tools/probe/behavior.mjs` (**127/127**, seçimin 13 iddiası).
+
+**Sonuç.** `src/core/selection.js` saf: aralık, küme işlemleri, budama, adım.
+
+| Kabul | Sonuç |
+|---|---|
+| `Ctrl/Cmd+tık` tekil, `Shift+tık` aralık | ✅ aralık gruplar arası da çalışır |
+| `Shift+ok` aralık genişletir | ✅ oklar odağı taşır; uçlarda **sarmaz** |
+| Seçim `aria-live` ile duyurulur | ✅ `#selLive` |
+| Seçim yokken arayüz **bugünküyle aynı** | ✅ testle: `.bulkbar` hiç çizilmiyor |
+| `Esc` seçimi temizler | ✅ palet ve panelden önce sırada |
+
+**Filtre daralınca seçim budanır.** "3 görev seçili" yazıp iki tane göstermek,
+toplu silmeyi kullanıcının **görmediği** bir şeye uygular. Seçim her zaman
+görünenin alt kümesi (`pruneSelection`, testle kilitli).
+
+> **a11y kapısı BENİM hatamı yakaladı.** Karta `aria-selected` koymuştum;
+> `role="button"` bu niteliği kabul etmiyor (`aria-allowed-attr`, 5 durum ×
+> 8 kombinasyon). **Az kalsın tabana alıyordum:** yeni bir tarama durumu
+> eklendiği için taban zaten büyüyecekti. Beklenen 16'ydı, 21 çıktı — durup
+> **tabanın içine bakmak** gerçek sebebi gösterdi. Ders kapıdan önemli:
+> *taban güncellemesi refleks olmamalı.* Düzeltme: nitelik kaldırıldı, seçim
+> durumu erişilebilir **adın** parçası oldu.
 
 **Bağımlılık:** T2.2
 **Dosyalar:** `src/core/selection.js`, `src/ui/task-list.js`, `tests/selection.test.js`
 **Boyut:** M
 
-### T4.2: Toplu işlemler + geri alma
+### T4.2: Toplu işlemler + geri alma — ✅ BİTTİ
 
 **Kabul ölçütleri:**
 - [ ] Toplu tamamla / öncelik / etiket / son tarih / sil
@@ -870,7 +893,28 @@ doğar doğmaz gecikmiş olurdu. Erken tamamlarsanız seri kaymaz
 - [ ] Mevcut 8 sn'lik "Geri al" bildirimi yolu kullanılır
 - [ ] Her toplu işlem komut paletinde (S6)
 
-**Doğrulama:** `node --test tests/bulk-ops.test.js`; elle geri alma sınaması.
+**Doğrulama:** `node tools/probe/behavior.mjs` — toplu işlemlerin 11 iddiası.
+
+**Sonuç.** Tamamla/geri aç, öncelik, son tarih, etiket, sil — hepsi seçime.
+Yedisi de komut paletinde (S6 envanteri güncellendi).
+
+**TEK GERİ ALMA ADIMI, gerçekten tek.** Anlık görüntü etkilenen her görevin
+önceki hâlini **ve listedeki konumunu** saklar. Konum neden: toplu silmeyi
+geri alırken görevleri sona eklemek sırayı bozar ve "geri alma" bir başka
+değişiklik hâline gelir. Testle kilitli: `[s1,s2,s3,s4,s5]` → sil → geri al →
+**aynı sıra**.
+
+**Tekrar örnekleri de geri alınır.** Toplu tamamlama tekrarlı görevlerden yeni
+örnekler üretir; geri alma onları da siler. Yoksa geri alma yarım kalır ve
+kullanıcı silmediği bir görevle baş başa kalır.
+
+> **Test kendi kendini kandırdı, iki kez.** Önce `querySelector(".toasts
+> button")` ile **ilk** bildirimi tıkladım — testler hızlı koştuğu için ekranda
+> eski bildirimler duruyordu ve **başka bir işlemin** geri alması çalışıyordu.
+> Sonuncuya geçtim; bu sefer hiçbir şey olmadı, çünkü her bildirimde **iki**
+> buton var ve sonuncusu **kapat** butonu. Doğru hedef: son bildirimin
+> `button:not(.btn-icon)` öğesi. İkisi de üründe değil testte hataydı ama
+> ikisi de "geçiyor" görünen bir test üretebilirdi.
 
 **Bağımlılık:** T4.1
 **Dosyalar:** `src/core/task-ops.js`, `src/ui/bulk-bar.js`, `tests/bulk-ops.test.js`

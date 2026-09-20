@@ -200,6 +200,7 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
 
   // S6: envanter. Bir komut kaldırılırsa CI kırılır.
   const EXPECTED = ["view.tasks","view.notes","taskview.list","taskview.board","taskview.calendar",
+    "sel.all","sel.clear","bulk.done","bulk.undone","bulk.due.today","bulk.due.clear","bulk.delete",
     "task.new","search.focus","filters.clear",
     "completed.toggle","notebook.new","page.new","theme.cycle","lang.toggle",
     "export.json","import.json","export.csv","export.notes","print"];
@@ -540,8 +541,123 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   check("panel: tekrar kaldırılabiliyor", await ev(`state.tasks[0].recur`), null);
   await ev(`closePanel(); true`);
 
+  // ---------------- T4.1: çoklu seçim ----------------
+  const five = `today = "2026-05-10"; clearSelection(); ui.q = ""; switchTaskView("list");
+    state.tasks = [1,2,3,4,5].map(i => ({ id:"s"+i, title:"görev "+i, notes:"", dueDate:"2026-05-10",
+      priority:"med", tags:[], subtasks:[], done:false,
+      createdAt:"2026-01-0"+i+"T00:00:00.000Z", updatedAt:"2026-01-0"+i+"T00:00:00.000Z",
+      completedAt:null, sourceNoteId:null })); render(); true`;
+  await ev(five);
+
+  check("S8: seçim yokken toplu çubuk YOK",
+    await ev(`!document.querySelector(".bulkbar")`), true);
+  check("görünen sıra ekrandaki sırayla",
+    await ev(`ui.selOrder`), ["s1", "s2", "s3", "s4", "s5"]);
+
+  /* Bildirimler 8 sn yaşıyor ve testler hızlı koşuyor: ekranda birden çok
+     bildirim birikiyor. İlkini tıklamak ESKİ bir işlemin geri almasını
+     çalıştırır. Her işlemden önce temizle, sonra SONUNCUYU tıkla. */
+  const clearToasts = `(() => { const n = document.getElementById("toasts"); if (n) n.textContent = ""; return true; })()`;
+  /* Her bildirimde İKİ buton var: eylem ve kapat (btn-icon). Sonuncuyu
+     tıklamak bildirimi KAPATIR, geri almaz — ilk denemede tam bu oldu. */
+  const undoLast = `(() => {
+    const list = document.querySelectorAll(".toasts .toast");
+    if (!list.length) return "bildirim yok";
+    const b = list[list.length - 1].querySelector("button:not(.btn-icon)");
+    if (!b) return "eylem butonu yok";
+    b.click(); return true; })()`;
+
+  const clickCard = (id, mods) => `(() => { const c = document.querySelector('#list .card[data-id="${id}"]');
+    c.dispatchEvent(new MouseEvent("click", Object.assign({ bubbles:true, cancelable:true }, ${JSON.stringify(mods || {})})));
+    return true; })()`;
+
+  await ev(clickCard("s2", { ctrlKey: true }));
+  check("Ctrl+tık tek görev seçer", await ev(`[...ui.sel]`), ["s2"]);
+  check("seçim çubuğu belirdi", await ev(`!!document.querySelector(".bulkbar")`), true);
+  check("seçili kart işaretli ve ADINDA seçili yazıyor",
+    await ev(`(() => { const c = document.querySelector('.card[data-id="s2"]');
+      return [c.classList.contains("picked"), c.getAttribute("aria-label").includes("seçili"),
+              c.hasAttribute("aria-selected")]; })()`), [true, true, false]);
+  check("seçim ekran okuyucuya duyuruldu",
+    await ev(`document.getElementById("selLive").textContent.includes("1")`), true);
+
+  await ev(clickCard("s4", { shiftKey: true }));
+  check("Shift+tık aralık seçer", await ev(`[...ui.sel].sort()`), ["s2", "s3", "s4"]);
+
+  await ev(clickCard("s2", { ctrlKey: true }));
+  check("Ctrl+tık seçiliyi çıkarır", await ev(`[...ui.sel].sort()`), ["s3", "s4"]);
+
+  await ev(clickCard("s1"));
+  check("düz tıklama seçimi temizler ve paneli açar",
+    await ev(`[ui.sel.size, openTaskId]`), [0, "s1"]);
+  await ev(`closePanel(); true`);
+
+  // Klavye
+  await ev(`(() => { const c = document.querySelector('.card[data-id="s2"]'); c.focus();
+    c.dispatchEvent(new KeyboardEvent("keydown", { key:" ", bubbles:true, cancelable:true })); return true; })()`);
+  check("boşluk tuşu seçer", await ev(`[...ui.sel]`), ["s2"]);
+  await ev(`(() => { const c = document.querySelector('.card[data-id="s2"]'); c.focus();
+    c.dispatchEvent(new KeyboardEvent("keydown", { key:"ArrowDown", shiftKey:true, bubbles:true, cancelable:true })); return true; })()`);
+  check("Shift+ok seçimi genişletir", await ev(`[...ui.sel].sort()`), ["s2", "s3"]);
+  check("odak sonraki karta taşındı", await ev(`document.activeElement.getAttribute("data-id")`), "s3");
+
+  await ev(`document.documentElement.dispatchEvent(new KeyboardEvent("keydown", { key:"Escape", bubbles:true, cancelable:true })); true`);
+  check("Esc seçimi temizler", await ev(`[ui.sel.size, !!document.querySelector(".bulkbar")]`), [0, false]);
+
+  // Filtre daralınca seçim budanır
+  await ev(`applySel(["s1","s2","s5"], "add"); ui.q = "görev 1"; renderList(); true`);
+  check("filtre daralınca görünmeyen seçim DÜŞER", await ev(`[...ui.sel]`), ["s1"]);
+  await ev(`ui.q = ""; clearSelection(); renderList(); true`);
+
+  // ---------------- T4.2: toplu işlemler ----------------
+  await ev(five);
+  await ev(`applySel(["s1","s2","s3"], "add"); true`);
+  await ev(clearToasts);
+  await ev(`bulkPriority("high"); true`);
+  check("toplu öncelik uygulandı",
+    await ev(`state.tasks.map(t => t.priority).join()`), "high,high,high,med,med");
+  check("geri alma bildirimi var", await ev(undoLast), true);
+  check("TEK GERİ ALMA hepsini geri aldı",
+    await ev(`state.tasks.map(t => t.priority).join()`), "med,med,med,med,med");
+
+  await ev(five);
+  await ev(clearToasts);
+  await ev(`applySel(["s2","s4"], "add"); bulkDue(null); true`);
+  check("toplu tarih silme", await ev(`state.tasks.map(t => t.dueDate === null).join()`), "false,true,false,true,false");
+  check("geri alma bildirimi var", await ev(undoLast), true);
+  check("tarih geri alındı", await ev(`state.tasks.every(t => t.dueDate === "2026-05-10")`), true);
+
+  await ev(five);
+  await ev(clearToasts);
+  await ev(`applySel(["s1","s3"], "add"); bulkTag("acil"); true`);
+  check("toplu etiket", await ev(`state.tasks.map(t => t.tags.join("|")).join()`), "acil,,acil,,");
+
+  // Toplu silme: sıra korunarak geri alınmalı
+  await ev(five);
+  await ev(clearToasts);
+  await ev(`applySel(["s2","s4"], "add"); bulkDelete(); true`);
+  check("toplu silme", await ev(`state.tasks.map(t => t.id)`), ["s1", "s3", "s5"]);
+  check("silmeden sonra seçim temizlendi", await ev(`ui.sel.size`), 0);
+  check("geri alma bildirimi var", await ev(undoLast), true);
+  check("geri alma SIRAYI da geri getirir",
+    await ev(`state.tasks.map(t => t.id)`), ["s1", "s2", "s3", "s4", "s5"]);
+
+  // Toplu tamamlama + tekrar: geri alma üretilen örneği de silmeli
+  await ev(`today = "2026-05-10"; clearSelection();
+    state.tasks = [{ id:"rr", title:"tekrarlı", notes:"", dueDate:"2026-05-10", priority:"med",
+      tags:[], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z",
+      updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null,
+      recur:{ freq:"daily", interval:1, byDay:null, anchor:"2026-05-10" } }]; render();
+    applySel(["rr"], "add"); true`);
+  await ev(clearToasts);
+  await ev(`bulkDone(true); true`);
+  check("toplu tamamlama tekrar örneği üretti", await ev(`state.tasks.length`), 2);
+  check("geri alma bildirimi var", await ev(undoLast), true);
+  check("geri alma ÜRETİLEN ÖRNEĞİ de sildi — yarım geri alma yok",
+    await ev(`[state.tasks.length, state.tasks[0].done]`), [1, false]);
+
   // Bu blok state'i değiştirdi; sonraki iddiaların beklediği düzeni geri kur.
-  await ev(`today = "2026-05-10"; state.tasks = [
+  await ev(`clearSelection(); today = "2026-05-10"; state.tasks = [
     { id:"a", title:"alfa v3", notes:"", dueDate:"2026-05-10", priority:"low", tags:["iş"], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null },
     { id:"b", title:"beta rapor (güncel)", notes:"", dueDate:"2026-05-10", priority:"high", tags:[], subtasks:[], done:false, createdAt:"2026-01-02T00:00:00.000Z", updatedAt:"2026-01-02T00:00:00.000Z", completedAt:null, sourceNoteId:null },
     { id:"c", title:"gama İstanbul", notes:"", dueDate:null, priority:"med", tags:[], subtasks:[], done:true, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:"2026-01-03T00:00:00.000Z", sourceNoteId:null },

@@ -8,6 +8,9 @@ const ui = {
   q:"", status:"all", prios:new Set(), tags:new Set(), showCompleted:true, nagHidden:false,
   view:"tasks",          // "tasks" | "notes"
   taskView:"list",       // "list" | "board" | "calendar" — AYNI veriye izdüşümler (Notion yasası)
+  sel:new Set(),         // seçili görev kimlikleri
+  selAnchor:null,        // aralık seçiminin çapası
+  selOrder:[],           // görünen anahtarlar, EKRANDAKİ sırayla (aralık/klavye için)
   calYm:null,            // takvimde görüntülenen ay: { y, m } — null = bu ay
   nbId:null, pageId:null // seçili defter ve sayfa
 };
@@ -74,6 +77,182 @@ function addTask(title, fields){
   state.tasks.push(task);
   scheduleSave(); render();
   return task;
+}
+
+/* ------------------------------------------------------------- seçim ---
+ * Linear yasası: her şey klavyeden. Things vetosu: seçim YOKKEN ekran
+ * bugünküyle birebir aynı — toplu işlem çubuğu ancak seçimle belirir. */
+function selCount(){ return ui.sel.size; }
+
+function announceSelection(){
+  const live = document.getElementById("selLive");
+  if (live) live.textContent = ui.sel.size ? t("selN", { n: ui.sel.size }) : "";
+}
+
+function applySel(keys, mode){
+  ui.sel = pruneSelection(nextSelection(ui.sel, keys, mode), ui.selOrder);
+  renderList();
+  announceSelection();
+}
+
+function selToggle(id){
+  ui.selAnchor = id;
+  applySel([id], "toggle");
+}
+
+function selRangeTo(id){
+  const anchor = ui.selAnchor && ui.selOrder.includes(ui.selAnchor) ? ui.selAnchor : id;
+  ui.selAnchor = anchor;
+  applySel(rangeBetween(ui.selOrder, anchor, id), "add");
+}
+
+function clearSelection(){
+  if (!ui.sel.size && !ui.selAnchor) return false;
+  ui.sel = new Set();
+  ui.selAnchor = null;
+  renderList();
+  announceSelection();
+  return true;
+}
+
+/* Klavyeyle gezinme: oklar odağı taşır, Shift+ok seçimi genişletir.
+   Uçlarda sarmaz (src/core/selection.js) — listede aşağı basarken başa
+   dönmek kullanıcının nerede olduğunu kaybettirir. */
+function selArrow(fromId, delta, extend){
+  const next = stepKey(ui.selOrder, fromId, delta);
+  if (!next) return;
+  if (extend){
+    if (!ui.selAnchor) ui.selAnchor = fromId;
+    ui.sel = pruneSelection(nextSelection(new Set(), rangeBetween(ui.selOrder, ui.selAnchor, next), "add"), ui.selOrder);
+    renderList();
+    announceSelection();
+  }
+  const node = document.querySelector('#list .card[data-id="' + CSS.escape(next) + '"]');
+  if (node) node.focus({ preventScroll:false });
+}
+
+/* ------------------------------------------------------- toplu işlemler ---
+ * TEK GERİ ALMA ADIMI. Yarım geri alma — üç görevden ikisinin dönmesi —
+ * kullanıcının güvenini tamamen kaybettirir; o yüzden anlık görüntü işlemin
+ * TAMAMINI kapsar: etkilenen her görevin önceki hâli VE listedeki konumu.
+ *
+ * Konum neden saklanıyor: toplu silmeyi geri alırken görevleri sona eklemek
+ * sırayı bozar ve "geri alma" bir başka değişiklik hâline gelir. */
+function snapshotTasks(ids){
+  const out = [];
+  for (const id of ids){
+    const i = state.tasks.findIndex(x => x.id === id);
+    if (i < 0) continue;
+    const t0 = state.tasks[i];
+    out.push({ i, task: { ...t0, tags: t0.tags.slice(),
+      subtasks: t0.subtasks.map(sx => ({ ...sx })) } });
+  }
+  return out;
+}
+
+function restoreSnapshot(snap, spawnedIds){
+  // Üretilmiş tekrar örnekleri de geri alınır: yoksa geri alma yarım kalır.
+  if (spawnedIds && spawnedIds.length){
+    const drop = new Set(spawnedIds);
+    state.tasks = state.tasks.filter(x => !drop.has(x.id));
+  }
+  const ids = new Set(snap.map(x => x.task.id));
+  state.tasks = state.tasks.filter(x => !ids.has(x.id));
+  for (const { i, task } of snap.slice().sort((a, b) => a.i - b.i)){
+    state.tasks.splice(Math.min(i, state.tasks.length), 0, task);
+  }
+  scheduleSave(); render();
+  toast(t("restored"));
+}
+
+/** `mutate(ids)` seçimi değiştirir; geri alma tek adımda kurtarır.
+ *  @returns üretilen tekrar örneklerinin kimlikleri (varsa) */
+function bulkApply(msgKey, mutate, opts){
+  const ids = [...ui.sel];
+  if (!ids.length) return;
+  const snap = snapshotTasks(ids);
+  const spawned = mutate(ids) || [];
+  if ((opts || {}).clearSelection) { ui.sel = new Set(); ui.selAnchor = null; }
+  scheduleSave(); render(); announceSelection();
+  toast(t(msgKey, { n: snap.length }),
+    { label: t("undo"), run(){ restoreSnapshot(snap, spawned); } }, 8000);
+}
+
+const selTasks = ids => ids.map(getTask).filter(Boolean);
+
+function bulkDone(done){
+  bulkApply(done ? "bulkDone" : "bulkUndone", ids => {
+    const spawned = [];
+    for (const task of selTasks(ids)){
+      if (task.done === done) continue;
+      task.done = done;
+      task.completedAt = done ? new Date().toISOString() : null;
+      if (done){ const nx = spawnNextOccurrence(task); if (nx) spawned.push(nx.id); }
+      stamp(task);
+    }
+    return spawned;
+  });
+}
+
+function bulkPriority(p){
+  bulkApply("bulkPrio", ids => { for (const task of selTasks(ids)){ task.priority = p; stamp(task); } });
+}
+
+function bulkDue(value){
+  bulkApply("bulkDue", ids => { for (const task of selTasks(ids)){ task.dueDate = value; stamp(task); } });
+}
+
+function bulkTag(tag){
+  const v = String(tag || "").trim().replace(/^#/, "");
+  if (!v) return;
+  bulkApply("bulkTag", ids => {
+    for (const task of selTasks(ids)){
+      if (!task.tags.includes(v) && task.tags.length < 30){ task.tags.push(v); stamp(task); }
+    }
+  });
+}
+
+function bulkDelete(){
+  bulkApply("bulkDeleted", ids => {
+    const drop = new Set(ids);
+    if (openTaskId && drop.has(openTaskId)) closePanel();
+    state.tasks = state.tasks.filter(x => !drop.has(x.id));
+  }, { clearSelection: true });
+}
+
+/* Toplu işlem çubuğu. SEÇİM YOKSA HİÇ ÇİZİLMEZ (S8): varsayılan ekranda
+   kalıcı bir kontrol belirmez. */
+function renderBulkBar(){
+  const host = document.getElementById("bulkHost");
+  if (!host) return;
+  host.textContent = "";
+  if (!ui.sel.size) return;
+
+  const allDone = [...ui.sel].every(id => { const x = getTask(id); return x && x.done; });
+  const btn = (cls, label, title, onclick, ic) => el("button", {
+    class:"btn " + cls, title, "aria-label": title, onclick }, ic ? icon(ic) : null, label);
+
+  const tagInput = el("input", { class:"input bulk-tag", type:"text", maxlength:"30",
+    placeholder: t("bulkTagPh"), "aria-label": t("bulkTagPh"),
+    onkeydown(e){ if (e.key === "Enter"){ e.preventDefault(); bulkTag(e.target.value); e.target.value = ""; } }
+  });
+
+  host.append(el("div", { class:"bulkbar", role:"toolbar", "aria-label": t("bulkLbl") },
+    el("span", { class:"bulk-n", text: t("selN", { n: ui.sel.size }) }),
+    btn("btn-ghost", t(allDone ? "bulkUndoneAct" : "bulkDoneAct"), t(allDone ? "bulkUndoneAct" : "bulkDoneAct"),
+        () => bulkDone(!allDone), "check"),
+    el("span", { class:"bulk-sep", "aria-hidden":"true" }),
+    ...["high","med","low"].map(p => el("button", {
+      class:"btn btn-ghost bulk-prio", title: t("bulkPrioTo", { p: t(p) }), "aria-label": t("bulkPrioTo", { p: t(p) }),
+      onclick(){ bulkPriority(p); } }, el("span", { class:"dot " + p }), t(p))),
+    el("span", { class:"bulk-sep", "aria-hidden":"true" }),
+    btn("btn-ghost", t("today"), t("bulkDueToday"), () => bulkDue(today), "cal"),
+    btn("btn-ghost", t("bulkDueClear"), t("bulkDueClear"), () => bulkDue(null)),
+    tagInput,
+    el("span", { class:"grow" }),
+    btn("btn-danger", t("delete"), t("bulkDeleteAct"), bulkDelete, "trash"),
+    btn("btn-ghost", t("selClear"), t("selClear"), clearSelection, "x")
+  ));
 }
 
 /* ------------------------------------------------------- yakalama önizleme
@@ -406,6 +585,8 @@ function mountView(){
         el("div", { id:"banners" }),
         el("div", { class:"quickadd" }, quick, quickBtn),
         el("div", { class:"capture", id:"captureHint", hidden:true, "aria-live":"polite" }),
+        el("div", { id:"bulkHost" }),
+        el("div", { id:"selLive", class:"sr-only", "aria-live":"polite" }),
         el("div", { id:"list" })
       )
     ),
@@ -552,6 +733,8 @@ function taskCard(task){
   const cls = ["card"];
   if (task.done) cls.push("is-done");
   if (task.id === openTaskId) cls.push("selected");
+  const picked = ui.sel.has(task.id);
+  if (picked) cls.push("picked");
 
   const cb = el("input", {
     type:"checkbox", class:"check", checked: task.done,
@@ -584,9 +767,29 @@ function taskCard(task){
   for (const tg of task.tags) meta.append(el("span", { class:"chip", text:"#" + tg }));
 
   const card = el("li", { class: cls.join(" "), tabindex:"0", role:"button",
-    "data-id": task.id, "aria-label": task.title,
-    onclick(){ openPanel(task.id, card); },
-    onkeydown(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); openPanel(task.id, card); } }
+    /* `aria-selected` BURADA GEÇERSİZDİR: `role="button"` onu kabul etmez
+       (axe: aria-allowed-attr). İlk sürümde eklenmiş ve a11y kapısı yakalamıştı.
+       Seçim durumu bunun yerine erişilebilir ADIN parçası olarak veriliyor —
+       her zaman geçerli, her ekran okuyucuda okunur. Canlı bölge de (#selLive)
+       seçim sayısını ayrıca duyurur.
+       Not: doğru uzun vadeli çözüm kartın rolünü düzeltmek, yani T2.8. */
+    "data-id": task.id,
+    "aria-label": task.title + (picked ? " — " + t("selSelected") : ""),
+    onclick(e){
+      if (e.shiftKey){ e.preventDefault(); selRangeTo(task.id); return; }
+      if (e.ctrlKey || e.metaKey){ e.preventDefault(); selToggle(task.id); return; }
+      // Düz tıklama seçimi sıfırlar ve paneli açar — seçim yokken davranış aynı.
+      if (ui.sel.size) clearSelection();
+      openPanel(task.id, card);
+    },
+    onkeydown(e){
+      if (e.key === "Enter"){ e.preventDefault(); openPanel(task.id, card); return; }
+      if (e.key === " "){ e.preventDefault(); selToggle(task.id); return; }   // Linear: boşluk seçer
+      if (e.key === "ArrowDown" || e.key === "ArrowUp"){
+        e.preventDefault();
+        selArrow(task.id, e.key === "ArrowDown" ? 1 : -1, e.shiftKey);
+      }
+    }
   },
     el("span", { class:"prio-bar " + (task.done ? "" : task.priority), "aria-hidden":"true" }),
     cb,
@@ -611,6 +814,7 @@ function cardSig(task){
     task.title, task.done ? 1 : 0, task.priority, task.dueDate || "",
     task.tags.join(","), subs, task.id === openTaskId ? 1 : 0,
     task.recur ? task.recur.freq + ":" + task.recur.interval + ":" + (task.recur.byDay || []).join("") : "",
+    ui.sel.has(task.id) ? 1 : 0,
     state.settings.lang, today,
   ].join("\u0001");
 }
@@ -854,6 +1058,9 @@ function renderList(){
 
   const visible = state.tasks.filter(matches);
   if (!visible.length && ui.taskView !== "calendar"){
+    ui.selOrder = [];
+    ui.sel = pruneSelection(ui.sel, ui.selOrder);
+    renderBulkBar();
     box.textContent = "";
     box.__taskList = null;
     box.classList.remove("board", "calendar");
@@ -870,6 +1077,9 @@ function renderList(){
      Pano ayrı bir depo açmaz, ayrı bir süzgeç uygulamaz; arama ve filtreler
      her ikisinde de aynen geçerlidir. */
   if (ui.taskView === "calendar"){
+    ui.selOrder = [];
+    ui.sel = pruneSelection(ui.sel, ui.selOrder);
+    renderBulkBar();
     box.textContent = "";
     box.__taskList = null;
     box.classList.remove("board");
@@ -882,6 +1092,14 @@ function renderList(){
   const board = ui.taskView === "board";
   const groups = board ? boardGroups(visible) : listGroups(visible, today);
   const byKey = new Map(groups.map(g => [g.key, g]));
+
+  /* Ekrandaki sıra: aralık seçimi ve ok tuşları buna göre çalışır. Gruplar
+     arası da geçerli — kullanıcı için liste tek bir dizidir. */
+  ui.selOrder = groups.flatMap(g => g.items.map(x => x.id));
+  const before = ui.sel.size;
+  ui.sel = pruneSelection(ui.sel, ui.selOrder);
+  if (ui.sel.size !== before) announceSelection();
+  renderBulkBar();
   const active = groups.map(g => g.key);
   box.classList.toggle("board", board);
 
@@ -3542,6 +3760,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape"){
     if (importDlgOpen()) return;
     if (typeof paletteOpen === "function" && paletteOpen()) return;   // palet kendi kapanır
+    if (ui.view !== "notes" && clearSelection()){ e.preventDefault(); return; }
     if (menuEl){ e.preventDefault(); closeMenu(); return; }
     if (imgPopover){ e.preventDefault(); closeImgPopover(); return; }
     if (openTaskId) { e.preventDefault(); closePanel(); }
