@@ -515,7 +515,7 @@ tabanı sıfıra indirir.
 
 ## Faz 3 — `store` + `views` + `repeat`: yetenek
 
-### T3.1: Depolama soyutlaması + localStorage adaptörü
+### T3.1: Depolama soyutlaması + localStorage adaptörü — ✅ BİTTİ
 
 **Açıklama:** Bugün `localStorage.` doğrudan çağrıları koda dağılmış durumda (9 yer, ölçüldü). Hepsi
 asenkron bir arayüzün arkasına alınır; ilk adaptör mevcut `localStorage` davranışını
@@ -527,7 +527,40 @@ asenkron bir arayüzün arkasına alınır; ilk adaptör mevcut `localStorage` d
 - [ ] Kayıt zamanlaması (`scheduleSave`) ve notların **ayrı anahtarda** tutulması korunur
 - [ ] Kullanıcı hiçbir fark görmez
 
-**Doğrulama:** `node --test tests/store.test.js` (sahte adaptörle); `?nostorage=1`.
+**Doğrulama:** `node tools/check-purity.mjs` (kural), `behavior.mjs` (**48/48**,
+T3.1 için 5 iddia), `node --test` (**88 test**), `?nostorage=1` elle doğrulandı.
+
+**Sonuç.** `src/state/adapter-local.js` — depolamaya dokunmanın tek yeri.
+Arayüz asenkron (IndexedDB başka türlü olamaz); `load`/`loadNotes`/`saveNow`/
+`saveNotesNow` asenkron oldu, başlangıç da öyle.
+
+**`setSync` bilerek ayrı ve isteğe bağlı.** Sayfa kapanırken bir `await`in
+devamı çalışmaz — tarayıcı olay işleyicisi bitince sayfayı yıkar. Yani "son
+bir kez kaydet" yolu senkron olmak zorunda. localStorage bunu verebilir,
+IndexedDB veremez. Adaptör bu farkı saklamak yerine ilan ediyor; **T3.2 kendi
+dayanıklılık çözümünü yazmak zorunda kalsın diye.** `beforeunload`'a ek olarak
+`visibilitychange → hidden` de bağlandı: ilki mobilde güvenilmez.
+
+**Başlangıç asenkron ama beyaz ekran riski yok:** okuma 1 sn'de dönmezse boş
+duruma düşülür, `storageOK` false olur ve kullanıcı uyarı şeridini görür.
+Açılış nöbetçisinin 1500 ms'lik penceresi korunuyor.
+
+> **Yan kazanç: T1.3'ün boşluğu kapandı.** Kanca artık modül yüklenirken değil
+> `installStorageHooks()` içinde bağlanıyor, bu yüzden `state/store.js` **Node'da
+> yüklenebiliyor**. Normalleştiriciler için 15 yeni test yazıldı.
+>
+> **Ama S11'in tamamı taşınamadı ve sebebi öğretici.** `normalizeNotePage`
+> eski `html` alanını kutuya çevirirken `sanitizeHtml` çağırıyor; o da
+> `document.implementation` istiyor ve **hatayı yutup `""` döndürüyor**.
+> Tarayıcıda makul bir savunma, ama DOM'suz ortamda sonuç sessizce boş oluyor:
+> Node'da yazılacak bir S11 testi, göç hiç çalışmadan "geçiyormuş" gibi
+> görünürdü. O yüzden S11'in not-sayfası iddiaları `behavior.mjs`'e, gerçek
+> süzgecin yanına konuldu.
+
+**Yeni CI kuralı:** `localStorage`/`sessionStorage`/`indexedDB` yalnız
+`state/adapter-local.js` içinde geçebilir. İlk koşumda kural kendi
+belgelerini ihlal saydı (dördü dört yanlış pozitif, hepsi yorum satırı);
+denetleyici artık satır numaralarını koruyarak yorumları soyuyor.
 
 **Bağımlılık:** T1.3
 **Dosyalar:** `src/core/store.js`, `src/core/store-localstorage.js`, `tests/store.test.js`

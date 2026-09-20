@@ -51,6 +51,15 @@ Bu, `store.js`'in kusuru değil: o kod tek dosyalık bir uygulama için yazıld�
 orada tamamen doğru. Ama planın **T3.1**'i (depolama soyutlaması) tam olarak bu
 bağlılığı çözüyor; ADR 0002 ona bir gerekçe daha ekliyor.
 
+**Sonradan not (T3.1).** Bu tam olarak böyle sonuçlandı: `installStorageHooks()`
+ayrıldı, `store.js` Node'da yüklenir hâle geldi ve normalleştiriciler için 15
+test yazıldı. Saplama listesi büyümedi.
+
+İkinci bir sınır da orada görüldü: `sanitizeHtml` DOM yokluğunda hata fırlatmaz,
+**`""` döndürür**. Yani ona dayanan bir kodu DOM'suz ortamda sınamak yanlış bir
+güven verir — test, göç hiç çalışmadan geçer. Böyle kod tarayıcı katmanında
+sınanır (`tools/probe/behavior.mjs`).
+
 Kural: saplama listesini genişletme isteği, "bu gerçekten saf mı, yoksa tarayıcı
 katmanına mı ait?" sorusunun sorulması gerektiğinin işaretidir. Tarayıcıya
 ihtiyacı olanı tarayıcıda sınarız — `tools/probe/verify.mjs` bunun için var.

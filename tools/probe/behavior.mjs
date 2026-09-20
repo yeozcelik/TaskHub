@@ -207,6 +207,75 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
 
   await ev(`switchView("tasks");`);
 
+  // ---------------- S11: eski veri okunur kalır (gerçek süzgeçle) ----------
+  // Node'da sınanamaz: sanitizeHtml document.implementation ister ve DOM'suz
+  // ortamda hatayı yutup "" döner — test yanlışlıkla "geçer" görünürdü.
+  const legacy = await ev(`(() => {
+    const p = normalizeNotePage({ id:"p1", title:"Eski sayfa", html:"<p>Merhaba <b>dünya</b></p>" });
+    return { n: p.boxes.length, html: p.boxes[0] && p.boxes[0].html, title: p.title,
+             x: p.boxes[0] && p.boxes[0].x };
+  })()`);
+  check("S11: eski `html` alanı ilk kutuya dönüştü", [legacy.n, legacy.title], [1, "Eski sayfa"]);
+  check("S11: eski içerik ve biçim korundu",
+    [legacy.html.includes("Merhaba"), legacy.html.includes("<b>")], [true, true]);
+  check("S11: dönüşen kutu tuvalde konumlandı", typeof legacy.x === "number", true);
+
+  const legacyEvil = await ev(`(() => {
+    const p = normalizeNotePage({ id:"p", title:"t", html:'<p>iyi<scr'+'ipt>alert(1)<\/scr'+'ipt></p>' });
+    return p.boxes[0] ? p.boxes[0].html : "";
+  })()`);
+  check("S11: eski kayıttaki betik de süzgeçten geçer",
+    [legacyEvil.includes("script"), legacyEvil.includes("iyi")], [false, true]);
+
+  const v1 = await ev(`(() => {
+    const n = normalizeNotes({ version:1, notebooks:[{ id:"nb1", name:"İş", color:"#5b5bd6", pages:[
+      { id:"pg1", title:"Toplantı", html:"<p>not</p>" },
+      { id:"pg2", title:"Fikirler", boxes:[{ id:"b1", x:40, y:60, w:400, html:"<p>x</p>" }] },
+    ]}]});
+    const nb = n.notebooks[0];
+    return [n.notebooks.length, nb.name, nb.pages.length, nb.pages[0].boxes.length, nb.pages[1].boxes[0].x];
+  })()`);
+  check("S11: v1 defter yapısı kayıpsız yüklendi", v1, [1, "İş", 2, 1, 40]);
+
+  // ---------------- T3.1: depolama adaptörü ----------------
+  const adapter = await ev(`(() => {
+    const keys = ["name","available","get","set","setSync","remove","estimate"];
+    return keys.map(k => typeof storage[k]);
+  })()`);
+  check("T3.1: adaptör arayüzü eksiksiz", adapter,
+    ["string", "function", "function", "function", "function", "function", "function"]);
+
+  const roundtrip = await ev(`(async () => {
+    await storage.set("__t3_1_test__", "değer-ü-ş");
+    const got = await storage.get("__t3_1_test__");
+    await storage.remove("__t3_1_test__");
+    const after = await storage.get("__t3_1_test__");
+    return [got, after];
+  })()`);
+  check("T3.1: adaptör yaz/oku/sil turu", roundtrip, ["değer-ü-ş", null]);
+
+  check("T3.1: kanca modül yüklenirken DEĞİL, açıkça kuruluyor",
+    await ev(`typeof installStorageHooks === "function" && typeof flushAllSync === "function"`), true);
+
+  // Kalıcılık gerçekten çalışıyor mu — adaptörün arkasından geçerek.
+  const persisted = await ev(`(async () => {
+    state.tasks = [{ id:"kalici", title:"kalıcı görev", notes:"", dueDate:null, priority:"high",
+      tags:["t"], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z",
+      updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null }];
+    await saveNow();
+    const raw = await storage.get(STORAGE_KEY);
+    const back = normalizeState(JSON.parse(raw));
+    return [back.tasks.length, back.tasks[0].title, back.tasks[0].priority];
+  })()`);
+  check("T3.1: kaydedilen görev geri okunduğunda aynı", persisted, [1, "kalıcı görev", "high"]);
+
+  // Bu blok state'i değiştirdi; sonraki iddiaların beklediği düzeni geri kur.
+  await ev(`state.tasks = [
+    { id:"a", title:"alfa v3", notes:"", dueDate:"2026-05-10", priority:"low", tags:["iş"], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"b", title:"beta rapor (güncel)", notes:"", dueDate:"2026-05-10", priority:"high", tags:[], subtasks:[], done:false, createdAt:"2026-01-02T00:00:00.000Z", updatedAt:"2026-01-02T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"c", title:"gama İstanbul", notes:"", dueDate:null, priority:"med", tags:[], subtasks:[], done:true, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:"2026-01-03T00:00:00.000Z", sourceNoteId:null },
+  ]; ui.q = ""; renderList();`);
+
   // Boş durum ve geri dönüş: durum sıfırlanıp tekrar kurulabilmeli.
   await ev(`ui.q = "hicbirseyeuymaz"; renderList();`);
   check("eşleşme yoksa boş durum", await ev(`!!document.querySelector("#list .empty")`), true);

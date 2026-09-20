@@ -1973,6 +1973,62 @@ function matchCommands(items, query){
   scored.sort((a, b) => b.s - a.s || a.i - b.i);
   return scored.map(x => x.item);
 }
+/* ---------------------------------------------------- depolama adaptörü ---
+ * localStorage'a dokunmanın TEK yeri burasıdır. `tools/check-purity.mjs`
+ * bunu bir kural olarak zorlar: başka hiçbir dosyada `localStorage` geçemez.
+ *
+ * Arayüz ASENKRON tasarlandı, çünkü IndexedDB (T3.2) başka türlü olamaz.
+ * localStorage senkron çalışır; adaptör sonucu hemen çözülmüş bir Promise
+ * olarak döndürür — çağıran taraf hangi teknolojinin altta olduğunu bilmez.
+ *
+ * `setSync` BİLEREK ayrı duruyor ve İSTEĞE BAĞLIDIR.
+ * Sayfa kapanırken (`beforeunload`) bir `await`in devamı çalışmaz: tarayıcı
+ * olay işleyicisi bittiğinde sayfayı yıkar, mikrogörev sırası beklemez. Yani
+ * "son bir kez kaydet" yolu SENKRON olmak zorundadır. localStorage bunu
+ * verebilir, IndexedDB veremez. Adaptör bu farkı saklamak yerine AÇIKÇA
+ * ilan eder; T3.2 kendi dayanıklılık çözümünü yazmak zorunda kalsın diye.  */
+
+function createLocalAdapter(){
+  const can = () => {
+    try {
+      const k = "__taskhub_probe__";
+      localStorage.setItem(k, "1");
+      const ok = localStorage.getItem(k) === "1";
+      localStorage.removeItem(k);
+      return ok;
+    } catch (e){ return false; }
+  };
+
+  return {
+    name: "localStorage",
+
+    /** Kullanılabilir mi? Gizli kipte ve bazı file:// yapılandırmalarında değil. */
+    available(){ return can(); },
+
+    /** @returns {Promise<string|null>} */
+    get(key){
+      try { return Promise.resolve(localStorage.getItem(key)); }
+      catch (e){ return Promise.reject(e); }
+    },
+
+    /** @returns {Promise<void>} kota aşılırsa reddeder */
+    set(key, value){
+      try { localStorage.setItem(key, value); return Promise.resolve(); }
+      catch (e){ return Promise.reject(e); }
+    },
+
+    /** Sayfa kapanırken kullanılır. Hata fırlatır, Promise döndürmez. */
+    setSync(key, value){ localStorage.setItem(key, value); },
+
+    remove(key){
+      try { localStorage.removeItem(key); return Promise.resolve(); }
+      catch (e){ return Promise.reject(e); }
+    },
+
+    /** Gerçek kota bilgisi yok; çağıran tarafın varsayımına düşülür. */
+    estimate(){ return Promise.resolve(null); },
+  };
+}
 /* ------------------------------------------------------------- depolama */
 const STORAGE_KEY = "taskhub";
 const SCHEMA_VERSION = 1;
@@ -1982,15 +2038,13 @@ const params = new URLSearchParams(location.search);
 let storageOK = false;
 let corruptRecovered = false;
 
+/* Şu an tek adaptör var. T3.2 IndexedDB'yi ekleyecek ve seçim burada
+   yapılacak; store.js'in geri kalanı hangisinin seçildiğini bilmeyecek. */
+const storage = createLocalAdapter();
+
 function probeStorage(){
   if (params.get("nostorage") === "1") return false; // uyarı şeridini sınamak için
-  try {
-    const k = "__taskhub_probe__";
-    localStorage.setItem(k, "1");
-    const ok = localStorage.getItem(k) === "1";
-    localStorage.removeItem(k);
-    return ok;
-  } catch(e){ return false; }
+  return storage.available();
 }
 
 function defaultState(){
@@ -2116,15 +2170,16 @@ function normalizeNotes(raw){
   return n;
 }
 
-function loadNotes(){
+async function loadNotes(){
   if (!storageOK) return defaultNotes();
   let raw = null;
-  try { raw = localStorage.getItem(NOTES_KEY); } catch(e){ return defaultNotes(); }
+  try { raw = await storage.get(NOTES_KEY); } catch(e){ return defaultNotes(); }
   if (!raw) return defaultNotes();
   try {
     return normalizeNotes(JSON.parse(raw));
   } catch(e){
-    try { localStorage.setItem(NOTES_KEY + ".corrupt." + Date.now(), raw); } catch(_){}
+    // Bozuk veriyi ezme — kenara al ki elle kurtarılabilsin.
+    try { await storage.set(NOTES_KEY + ".corrupt." + Date.now(), raw); } catch(_){}
     corruptRecovered = true;
     return defaultNotes();
   }
@@ -2135,12 +2190,12 @@ function scheduleSaveNotes(){
   clearTimeout(notesSaveTimer);
   notesSaveTimer = setTimeout(saveNotesNow, 400);
 }
-function saveNotesNow(){
+async function saveNotesNow(){
   clearTimeout(notesSaveTimer); notesSaveTimer = null;
   flushEditor();          // editördeki ham HTML süzgeçten geçip modele burada yazılır
   if (!storageOK) return;
   try {
-    localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+    await storage.set(NOTES_KEY, JSON.stringify(notes));
     notesQuotaHit = false;
   } catch(e){
     // storageOK'e dokunulmaz: görev kaydı bundan etkilenmemeli.
@@ -2164,16 +2219,16 @@ function formatBytes(n){
   return (n / 1024 / 1024).toFixed(1) + " MB";
 }
 
-function load(){
+async function load(){
   if (!storageOK) return defaultState();
   let raw = null;
-  try { raw = localStorage.getItem(STORAGE_KEY); } catch(e){ return defaultState(); }
+  try { raw = await storage.get(STORAGE_KEY); } catch(e){ return defaultState(); }
   if (!raw) return defaultState();
   try {
     return normalizeState(JSON.parse(raw));
   } catch(e){
     // Bozuk veriyi ezme — kenara al ki elle kurtarılabilsin.
-    try { localStorage.setItem(STORAGE_KEY + ".corrupt." + Date.now(), raw); } catch(_){}
+    try { await storage.set(STORAGE_KEY + ".corrupt." + Date.now(), raw); } catch(_){}
     corruptRecovered = true;
     return defaultState();
   }
@@ -2186,22 +2241,42 @@ function scheduleSave(){
   saveTimer = setTimeout(saveNow, 300);
 }
 let touchedAt = null;
-function saveNow(){
+async function saveNow(){
   clearTimeout(saveTimer); saveTimer = null;
   if (!storageOK) return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    await storage.set(STORAGE_KEY, JSON.stringify(state));
   } catch(e){
     storageOK = false;
     renderBanners();
     toast(t("quotaFail"));
   }
 }
-window.addEventListener("beforeunload", () => {
-  if (saveTimer) saveNow();
+
+/* Sayfa kapanırken SENKRON kaydetmek zorundayız: `await`in devamı çalışmaz.
+   Adaptörde `setSync` yoksa (IndexedDB) burada yapılabilecek bir şey yok ve
+   bu, T3.2'nin çözmesi gereken bir dayanıklılık sorunudur — sessizce veri
+   kaybetmek yerine sınırı burada yazıyoruz. */
+function flushAllSync(){
   flushEditor();
-  if (notesSaveTimer || dirtyEditor) saveNotesNow();
-});
+  if (!storageOK || typeof storage.setSync !== "function") return;
+  try { if (saveTimer) storage.setSync(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+  try { if (notesSaveTimer || dirtyEditor) storage.setSync(NOTES_KEY, JSON.stringify(notes)); } catch(e){}
+  clearTimeout(saveTimer); saveTimer = null;
+  clearTimeout(notesSaveTimer); notesSaveTimer = null;
+}
+
+/* Modül YÜKLENİRKEN olay bağlamak iki şeyi birden bozuyordu: store.js Node'da
+   yüklenemiyordu (ADR 0002'deki `window` engeli) ve sıralama gizli bir
+   varsayım hâline geliyordu. Artık açıkça başlangıçtan çağrılıyor. */
+function installStorageHooks(){
+  window.addEventListener("beforeunload", flushAllSync);
+  /* beforeunload mobilde güvenilmez; sekme gizlenince de yaz. Aynı veriyi
+     iki kez yazmak zararsız, hiç yazmamak değil. */
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushAllSync();
+  });
+}
 
 /* ------------------------------------------------------------ uygulama durumu */
 let state = defaultState();
@@ -5918,21 +5993,47 @@ function runClipDebug(){
   document.title = "TaskHub — pano tanılama";
 }
 
-/* -------------------------------------------------------------- başlangıç */
-storageOK = probeStorage();
-state = load();
-notes = loadNotes();
-applyTheme();
-document.documentElement.lang = state.settings.lang;
+/* -------------------------------------------------------------- başlangıç
+ * Asenkron, çünkü depolama okuması adaptörün arkasında (T3.1) ve IndexedDB
+ * (T3.2) başka türlü olamaz. Açılış nöbetçisi 1500 ms bekliyor; localStorage
+ * okuması bir mikrogörev sürer, IndexedDB birkaç milisaniye. Yine de okuma
+ * bir sebeple asılırsa arayüz KURULMADAN kalmasın diye boş duruma düşülür ve
+ * bu kullanıcıya söylenir — sessizce beyaz ekran gösterilmez. */
+const BOOT_READ_TIMEOUT = 1000;
 
-if (params.get("clipdebug") === "1"){
-  runClipDebug();
-} else if (params.get("test") === "1"){
-  runTests();
-} else {
-  buildShell();
-  scheduleMidnight();
+function withTimeout(promise, ms, fallback){
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve(fallback), ms)),
+  ]);
 }
+
+(async () => {
+  storageOK = probeStorage();
+
+  const FAILED = Symbol("okuma-basarisiz");
+  const [s0, n0] = await Promise.all([
+    withTimeout(load().catch(() => FAILED), BOOT_READ_TIMEOUT, FAILED),
+    withTimeout(loadNotes().catch(() => FAILED), BOOT_READ_TIMEOUT, FAILED),
+  ]);
+  const readFailed = s0 === FAILED || n0 === FAILED;
+  state = s0 === FAILED ? defaultState() : s0;
+  notes = n0 === FAILED ? defaultNotes() : n0;
+  if (readFailed) storageOK = false;      // şerit çıkar, üstüne yazılmaz
+
+  applyTheme();
+  document.documentElement.lang = state.settings.lang;
+
+  if (params.get("clipdebug") === "1"){
+    runClipDebug();
+  } else if (params.get("test") === "1"){
+    runTests();
+  } else {
+    buildShell();
+    scheduleMidnight();
+    installStorageHooks();
+  }
+})();
 /* ============================ KOMUT PALETİ ==============================
  * Ctrl/Cmd+K. Linear yasası: klavyeden çağrılamayan yetenek bitmiş sayılmaz.
  *

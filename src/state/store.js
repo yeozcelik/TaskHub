@@ -7,15 +7,13 @@ const params = new URLSearchParams(location.search);
 let storageOK = false;
 let corruptRecovered = false;
 
+/* Şu an tek adaptör var. T3.2 IndexedDB'yi ekleyecek ve seçim burada
+   yapılacak; store.js'in geri kalanı hangisinin seçildiğini bilmeyecek. */
+const storage = createLocalAdapter();
+
 function probeStorage(){
   if (params.get("nostorage") === "1") return false; // uyarı şeridini sınamak için
-  try {
-    const k = "__taskhub_probe__";
-    localStorage.setItem(k, "1");
-    const ok = localStorage.getItem(k) === "1";
-    localStorage.removeItem(k);
-    return ok;
-  } catch(e){ return false; }
+  return storage.available();
 }
 
 function defaultState(){
@@ -141,15 +139,16 @@ function normalizeNotes(raw){
   return n;
 }
 
-function loadNotes(){
+async function loadNotes(){
   if (!storageOK) return defaultNotes();
   let raw = null;
-  try { raw = localStorage.getItem(NOTES_KEY); } catch(e){ return defaultNotes(); }
+  try { raw = await storage.get(NOTES_KEY); } catch(e){ return defaultNotes(); }
   if (!raw) return defaultNotes();
   try {
     return normalizeNotes(JSON.parse(raw));
   } catch(e){
-    try { localStorage.setItem(NOTES_KEY + ".corrupt." + Date.now(), raw); } catch(_){}
+    // Bozuk veriyi ezme — kenara al ki elle kurtarılabilsin.
+    try { await storage.set(NOTES_KEY + ".corrupt." + Date.now(), raw); } catch(_){}
     corruptRecovered = true;
     return defaultNotes();
   }
@@ -160,12 +159,12 @@ function scheduleSaveNotes(){
   clearTimeout(notesSaveTimer);
   notesSaveTimer = setTimeout(saveNotesNow, 400);
 }
-function saveNotesNow(){
+async function saveNotesNow(){
   clearTimeout(notesSaveTimer); notesSaveTimer = null;
   flushEditor();          // editördeki ham HTML süzgeçten geçip modele burada yazılır
   if (!storageOK) return;
   try {
-    localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+    await storage.set(NOTES_KEY, JSON.stringify(notes));
     notesQuotaHit = false;
   } catch(e){
     // storageOK'e dokunulmaz: görev kaydı bundan etkilenmemeli.
@@ -189,16 +188,16 @@ function formatBytes(n){
   return (n / 1024 / 1024).toFixed(1) + " MB";
 }
 
-function load(){
+async function load(){
   if (!storageOK) return defaultState();
   let raw = null;
-  try { raw = localStorage.getItem(STORAGE_KEY); } catch(e){ return defaultState(); }
+  try { raw = await storage.get(STORAGE_KEY); } catch(e){ return defaultState(); }
   if (!raw) return defaultState();
   try {
     return normalizeState(JSON.parse(raw));
   } catch(e){
     // Bozuk veriyi ezme — kenara al ki elle kurtarılabilsin.
-    try { localStorage.setItem(STORAGE_KEY + ".corrupt." + Date.now(), raw); } catch(_){}
+    try { await storage.set(STORAGE_KEY + ".corrupt." + Date.now(), raw); } catch(_){}
     corruptRecovered = true;
     return defaultState();
   }
@@ -211,20 +210,40 @@ function scheduleSave(){
   saveTimer = setTimeout(saveNow, 300);
 }
 let touchedAt = null;
-function saveNow(){
+async function saveNow(){
   clearTimeout(saveTimer); saveTimer = null;
   if (!storageOK) return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    await storage.set(STORAGE_KEY, JSON.stringify(state));
   } catch(e){
     storageOK = false;
     renderBanners();
     toast(t("quotaFail"));
   }
 }
-window.addEventListener("beforeunload", () => {
-  if (saveTimer) saveNow();
+
+/* Sayfa kapanırken SENKRON kaydetmek zorundayız: `await`in devamı çalışmaz.
+   Adaptörde `setSync` yoksa (IndexedDB) burada yapılabilecek bir şey yok ve
+   bu, T3.2'nin çözmesi gereken bir dayanıklılık sorunudur — sessizce veri
+   kaybetmek yerine sınırı burada yazıyoruz. */
+function flushAllSync(){
   flushEditor();
-  if (notesSaveTimer || dirtyEditor) saveNotesNow();
-});
+  if (!storageOK || typeof storage.setSync !== "function") return;
+  try { if (saveTimer) storage.setSync(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+  try { if (notesSaveTimer || dirtyEditor) storage.setSync(NOTES_KEY, JSON.stringify(notes)); } catch(e){}
+  clearTimeout(saveTimer); saveTimer = null;
+  clearTimeout(notesSaveTimer); notesSaveTimer = null;
+}
+
+/* Modül YÜKLENİRKEN olay bağlamak iki şeyi birden bozuyordu: store.js Node'da
+   yüklenemiyordu (ADR 0002'deki `window` engeli) ve sıralama gizli bir
+   varsayım hâline geliyordu. Artık açıkça başlangıçtan çağrılıyor. */
+function installStorageHooks(){
+  window.addEventListener("beforeunload", flushAllSync);
+  /* beforeunload mobilde güvenilmez; sekme gizlenince de yaz. Aynı veriyi
+     iki kez yazmak zararsız, hiç yazmamak değil. */
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushAllSync();
+  });
+}
 

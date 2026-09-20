@@ -3713,18 +3713,44 @@ function runClipDebug(){
   document.title = "TaskHub — pano tanılama";
 }
 
-/* -------------------------------------------------------------- başlangıç */
-storageOK = probeStorage();
-state = load();
-notes = loadNotes();
-applyTheme();
-document.documentElement.lang = state.settings.lang;
+/* -------------------------------------------------------------- başlangıç
+ * Asenkron, çünkü depolama okuması adaptörün arkasında (T3.1) ve IndexedDB
+ * (T3.2) başka türlü olamaz. Açılış nöbetçisi 1500 ms bekliyor; localStorage
+ * okuması bir mikrogörev sürer, IndexedDB birkaç milisaniye. Yine de okuma
+ * bir sebeple asılırsa arayüz KURULMADAN kalmasın diye boş duruma düşülür ve
+ * bu kullanıcıya söylenir — sessizce beyaz ekran gösterilmez. */
+const BOOT_READ_TIMEOUT = 1000;
 
-if (params.get("clipdebug") === "1"){
-  runClipDebug();
-} else if (params.get("test") === "1"){
-  runTests();
-} else {
-  buildShell();
-  scheduleMidnight();
+function withTimeout(promise, ms, fallback){
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve(fallback), ms)),
+  ]);
 }
+
+(async () => {
+  storageOK = probeStorage();
+
+  const FAILED = Symbol("okuma-basarisiz");
+  const [s0, n0] = await Promise.all([
+    withTimeout(load().catch(() => FAILED), BOOT_READ_TIMEOUT, FAILED),
+    withTimeout(loadNotes().catch(() => FAILED), BOOT_READ_TIMEOUT, FAILED),
+  ]);
+  const readFailed = s0 === FAILED || n0 === FAILED;
+  state = s0 === FAILED ? defaultState() : s0;
+  notes = n0 === FAILED ? defaultNotes() : n0;
+  if (readFailed) storageOK = false;      // şerit çıkar, üstüne yazılmaz
+
+  applyTheme();
+  document.documentElement.lang = state.settings.lang;
+
+  if (params.get("clipdebug") === "1"){
+    runClipDebug();
+  } else if (params.get("test") === "1"){
+    runTests();
+  } else {
+    buildShell();
+    scheduleMidnight();
+    installStorageHooks();
+  }
+})();
