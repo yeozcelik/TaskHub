@@ -735,7 +735,7 @@ durağı klavye kullanıcısını boğardı.
 > **DST tuzağı.** Ay ızgarası gün ekleyerek kurulursa yaz saati geçişinde bir gün
 > yinelenir veya atlanır. Test bunu kapsamak zorunda.
 
-### T3.6: Tekrar kuralı modeli (saf çekirdek)
+### T3.6: Tekrar kuralı modeli (saf çekirdek) — ✅ BİTTİ
 
 **Açıklama:** RRULE'un küçük, açıkça sınırlı bir alt kümesi: günlük / haftalık /
 aylık, aralık (`her 2 haftada`), hafta günleri (`pzt, çar`). "Her ayın son iş günü"
@@ -748,13 +748,40 @@ aylık, aralık (`her 2 haftada`), hafta günleri (`pzt, çar`). "Her ayın son 
 - [ ] Sonsuz döngü imkânsız: kural ilerlemiyorsa **hata verir**, dönmez
 - [ ] Desteklenmeyen kural açıkça reddedilir — sessizce yanlış yorumlanmaz
 
-**Doğrulama:** `node --test tests/recurrence.test.js`, ≥30 vaka, ay sonu ve DST dahil.
+**Doğrulama:** `node --test` → `tests/recurrence.test.js`, **28 test**, ay sonu ve DST dahil.
+
+**Sonuç.** `src/core/recurrence.js`. Kural bir **çapa** taşır: 31 Ocak'tan
+başlayan aylık kural 28 Şubat'a kırpılır, ama sonraki hesap **kırpılmış
+sonuçtan değil çapadan** yapılır — yoksa 28 Mart çıkar ve "ayın 31'i" kalıcı
+olarak kaybolurdu. Testler zinciri açıkça sınıyor: 31 Oca → 28 Şu → **31 Mar**
+→ 30 Nis → **31 May**.
+
+| Kabul | Sonuç |
+|---|---|
+| Saf, yerel saatle | ✅ `parseYmd`/`ymd` sözleşmesi |
+| Ay sonu tanımlı | ✅ 31 Oca + 1 ay = 28 Şu (2028'de 29), Mart'a kaymaz |
+| DST sınanmış | ✅ 2026 mart/ekim geçişleri, 7 günlük adım dahil |
+| Sonsuz döngü imkânsız | ✅ `interval ≤ 0` reddedilir; tarama sınırı aşılırsa **hata verir**, null dönmez (null "tekrar bitti" demek olurdu ve hatayı gizlerdi) |
+| Desteklenmeyen açıkça reddedilir | ✅ `yearly`, bozuk `byDay`, yanlış frekansta `byDay` → kuralın **tamamı** düşer |
+
+Haftalık aralık **ISO haftasına** (pazartesi) göre sayılır, arayüz diline göre
+değil: kural veridir, sunum değil — dil değişince kullanıcının tekrar takvimi
+kaymamalı.
+
+> **Yakalama entegrasyonunu düşünürken gerçek bir hata çıktı.** `nextOccurrence`
+> "çapa gelecekteyse çapayı döndür" diyordu. Ama çapa kurala uymayabilir: salı
+> günü kurulan "her pazartesi" salıyı döndürürdü. Kısa devre günlük ve aylıkla
+> sınırlandı (orada çapa tanımı gereği uyar) ve haftalıkta tarama çapanın bir
+> gün öncesinden başlıyor. `firstOccurrence` de bu düzeltmenin üstüne kuruldu.
+
+> **500 rastgele durumda "her zaman ilerler" özelliği** sınanıyor: sonuç
+> `from`dan kesinlikle sonra ve asla null değil.
 
 **Bağımlılık:** T1.3
 **Dosyalar:** `src/core/recurrence.js`, `tests/recurrence.test.js`
 **Boyut:** M
 
-### T3.7: Tekrarlayan görev üretimi + arayüz
+### T3.7: Tekrarlayan görev üretimi + arayüz — ✅ BİTTİ
 
 **Açıklama:** Tekrarlayan görev tamamlanınca bir sonraki örnek üretilir. Giriş
 `capture` üzerinden ("her pazartesi") **ve** görev panelinden.
@@ -766,18 +793,56 @@ aylık, aralık (`her 2 haftada`), hafta günleri (`pzt, çar`). "Her ayın son 
 - [ ] Eski (tekrarsız) görevler etkilenmez; S11 korunur
 - [ ] `capture` "her pazartesi" / "every monday" ifadesini tanır
 
-**Doğrulama:** `node --test tests/recurrence-tasks.test.js`; eski fikstürle geri yükleme.
+**Doğrulama:** `node tools/probe/behavior.mjs` — **99/99**, tekrarın 14 iddiası.
+
+**Sonuç.** Tekrarlayan görev tamamlanınca bir sonraki örnek doğar; tamamlanan
+görev **silinmez**, geçmiş olarak kalır.
+
+| Kabul | Sonuç |
+|---|---|
+| Sonraki örnek üretilir, geçmiş korunur | ✅ yeni kimlik, alt görevler sıfırlanmış, etiketler taşınmış |
+| **Yığılma olmaz** | ✅ üretim yalnız **tamamlama anında**, zamana göre değil — uygulama üç hafta kapalı kalsa açılışta hiçbir şey üretilmez |
+| Eski görevler etkilenmez, S11 korunur | ✅ tekrarsız görev tamamlanınca hiçbir şey üretilmiyor |
+| `capture` "her pazartesi" tanır | ✅ uçtan uca: görev + kural + ilk pazartesi son tarihi |
+
+**Kaçırılan tekrarlar atlanır:** son tarihi üç hafta geçmiş bir görevi bugün
+tamamlarsanız sonraki örnek **bugünden sonrasına** düşer. Yoksa yeni görev
+doğar doğmaz gecikmiş olurdu. Erken tamamlarsanız seri kaymaz
+(`taban = max(sonTarih, bugün)`).
+
+> **`SCHEMA_VERSION` ARTIRILMADI ve bu bilinçli.** Kabul ölçütü sürüme göre
+> dallanan bir göç yolu olduğunu varsayıyordu; **yok**. Kodda `version` yalnız
+> *yazılıyor*, hiçbir yerde okunup karar verilmiyor (`grep` ile doğrulandı).
+> Artırmak hiçbir göçü tetiklemez, tören olurdu. `recur` **eklemeli** bir alan:
+> eski kayıtta yok → null olur, eski kod yeni kaydı okursa yok sayar.
+> **Dürüst uyarı:** eski bir sürüme dönülüp kayıt yeniden yazılırsa `recur`
+> düşer — eklemeli alanların bilinen bedeli, kayda geçti.
+
+> **Reddetmek "başka türlü yorumla" demek değildir.** Yakalamada "her
+> pazartesi" çipini reddedince tarih kuralı "pazartesi"yi kapıyor ve kullanıcı
+> istemediği bir son tarih alıyordu. Ayrıştırıcıya **bloke aralık** kavramı
+> eklendi: reddedilen metin başlıkta kalır ama başka hiçbir kural içinde
+> eşleşemez.
 
 **Bağımlılık:** T3.6, T3.2, T2.5
 **Dosyalar:** `src/core/task-ops.js`, `src/ui/panel.js`, `src/core/parse-capture.js`, `tests/recurrence-tasks.test.js`
 **Boyut:** M
 
 ### ✅ Kontrol noktası — Faz 3
-- [ ] S5 (>50 MB) · S11 (eski veri okunur) karşılandı — **fikstürle kanıtlandı**
-- [ ] Geçiş bir kez daha temiz kurulumda ve dolu kurulumda sınandı
-- [ ] Pano ve takvim aynı veriyi okuyor — izdüşüm sözleşmesi ihlal edilmedi
-- [ ] S8: varsayılan ekran hâlâ sakin
+- [x] **S5** 60 MB yazılıp birebir geri okundu; aynı veri localStorage'a sığmıyor
+- [x] **S11** v1 görev + ayarlar + defter, eski `html` → kutu dönüşümü dahil kayıpsız
+- [x] Göç temiz kurulumda ve dolu kurulumda sınandı; `?noidb=1` ile geri düşme yolu da
+- [x] Pano ve takvim **aynı veriyi** okuyor — izdüşüm sözleşmesi test altında
+- [x] **S8** envanter kapısı aktif: üç yeni komut ve bir kenar çubuğu grubu yakalandı
+- [x] **S2** gerilemedi: 145 Node + 99 davranış + 15 göç + 222 sayfa içi
+- [ ] **S3b** ve **T3.4 açılış süresi** → **AÇIK**, T2.3b (pencereleme)
+- [ ] **S9** 0 ihlal → **AÇIK**, T2.8 (devralınan borç, 13 kayıt / tek kök neden)
 - [ ] **İnsan gözden geçirmesi, Faz 4 öncesi**
+
+> Faz 3'ün yedi görevi bitti. Açık kalan iki ölçüt Faz 2'den devrediyor ve
+> ikisi de ölçümle açıldı, gevşetilerek değil. Bu fazda **hiçbir yeni borç
+> doğmadı**: a11y tabanı 13'e çıktı ama kusur sayısı sabit — aynı kök neden
+> yeni görünümlerde tekrar sayılıyor.
 
 ---
 

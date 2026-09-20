@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { load, plain } from "./_load.mjs";
 
-const { parseCapture } = load(["core/util.js", "core/parse-capture.js"], ["parseCapture"]);
+const { parseCapture } = load(["core/util.js", "core/recurrence.js", "core/parse-capture.js"], ["parseCapture"]);
 
 const T = "2026-05-10";                       // pazar
 const tr = s => plain(parseCapture(s, { today: T, lang: "tr" }));
@@ -242,4 +242,96 @@ test("matches metindeki sırayla döner (çipler soldan sağa okunsun)", () => {
   const r2 = tr("#iş !p1 rapor yarın");
   assert.deepEqual(r2.matches.map(m => m.kind), ["tag", "priority", "date"]);
   for (const m of r.matches) assert.equal(typeof m.start, "number");
+});
+
+/* ------------------------- tekrar (T3.7) ------------------------- */
+// 2026-05-10 pazar. Pazartesi = 11, salı = 12.
+
+test("tekrar TR: sıklık sözcükleri", () => {
+  assert.deepEqual(tr("her gün su iç").recur,
+    { freq: "daily", interval: 1, byDay: null, anchor: "2026-05-10" });
+  assert.equal(tr("her hafta rapor").recur.freq, "weekly");
+  assert.equal(tr("her ay fatura").recur.freq, "monthly");
+  assert.equal(tr("her gün su iç").title, "su iç");
+});
+
+test("tekrar TR: aralıklı", () => {
+  assert.equal(tr("her 3 günde ilaç").recur.interval, 3);
+  assert.equal(tr("her 2 haftada toplantı").recur.interval, 2);
+  assert.equal(tr("her 2 haftada toplantı").recur.freq, "weekly");
+  assert.equal(tr("her 6 ayda kontrol").recur.interval, 6);
+  assert.equal(tr("her 3 günde ilaç").title, "ilaç");
+});
+
+test("tekrar TR: hafta günü — 'pazartesi' SON TARİH sanılmaz", () => {
+  const r = tr("her pazartesi toplantı");
+  assert.equal(r.recur.freq, "weekly");
+  assert.deepEqual(r.recur.byDay, [1]);
+  assert.equal(r.title, "toplantı");
+  // Tarih yoksa ilk tekrar son tarih olur: 10 Mayıs pazar → 11 Mayıs pazartesi.
+  assert.equal(r.dueDate, "2026-05-11");
+});
+
+test("tekrar TR: ASCII yazımı", () => {
+  assert.equal(tr("her gun yurumek").recur.freq, "daily");
+  assert.deepEqual(tr("her carsamba spor").recur.byDay, [3]);
+});
+
+test("tekrar EN: sıklık, aralık ve gün", () => {
+  assert.equal(en("every day water").recur.freq, "daily");
+  assert.equal(en("daily standup").recur.freq, "daily");
+  assert.equal(en("every week report").recur.freq, "weekly");
+  assert.equal(en("monthly invoice").recur.freq, "monthly");
+  assert.equal(en("every 3 days pills").recur.interval, 3);
+  assert.equal(en("every 2 weeks retro").recur.interval, 2);
+  assert.deepEqual(en("every monday standup").recur.byDay, [1]);
+  assert.equal(en("every monday standup").dueDate, "2026-05-11");
+  assert.equal(en("every monday standup").title, "standup");
+});
+
+test("tekrar: açık tarih verilirse ÇAPA o olur", () => {
+  const r = tr("15 mayıs her ay kira");
+  assert.equal(r.dueDate, "2026-05-15");
+  assert.equal(r.recur.anchor, "2026-05-15", "seri verilen tarihten başlar");
+  assert.equal(r.recur.freq, "monthly");
+  assert.equal(r.title, "kira");
+});
+
+test("tekrar: bir görevin tek kuralı olur", () => {
+  const r = tr("her gün her hafta rapor");
+  assert.equal(r.recur.freq, "daily", "ilki uygulanır");
+  const recs = r.matches.filter(m => m.kind === "recur");
+  assert.equal(recs.filter(m => m.applied).length, 1);
+});
+
+test("tekrar: reddedilebilir (ignore)", () => {
+  const r = plain(parseCapture("her pazartesi toplantı", { today: T, lang: "tr", ignore: ["her pazartesi"] }));
+  assert.equal(r.recur, null);
+  assert.equal(r.title, "her pazartesi toplantı");
+});
+
+test("TAHMİN YOK: 'her' geçen her cümle tekrar değildir", () => {
+  assert.equal(tr("herkese haber ver").recur, null);
+  assert.equal(tr("herhangi bir şey").recur, null);
+  assert.equal(tr("herkese haber ver").title, "herkese haber ver");
+  assert.equal(en("everyone should know").recur, null);
+});
+
+test("tekrar: today verilmezse kural üretilmez (çapa yok)", () => {
+  assert.equal(plain(parseCapture("her gün su", { lang: "tr" })).recur, null);
+});
+
+test("tekrar: sabit nokta korunur", () => {
+  for (const c of ["her pazartesi toplantı", "her 2 haftada retro", "every monday standup"]){
+    const once = tr(c);
+    assert.equal(tr(once.title).title, once.title, "kararsız: " + c);
+  }
+});
+
+test("REDDETMEK 'başka türlü yorumla' demek DEĞİLDİR", () => {
+  // "her pazartesi" reddedilince tarih kuralı "pazartesi"yi kapmamalı.
+  const r = plain(parseCapture("her pazartesi toplantı", { today: T, lang: "tr", ignore: ["her pazartesi"] }));
+  assert.equal(r.recur, null);
+  assert.equal(r.dueDate, null, "reddedilen tekrar, son tarihe dönüşmez");
+  assert.equal(r.title, "her pazartesi toplantı");
 });

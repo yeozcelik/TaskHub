@@ -459,6 +459,94 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
     { id:"c", title:"gama İstanbul", notes:"", dueDate:null, priority:"med", tags:[], subtasks:[], done:true, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:"2026-01-03T00:00:00.000Z", sourceNoteId:null },
   ]; ui.q = ""; renderList();`);
 
+  // ---------------- T3.7: tekrarlayan görevler ----------------
+  const mkRec = (id, due, rule) => `{ id:${JSON.stringify(id)}, title:"tekrarlı", notes:"", dueDate:${JSON.stringify(due)},
+    priority:"med", tags:["ev"], subtasks:[{id:"s1",title:"adım",done:true}], done:false,
+    createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z",
+    completedAt:null, sourceNoteId:null, recur:${rule} }`;
+
+  await ev(`today = "2026-05-10";
+    state.tasks = [${mkRec("r1", "2026-05-10", '{ freq:"daily", interval:1, byDay:null, anchor:"2026-05-10" }')}];
+    render(); true`);
+  await ev(`toggleDone("r1", true); true`);
+
+  const spawned = await ev(`(() => {
+    const done = state.tasks.find(t => t.id === "r1");
+    const fresh = state.tasks.find(t => t.id !== "r1");
+    return { n: state.tasks.length, doneKept: !!done && done.done, freshDue: fresh && fresh.dueDate,
+             freshDone: fresh && fresh.done, freshSubs: fresh && fresh.subtasks.map(s => s.done),
+             sameId: fresh && fresh.id === "r1", tags: fresh && fresh.tags.join() };
+  })()`);
+  check("tekrar: tamamlanınca sonraki örnek doğar", [spawned.n, spawned.freshDue], [2, "2026-05-11"]);
+  check("tekrar: TAMAMLANAN GÖREV SİLİNMEZ, geçmiş kalır", spawned.doneKept, true);
+  check("tekrar: yeni örnek açık ve yeni kimlikli", [spawned.freshDone, spawned.sameId], [false, false]);
+  check("tekrar: alt görevler sıfırlanır", spawned.freshSubs, [false]);
+  check("tekrar: etiketler taşınır", spawned.tags, "ev");
+
+  // YIĞILMA YOK + kaçırılan tekrarlar atlanır
+  await ev(`today = "2026-06-01";
+    state.tasks = [${mkRec("r2", "2026-05-10", '{ freq:"weekly", interval:1, byDay:[1], anchor:"2026-05-11" }')}];
+    render(); toggleDone("r2", true); true`);
+  const late = await ev(`(() => {
+    const fresh = state.tasks.filter(t => t.id !== "r2");
+    return { n: state.tasks.length, dues: fresh.map(t => t.dueDate) };
+  })()`);
+  check("tekrar: 3 hafta geç tamamlansa da TEK örnek doğar", late.n, 2);
+  check("tekrar: kaçırılan tekrarlar atlanır — yeni örnek GELECEKTE",
+    [late.dues.length, late.dues[0] > "2026-06-01"], [1, true]);
+
+  // Erken tamamlama seriyi kaydırmaz
+  await ev(`today = "2026-05-10";
+    state.tasks = [${mkRec("r3", "2026-05-20", '{ freq:"monthly", interval:1, byDay:null, anchor:"2026-05-20" }')}];
+    render(); toggleDone("r3", true); true`);
+  check("tekrar: erken tamamlama seriyi kaydırmaz",
+    await ev(`state.tasks.filter(t => t.id !== "r3")[0].dueDate`), "2026-06-20");
+
+  // Tekrarsız görev hiçbir şey üretmez
+  await ev(`state.tasks = [{ id:"n1", title:"düz", notes:"", dueDate:"2026-05-10", priority:"med",
+    tags:[], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z",
+    updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null }];
+    render(); toggleDone("n1", true); true`);
+  check("tekrarsız görev tamamlanınca hiçbir şey üretilmez",
+    await ev(`state.tasks.length`), 1);
+
+  // Yakalamadan uçtan uca
+  await ev(`today = "2026-05-10"; captureIgnored.clear(); state.tasks = [];
+    submitQuickAdd("her pazartesi toplantı"); true`);
+  const fromCapture = await ev(`(() => { const x = state.tasks[0];
+    return [x.title, x.dueDate, x.recur && x.recur.freq, x.recur && x.recur.byDay.join()]; })()`);
+  check("yakalama: 'her pazartesi toplantı' tekrarlı görev üretir",
+    fromCapture, ["toplantı", "2026-05-11", "weekly", "1"]);
+  check("kartta tekrar göstergesi var",
+    await ev(`!!document.querySelector("#list .m-recur")`), true);
+
+  // Panelden kural değiştirme
+  await ev(`openPanel(state.tasks[0].id); true`);
+  check("panel: tekrar denetimi mevcut kuralı gösteriyor",
+    await ev(`document.getElementById("f-recur").value`), "weekly");
+  await ev(`(() => { const el = document.getElementById("f-recur"); el.value = "monthly";
+    el.dispatchEvent(new Event("change", { bubbles:true })); return true; })()`);
+  check("panel: sıklık değiştirilebiliyor",
+    await ev(`state.tasks[0].recur.freq`), "monthly");
+  await ev(`(() => { const el = document.getElementById("f-recur-n"); el.value = "3";
+    el.dispatchEvent(new Event("change", { bubbles:true })); return true; })()`);
+  check("panel: aralık değiştirilebiliyor", await ev(`state.tasks[0].recur.interval`), 3);
+  await ev(`(() => { const el = document.getElementById("f-recur-n"); el.value = "0";
+    el.dispatchEvent(new Event("change", { bubbles:true })); return true; })()`);
+  check("panel: geçersiz aralık REDDEDİLİR, kural bozulmaz",
+    await ev(`[state.tasks[0].recur.interval, document.getElementById("f-recur-n").value]`), [3, "3"]);
+  await ev(`(() => { const el = document.getElementById("f-recur"); el.value = "";
+    el.dispatchEvent(new Event("change", { bubbles:true })); return true; })()`);
+  check("panel: tekrar kaldırılabiliyor", await ev(`state.tasks[0].recur`), null);
+  await ev(`closePanel(); true`);
+
+  // Bu blok state'i değiştirdi; sonraki iddiaların beklediği düzeni geri kur.
+  await ev(`today = "2026-05-10"; state.tasks = [
+    { id:"a", title:"alfa v3", notes:"", dueDate:"2026-05-10", priority:"low", tags:["iş"], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"b", title:"beta rapor (güncel)", notes:"", dueDate:"2026-05-10", priority:"high", tags:[], subtasks:[], done:false, createdAt:"2026-01-02T00:00:00.000Z", updatedAt:"2026-01-02T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"c", title:"gama İstanbul", notes:"", dueDate:null, priority:"med", tags:[], subtasks:[], done:true, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:"2026-01-03T00:00:00.000Z", sourceNoteId:null },
+  ]; ui.q = ""; renderList();`);
+
   // Boş durum ve geri dönüş: durum sıfırlanıp tekrar kurulabilmeli.
   await ev(`ui.q = "hicbirseyeuymaz"; renderList();`);
   check("eşleşme yoksa boş durum", await ev(`!!document.querySelector("#list .empty")`), true);

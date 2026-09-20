@@ -51,13 +51,6 @@ const PRIORITY_WORDS = {
   low:  ["p3", "düşük", "low"],
 };
 
-const addDays = (ymdStr, n) => {
-  const d = parseYmd(ymdStr);
-  if (!d) return null;
-  d.setDate(d.getDate() + n);          // yerel saat; ay/yıl taşması JS'e bırakılır
-  return ymd(d);
-};
-
 /* Verilen hafta gününün EN YAKIN gelişi — bugün dahil.
    Karar ve gerekçesi: "pazartesi" yazan biri pazartesi günü yazıyorsa büyük
    ihtimalle bugünü kastediyor; bir hafta sonrasına atmak sürpriz olur.
@@ -131,6 +124,47 @@ function monthDay(monthWord, dayStr, yearStr, lang, todayY){
   return out;
 }
 
+/* ---------------------------------------------------------- tekrar kalıpları
+ * "her pazartesi", "her 2 haftada", "every 3 months".
+ *
+ * Tarihlerden ÖNCE aranır ve eşleşen aralık kesilir: "her pazartesi" içindeki
+ * "pazartesi" bir SON TARİH değil, tekrar günüdür. Kesme olmasaydı tarih
+ * kuralı onu yakalar ve kullanıcı tek seferlik bir görev alırdı. */
+function recurRules(lang){
+  const out = [];
+  const add = (src, make) => out.push({
+    re: new RegExp("(?<![\\p{L}\\p{N}])(?:" + src + ")(?![\\p{L}\\p{N}])", "giu"), make });
+  const wd = WEEKDAYS[lang] || WEEKDAYS.tr;
+  const wdAlt = Object.keys(wd).map(trPattern).join("|");
+  const dayOf = w => {
+    const key = Object.keys(wd).find(k => new RegExp("^" + trPattern(k) + "$", "iu").test(String(w).toLowerCase()));
+    return key === undefined ? null : wd[key];
+  };
+
+  if (lang === "en"){
+    add("every (\\d{1,3}) days?",   m => ({ freq: "daily",   interval: +m[1] }));
+    add("every (\\d{1,3}) weeks?",  m => ({ freq: "weekly",  interval: +m[1] }));
+    add("every (\\d{1,3}) months?", m => ({ freq: "monthly", interval: +m[1] }));
+    add("every (" + wdAlt + ")", m => { const d = dayOf(m[1]); return d === null ? null : ({ freq: "weekly", interval: 1, byDay: [d] }); });
+    add("every day|daily",     () => ({ freq: "daily",   interval: 1 }));
+    add("every week|weekly",   () => ({ freq: "weekly",  interval: 1 }));
+    add("every month|monthly", () => ({ freq: "monthly", interval: 1 }));
+  } else {
+    const her = trPattern("her");
+    add(her + " (\\d{1,3}) " + trPattern("günde") + "|" + her + " (\\d{1,3}) " + trPattern("gün"),
+        m => ({ freq: "daily", interval: +(m[1] || m[2]) }));
+    add(her + " (\\d{1,3}) " + trPattern("haftada") + "|" + her + " (\\d{1,3}) " + trPattern("hafta"),
+        m => ({ freq: "weekly", interval: +(m[1] || m[2]) }));
+    add(her + " (\\d{1,3}) " + trPattern("ayda") + "|" + her + " (\\d{1,3}) " + trPattern("ay"),
+        m => ({ freq: "monthly", interval: +(m[1] || m[2]) }));
+    add(her + " (" + wdAlt + ")", m => { const d = dayOf(m[1]); return d === null ? null : ({ freq: "weekly", interval: 1, byDay: [d] }); });
+    add(her + " " + trPattern("gün"),   () => ({ freq: "daily",   interval: 1 }));
+    add(her + " " + trPattern("hafta"), () => ({ freq: "weekly",  interval: 1 }));
+    add(her + " " + trPattern("ay"),    () => ({ freq: "monthly", interval: 1 }));
+  }
+  return out;
+}
+
 const TIME_RE = /(?<![\p{L}\p{N}])([01]?\d|2[0-3])[:.]([0-5]\d)(?![\p{L}\p{N}])/gu;
 const TAG_RE = /(?<![\p{L}\p{N}])#([\p{L}\p{N}_-]{1,30})/gu;
 
@@ -158,12 +192,20 @@ function parseCapture(text, opts){
      kalır. Reddedileni sonradan başlığa iliştirmek konumu kaybettirirdi. */
   const ignore = new Set(Array.isArray(o.ignore) ? o.ignore : []);
 
-  const cuts = [];                    // {start, end} — başlıktan çıkarılacak aralıklar
+  const cuts = [];                    // {start, end} — başlıktan ÇIKARILACAK aralıklar
+  /* Reddedilen (ignore) aralıklar: başlıkta KALIR ama başka hiçbir kural
+     içlerinde eşleşemez. Bu ayrım olmadan "her pazartesi"yi reddeden kullanıcı
+     karşılığında istemediği bir son tarih alıyordu: tekrar kuralı düşünce
+     tarih kuralı "pazartesi"yi kapıyordu. Reddetmek "başka türlü yorumla"
+     demek değil, "dokunma" demektir. */
+  const blocked = [];
+  const taken = (s0, e0) => cuts.some(c => s0 < c.end && e0 > c.start)
+                         || blocked.some(c => s0 < c.end && e0 > c.start);
   const matches = [], unsupported = [], tags = [];
   let dueDate = null, priority = null;
 
   for (const m of src.matchAll(TAG_RE)){
-    if (ignore.has(m[0])) continue;
+    if (ignore.has(m[0])){ blocked.push({ start: m.index, end: m.index + m[0].length }); continue; }
     tags.push(m[1]);
     matches.push({ kind: "tag", text: m[0], value: m[1], applied: true, start: m.index });
     cuts.push({ start: m.index, end: m.index + m[0].length });
@@ -171,7 +213,7 @@ function parseCapture(text, opts){
 
   const pr = priorityRule();
   for (const m of src.matchAll(pr.re)){
-    if (ignore.has(m[0])) continue;
+    if (ignore.has(m[0])){ blocked.push({ start: m.index, end: m.index + m[0].length }); continue; }
     const w = m[1].toLowerCase();
     const hit = pr.all.find(x => new RegExp("^" + x.src + "$", "iu").test(w));
     if (!hit) continue;
@@ -179,6 +221,26 @@ function parseCapture(text, opts){
     if (first) priority = hit.level;
     matches.push({ kind: "priority", text: m[0], value: hit.level, applied: first, start: m.index });
     cuts.push({ start: m.index, end: m.index + m[0].length });
+  }
+
+  /* Tekrar, tarihten ÖNCE. Kesilen aralık tarih kurallarını da bağlar
+     (aşağıdaki çakışma kontrolü `cuts`e bakar). */
+  let recurRaw = null;
+  for (const rule of recurRules(lang)){
+    let found = false;
+    for (const m of src.matchAll(rule.re)){
+      const s0 = m.index, e0 = s0 + m[0].length;
+      if (taken(s0, e0)) continue;
+      if (ignore.has(m[0])){ blocked.push({ start: s0, end: e0 }); continue; }
+      const made = rule.make(m);
+      if (!made) continue;
+      const first = recurRaw === null;
+      if (first) recurRaw = made;
+      matches.push({ kind: "recur", text: m[0], value: made, applied: first, start: s0 });
+      cuts.push({ start: s0, end: e0 });
+      found = true;
+    }
+    if (found) break;          // bir görevin tek tekrar kuralı vardır
   }
 
   if (todayY){
@@ -194,8 +256,8 @@ function parseCapture(text, opts){
     for (const rule of dateRules(lang)){
       for (const m of src.matchAll(rule.re)){
         const s = m.index, e = s + m[0].length;
-        if (cuts.some(c => s < c.end && e > c.start)) continue;   // etiket/öncelik içinde
-        if (ignore.has(m[0])) continue;
+        if (taken(s, e)) continue;                  // etiket/öncelik/tekrar içinde ya da reddedilmiş
+        if (ignore.has(m[0])){ blocked.push({ start: s, end: e }); continue; }
         const val = rule.resolve(m, todayY);
         if (val) hits.push({ start: s, end: e, val, text: m[0] });
       }
@@ -221,7 +283,7 @@ function parseCapture(text, opts){
   // Saat tanınır ama UYGULANMAZ: modelde alan yok. Başlıkta bırakılır.
   for (const m of src.matchAll(TIME_RE)){
     const s = m.index, e = s + m[0].length;
-    if (cuts.some(c => s < c.end && e > c.start)) continue;
+    if (taken(s, e)) continue;
     unsupported.push({ kind: "time", text: m[0],
       reason: "Görev modelinde saat alanı yok; başlıkta bırakıldı." });
   }
@@ -240,5 +302,16 @@ function parseCapture(text, opts){
   title += src.slice(at);
   title = title.replace(/\s+/g, " ").trim();
 
-  return { title, dueDate, priority, tags, matches, unsupported };
+  /* Kural bir ÇAPAYA ihtiyaç duyar (src/core/recurrence.js): seri nereden
+     başlıyor? Açık bir son tarih verildiyse o, verilmediyse bugün.
+     Tarih yoksa görevin son tarihi ilk tekrar olur — "her pazartesi rapor"
+     yazan biri ilk pazartesiyi kasteder, tarihsiz bir görev değil. */
+  let recur = null;
+  if (recurRaw && todayY){
+    recur = normalizeRule({ ...recurRaw, anchor: dueDate || todayY });
+    if (recur && !dueDate) dueDate = firstOccurrence(recur, todayY);
+    if (recur && dueDate && dueDate !== recur.anchor) recur = normalizeRule({ ...recurRaw, anchor: dueDate });
+  }
+
+  return { title, dueDate, priority, tags, recur, matches, unsupported };
 }

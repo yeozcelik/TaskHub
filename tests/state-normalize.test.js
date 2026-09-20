@@ -10,8 +10,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { load, plain } from "./_load.mjs";
 
-const FILES = ["core/util.js", "core/sort.js", "i18n/strings.js", "html/sanitize.js",
-               "state/adapter-local.js", "state/store.js"];
+const FILES = ["core/util.js", "core/sort.js", "core/recurrence.js", "i18n/strings.js",
+               "html/sanitize.js", "state/adapter-local.js", "state/store.js"];
 const {
   normalizeTask, normalizeState, normalizeNotes, normalizeNotebook,
   normalizeNotePage, normalizeBox, defaultState, defaultNotes,
@@ -127,4 +127,17 @@ test("formatBytes: okunabilir birimler", () => {
   assert.equal(formatBytes(512), "512 B");
   assert.equal(formatBytes(2048), "2 KB");
   assert.equal(formatBytes(3 * 1024 * 1024), "3.0 MB");
+});
+
+test("normalizeTask: recur EKLEMELİ alan — eski kayıtta yok, null olur", () => {
+  assert.equal(plain(normalizeTask({ title: "eski görev" })).recur, null);
+  assert.equal(plain(normalizeTask({ title: "x", recur: "haftalık" })).recur, null, "çöp kural reddedilir");
+  assert.equal(plain(normalizeTask({ title: "x", recur: { freq: "yearly", interval: 1, anchor: "2026-05-10" } })).recur,
+    null, "desteklenmeyen frekans sessizce kabul edilmez");
+});
+
+test("normalizeTask: geçerli tekrar kuralı korunur", () => {
+  const t = plain(normalizeTask({ title: "x",
+    recur: { freq: "weekly", interval: 2, byDay: [1, 3], anchor: "2026-05-11" } }));
+  assert.deepEqual(t.recur, { freq: "weekly", interval: 2, byDay: [1, 3], anchor: "2026-05-11" });
 });

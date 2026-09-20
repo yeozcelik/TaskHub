@@ -25,6 +25,17 @@ function parseYmd(s){
   return isNaN(d) ? null : d;
 }
 /** b - a, tam gün. Yaz saati geçişlerinde 23/25 saat olabildiği için yuvarlanır. */
+/* Gün ekleme/çıkarma. YEREL saatle: Date.parse("YYYY-MM-DD") UTC yorumlayıp
+   günü kaydırır, o yüzden parseYmd üzerinden gidilir. Ay/yıl taşmasını ve yaz
+   saati geçişlerini JS'in kendi takvim aritmetiğine bırakırız — saat ekleyip
+   çıkarmak DST haftasında günü yineletir ya da atlatır. */
+const addDays = (ymdStr, n) => {
+  const d = parseYmd(ymdStr);
+  if (!d) return null;
+  d.setDate(d.getDate() + n);
+  return ymd(d);
+};
+
 function daysBetween(aY, bY){
   const a = parseYmd(aY), b = parseYmd(bY);
   if (!a || !b) return null;

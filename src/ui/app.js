@@ -68,6 +68,7 @@ function addTask(title, fields){
     dueDate: f.dueDate || null,
     priority: ["low","med","high"].includes(f.priority) ? f.priority : "med",
     tags: Array.isArray(f.tags) ? f.tags.slice(0, 30) : [],
+    recur: normalizeRule(f.recur),
     subtasks:[], done:false, createdAt:now, updatedAt:now, completedAt:null
   };
   state.tasks.push(task);
@@ -87,10 +88,29 @@ function readCapture(raw){
   return parseCapture(raw, { today, lang: state.settings.lang, ignore: [...captureIgnored] });
 }
 
+/* Kuralı okunur metne çevirir. Saf çekirdek dil bilmez (describeRule yalnız
+   anahtar döner); çeviri arayüzün işi. Gün adları Intl'den gelir. */
+function recurText(rule){
+  const d = describeRule(rule);
+  if (!d) return "";
+  if (d.key === "rec_weekly_days"){
+    const fmt = new Intl.DateTimeFormat(LOCALE(), { weekday: "short" });
+    // 2026-03-01 bir pazar; 0..6 oradan sayılır.
+    const names = d.days.map(n => fmt.format(new Date(2026, 2, 1 + n))).join(", ");
+    return d.interval === 1 ? t("rec_weekly_days", { d: names })
+                            : t("rec_weekly_days_n", { n: d.interval, d: names });
+  }
+  return d.interval === 1 ? t(d.key) : t(d.key + "_n", { n: d.interval });
+}
+
 function captureChip(m){
-  const label = m.kind === "date" ? t("capDate") : m.kind === "priority" ? t("capPriority") : t("capTag");
+  const label = m.kind === "date" ? t("capDate")
+              : m.kind === "priority" ? t("capPriority")
+              : m.kind === "recur" ? t("capRecur") : t("capTag");
   const shown = m.kind === "date" ? formatDue(m.value).text || m.value
-              : m.kind === "priority" ? t(m.value) : "#" + m.value;
+              : m.kind === "priority" ? t(m.value)
+              : m.kind === "recur" ? recurText({ ...m.value, anchor: today })
+              : "#" + m.value;
   return el("button", {
     type:"button", class:"cap-chip cap-" + m.kind,
     title: t("capRemove") + ": " + m.text,
@@ -141,17 +161,52 @@ function renderCaptureHint(raw){
 
 function submitQuickAdd(raw){
   const r = readCapture(raw);
-  const task = addTask(r.title || raw, { dueDate: r.dueDate, priority: r.priority, tags: r.tags });
+  const task = addTask(r.title || raw,
+    { dueDate: r.dueDate, priority: r.priority, tags: r.tags, recur: r.recur });
   captureIgnored.clear();
   if (!matches(task)) toast(t("filterOn"), { label: t("clearFilters"), run: clearFilters });
   return task;
+}
+
+/* Tekrarlayan görev tamamlanınca BİR SONRAKİ örnek üretilir. Tamamlanan görev
+ * SİLİNMEZ — geçmiş olarak kalır, tamamlananlar kovasına düşer.
+ *
+ * YIĞILMA NEDEN OLMAZ: üretim yalnız tamamlama anında olur, zamana göre değil.
+ * Uygulama üç hafta kapalı kalsa bile açılışta hiçbir şey üretilmez; kullanıcı
+ * görevi tamamladığında TEK bir sonraki örnek doğar.
+ *
+ * KAÇIRILAN TEKRARLAR ATLANIR: son tarihi geçmişte kalmış bir görevi bugün
+ * tamamlarsanız, sonraki örnek BUGÜNDEN sonrasına düşer — dünden sonrasına
+ * değil. Yoksa yeni görev doğar doğmaz gecikmiş olurdu. Üç hafta geç
+ * tamamlanan "her pazartesi" üç pazartesi kuyruğa koymaz.
+ *
+ * `taban = max(sonTarih, bugün)` — erken tamamlarsanız seri kaymaz. */
+function spawnNextOccurrence(task){
+  if (!task.recur) return null;
+  const base = (task.dueDate && task.dueDate > today) ? task.dueDate : today;
+  let next;
+  try { next = nextOccurrence(task.recur, base); }
+  catch (e){ console.error(e); return null; }      // ilerlemeyen kural: sessiz kalma
+  if (!next) return null;
+
+  const now = new Date().toISOString();
+  const copy = {
+    ...task, id: uid(), dueDate: next, done: false, completedAt: null,
+    createdAt: now, updatedAt: now,
+    subtasks: task.subtasks.map(s => ({ id: uid(), title: s.title, done: false })),
+    tags: task.tags.slice(),
+  };
+  state.tasks.push(copy);
+  return copy;
 }
 
 function toggleDone(id, done){
   const task = getTask(id); if (!task) return;
   task.done = done;
   task.completedAt = done ? new Date().toISOString() : null;
+  const spawned = done ? spawnNextOccurrence(task) : null;
   stamp(task); scheduleSave(); render();
+  if (spawned) toast(t("recurSpawned", { d: formatDue(spawned.dueDate).text || spawned.dueDate }), null, 6000);
   // Paneli baştan çizmek yerine yerinde güncelle — aksi halde işaret kutusundaki odak kaybolur.
   if (openTaskId === id) syncPanelDone(task);
 }
@@ -515,6 +570,10 @@ function taskCard(task){
     meta.append(el("span", { class:"m m-prio " + task.priority },
       el("span", { class:"dot " + task.priority }), el("span", { text: t(task.priority) })));
   }
+  if (task.recur){
+    meta.append(el("span", { class:"m m-recur", title: recurText(task.recur) },
+      icon("redo"), el("span", { text: recurText(task.recur) })));
+  }
   if (task.subtasks.length){
     const doneN = task.subtasks.filter(s => s.done).length;
     meta.append(el("span", { class:"m" },
@@ -551,6 +610,7 @@ function cardSig(task){
   return [
     task.title, task.done ? 1 : 0, task.priority, task.dueDate || "",
     task.tags.join(","), subs, task.id === openTaskId ? 1 : 0,
+    task.recur ? task.recur.freq + ":" + task.recur.interval + ":" + (task.recur.byDay || []).join("") : "",
     state.settings.lang, today,
   ].join("\u0001");
 }
@@ -929,6 +989,51 @@ function renderPanel(){
     onchange(e){ task.priority = e.target.value; stamp(task); scheduleSave(); render(); }
   }, ["high","med","low"].map(p => el("option", { value:p, selected: task.priority === p }, t(p))));
 
+  /* Tekrar denetimi. Sıklık + aralık; hafta günleri yalnız yakalamadan gelir
+     ("her pazartesi") ve burada KORUNUR — kullanıcının yazdığı kuralı bir
+     açılır kutuya sığmadığı için sessizce düzleştirmek kötü olurdu. */
+  const recurFreq = el("select", { class:"input", id:"f-recur", "aria-label": t("recurLbl"),
+    onchange(e){
+      const v = e.target.value;
+      if (!v){ task.recur = null; }
+      else {
+        const prev = task.recur;
+        task.recur = normalizeRule({
+          freq: v,
+          interval: prev && prev.freq === v ? prev.interval : 1,
+          byDay: v === "weekly" && prev && prev.freq === "weekly" ? prev.byDay : null,
+          anchor: task.dueDate || today,
+        });
+      }
+      stamp(task); scheduleSave(); renderPanel(); renderList();
+    }
+  },
+    el("option", { value:"", selected: !task.recur }, t("recurNone")),
+    ...["daily","weekly","monthly"].map(f =>
+      el("option", { value:f, selected: !!task.recur && task.recur.freq === f }, t("rec_" + f)))
+  );
+
+  const recurEvery = el("input", {
+    class:"input", type:"number", min:"1", max:"365", id:"f-recur-n",
+    "aria-label": t("recurEvery"), value: String(task.recur ? task.recur.interval : 1),
+    disabled: !task.recur,
+    onchange(e){
+      if (!task.recur) return;
+      const n = parseInt(e.target.value, 10);
+      const next = normalizeRule({ ...task.recur, interval: n });
+      if (!next){ e.target.value = String(task.recur.interval); return; }   // geçersiz giriş geri alınır
+      task.recur = next;
+      stamp(task); scheduleSave(); renderPanel(); renderList();
+    }
+  });
+
+  const recurField = el("div", { class:"field" },
+    el("label", { class:"label", for:"f-recur", text: t("recurLbl") }),
+    el("div", { class:"row2" }, recurFreq, recurEvery));
+  if (task.recur){
+    recurField.append(el("p", { class:"recur-note", text: recurText(task.recur) }));
+  }
+
   const tagBox = el("div", { class:"tagbox", id:"f-tagbox" });
   const tagInput = el("input", { class:"input", placeholder: t("tagsPh"), "aria-label": t("tagsLbl"),
     onkeydown(e){
@@ -960,6 +1065,7 @@ function renderPanel(){
       el("div", {}, el("label", { class:"label", text: t("dueLbl") }), due),
       el("div", {}, el("label", { class:"label", text: t("prioLbl") }), prio)
     ),
+    recurField,
     el("div", { class:"field" }, el("label", { class:"label", for:"f-notes", text: t("notesLbl") }), notes),
     el("div", { class:"field" }, el("label", { class:"label", text: t("tagsLbl") }), tagBox, tagInput),
     el("div", { class:"field" }, el("label", { class:"label", text: t("subLbl") }), subWrap, subInput)

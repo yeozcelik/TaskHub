@@ -230,3 +230,9 @@
   .cal-head .btn{display:none}
   .cal-day{min-height:80px}
 }
+
+/* Kartta tekrar göstergesi */
+.m-recur{color:var(--accent)}
+.m-recur svg{width:12px;height:12px}
+.recur-note{margin:6px 0 0;font-size:12.5px;color:var(--muted)}
+#f-recur-n{max-width:96px}

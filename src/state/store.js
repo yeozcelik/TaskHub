@@ -155,6 +155,13 @@ function normalizeTask(raw){
     createdAt: ts(raw.createdAt) ? raw.createdAt : now,
     updatedAt: ts(raw.updatedAt) ? raw.updatedAt : (ts(raw.createdAt) ? raw.createdAt : now),
     completedAt: raw.done ? (ts(raw.completedAt) ? raw.completedAt : now) : null,
+    /* Tekrar kuralı. EKLEMELİ bir alan: eski kayıtta yok → null olur, eski kod
+       yeni kaydı okursa yok sayar. SCHEMA_VERSION ARTIRILMADI çünkü bu kod
+       tabanında sürüme göre dallanan bir göç yolu YOK — sürüm yalnız yazılıyor,
+       hiçbir yerde okunup karar verilmiyor. Artırmak tören olurdu.
+       Dürüst uyarı: eski bir sürüme geri dönülür ve kayıt yeniden yazılırsa
+       `recur` düşer. Bu, eklemeli alanların bilinen bedeli. */
+    recur: normalizeRule(raw.recur),
     sourceNoteId: (raw.sourceNoteId && typeof raw.sourceNoteId === "object"
       && typeof raw.sourceNoteId.notebookId === "string" && typeof raw.sourceNoteId.pageId === "string")
       ? { notebookId: raw.sourceNoteId.notebookId, pageId: raw.sourceNoteId.pageId } : null
