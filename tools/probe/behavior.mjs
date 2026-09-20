@@ -237,13 +237,22 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   })()`);
   check("S11: v1 defter yapısı kayıpsız yüklendi", v1, [1, "İş", 2, 1, 40]);
 
-  // ---------------- T3.1: depolama adaptörü ----------------
+  // ---------------- T3.1 / T3.2: depolama adaptörleri ----------------
+  // Sözleşme: her adaptörde şunlar VAR. `setSync` ise İSTEĞE BAĞLIDIR ve
+  // yokluğu, kapanış günlüğü yolunun gerekli olduğunun işaretidir.
   const adapter = await ev(`(() => {
-    const keys = ["name","available","get","set","setSync","remove","estimate"];
-    return keys.map(k => typeof storage[k]);
+    const req = ["name","available","get","set","remove","estimate"];
+    return req.map(k => typeof storage[k]);
   })()`);
-  check("T3.1: adaptör arayüzü eksiksiz", adapter,
-    ["string", "function", "function", "function", "function", "function", "function"]);
+  check("adaptör zorunlu arayüzü karşılıyor", adapter,
+    ["string", "function", "function", "function", "function", "function"]);
+
+  check("T3.2: bu tarayıcıda IndexedDB seçildi", await ev(`storageKind`), "indexedDB");
+  check("T3.2: IndexedDB'nin setSync'i YOK (bilinçli)", await ev(`typeof storage.setSync`), "undefined");
+  check("T3.2: localStorage'ın setSync'i VAR (günlüğün yazılacağı yer)",
+    await ev(`typeof localStore.setSync`), "function");
+  check("T3.2: her iki adaptörde de atomik çoklu yazma var",
+    await ev(`[typeof storage.setMany, typeof localStore.setMany]`), ["function", "function"]);
 
   const roundtrip = await ev(`(async () => {
     await storage.set("__t3_1_test__", "değer-ü-ş");
@@ -268,6 +277,35 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
     return [back.tasks.length, back.tasks[0].title, back.tasks[0].priority];
   })()`);
   check("T3.1: kaydedilen görev geri okunduğunda aynı", persisted, [1, "kalıcı görev", "high"]);
+
+  // ---------------- T3.2: kapanış günlüğü ----------------
+  const journal = await ev(`(async () => {
+    state.tasks = [{ id:"j1", title:"günlük görevi", notes:"", dueDate:null, priority:"med",
+      tags:[], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z",
+      updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null }];
+    scheduleSave();                 // bekleyen yazma oluştur
+    flushAllSync();                 // kapanış yolunu taklit et
+    const raw = await localStore.get(JOURNAL_KEY);
+    return raw ? JSON.parse(raw) : null;
+  })()`);
+  check("T3.2: kapanışta senkron günlük yazıldı", !!journal && typeof journal.state === "string", true);
+  check("T3.2: günlük gerçek durumu taşıyor",
+    journal ? JSON.parse(journal.state).tasks[0].title : null, "günlük görevi");
+
+  const replay = await ev(`(async () => {
+    // Depoyu kasten eskit, sonra günlüğü oynat.
+    await storage.set(STORAGE_KEY, JSON.stringify({ version:1, settings:{}, tasks:[] }));
+    const r = await replayJournal();
+    const back = normalizeState(JSON.parse(await storage.get(STORAGE_KEY)));
+    const left = await localStore.get(JOURNAL_KEY);
+    return { replayed: !!r, titles: back.tasks.map(t => t.title), left };
+  })()`);
+  check("T3.2: günlük oynatıldı ve daha yeni veri kazandı",
+    [replay.replayed, replay.titles], [true, ["günlük görevi"]]);
+  check("T3.2: oynatıldıktan sonra günlük silindi", replay.left, null);
+
+  check("T3.2: günlük yokken oynatma sessizce hiçbir şey yapmaz",
+    await ev(`replayJournal().then(r => r === null)`), true);
 
   // Bu blok state'i değiştirdi; sonraki iddiaların beklediği düzeni geri kur.
   await ev(`state.tasks = [

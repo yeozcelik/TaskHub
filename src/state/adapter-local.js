@@ -42,6 +42,17 @@ function createLocalAdapter(){
       catch (e){ return Promise.reject(e); }
     },
 
+    /** Arayüz eşitliği için var. DİKKAT: localStorage'ın işlemi yoktur, yani
+     *  bu ATOMİK DEĞİLDİR — ikinci yazma kotaya takılırsa ilki diskte kalır.
+     *  Göç yolu bu yüzden yalnız IndexedDB yönünde çalışır; ters yönde
+     *  (IDB → localStorage) bir göç YOK, çünkü güvenli yazılamaz. */
+    setMany(entries){
+      try {
+        for (const [k, v] of entries) localStorage.setItem(k, v);
+        return Promise.resolve();
+      } catch (e){ return Promise.reject(e); }
+    },
+
     /** Sayfa kapanırken kullanılır. Hata fırlatır, Promise döndürmez. */
     setSync(key, value){ localStorage.setItem(key, value); },
 

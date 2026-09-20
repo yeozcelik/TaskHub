@@ -62,14 +62,20 @@ jobs:
       - name: Liste davranışı
         run: node tools/probe/behavior.mjs
 
-      # --- 8) erişilebilirlik ---
+      # --- 8) göç, geri düşme ve depolama tavanı ---
+      # Sayfa yeniden yüklemesi gerektirir (başlangıç sırası sınanıyor), o
+      # yüzden behavior.mjs'ten ayrı. S5'i GERÇEKTEN yazarak kanıtlar.
+      - name: Depolama göçü ve tavanı
+        run: node tools/probe/migration.mjs
+
+      # --- 9) erişilebilirlik ---
       # Bilinen borç docs/olcumler/a11y-baseline.json'da adlarıyla durur;
       # listede olmayan her YENİ ihlal burayı kırar. axe-core koşum anında
       # npm pack ile alınır, repoya girmez.
       - name: Erişilebilirlik (axe, WCAG 2.1 A+AA)
         run: node tools/probe/a11y.mjs
 
-      # --- 9) çizim bütçesi ---
+      # --- 10) çizim bütçesi ---
       # S3a (küçük delta < 16 ms) ve S4 (O(değişen) düğüm) zorunlu.
       # S3b (toplu geçiş) raporlanır; pencereleme bekliyor — bkz. T2.3b.
       - name: Çizim bütçesi

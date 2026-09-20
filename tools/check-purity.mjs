@@ -17,14 +17,18 @@ const FORBIDDEN = /\b(document|window|localStorage|sessionStorage|indexedDB|navi
    her çağrı yeri ayrı bir hata yolu açar. Adaptör bu yüzden var; kural onu
    savunur. T3.2 eklendiğinde adapter-idb.js de bu listeye girer. */
 const STORAGE_RE = /\b(localStorage|sessionStorage|indexedDB)\b/;
-const STORAGE_ALLOWED = new Set(["state/adapter-local.js"]);
+const STORAGE_ALLOWED = new Set(["state/adapter-local.js", "state/adapter-idb.js"]);
 
-/* Yorumları boşlukla değiştirir, SATIR NUMARALARINI korur.
-   Gerekçe: bu dosyaların yorumları depolamadan bahsediyor ve bahsetmeleri de
-   doğru. Ham metinde arama yapan bir kural, kendi belgelerini ihlal sayar —
-   ilk koşumda tam olarak bu oldu, dördü dört yanlış pozitif.
-   Dize içeriği KASTEN soyulmuyor: `localStorage` bir dizede geçiyorsa da
-   bakmaya değer. */
+/* Yorumları VE dize içeriklerini boşlukla değiştirir, SATIR NUMARALARINI korur.
+   Kural API KULLANIMINI hedefler, kelimenin kendisini değil.
+
+   Bu iki kez öğrenildi. Önce yorumlar: dosyaların yorumları depolamadan
+   bahsediyor ve bahsetmeleri doğru — kural kendi belgelerini ihlal saydı.
+   Sonra dizeler: `storageKind = "indexedDB"` bir etikettir, çağrı değil.
+
+   Kaçırılabilir mi? `window["localStorage"]` yazan biri kuraldan kaçar. Ama
+   bu bir güvenlik sınırı değil, bir tasarım korkuluğu: kazara dağılmayı
+   önler, kasıtlı kaçışı değil. Kasıtlı kaçış zaten gözden geçirmede görülür. */
 function stripComments(src){
   let out = "", i = 0, n = src.length;
   while (i < n){
@@ -38,8 +42,8 @@ function stripComments(src){
     } else if (c === '"' || c === "'" || c === "`"){
       const q = c; out += c; i++;
       while (i < n && src[i] !== q){
-        if (src[i] === "\\"){ out += src[i] + (src[i + 1] || ""); i += 2; continue; }
-        out += src[i]; i++;
+        if (src[i] === "\\"){ out += "  "; i += 2; continue; }
+        out += src[i] === "\n" ? "\n" : " "; i++;       // içerik silinir, konum korunur
       }
       out += src[i] || ""; i++;
     } else { out += c; i++; }

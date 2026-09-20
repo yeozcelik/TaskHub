@@ -1046,13 +1046,30 @@ function renderNotebooks(){
 function storageMeter(){
   const pct = storagePercent();
   const cls = "meter" + (pct >= 95 ? " full" : pct >= 80 ? " warn" : "");
-  return el("div", { class: cls, id:"storageMeter" },
+  const used = formatBytes(storageBytes());
+
+  /* Gösterge iki farklı soruya cevap veriyor, hangi deponun seçildiğine göre:
+       localStorage → "duvara ne kadar kaldı?" (tavan ~5 MB, yakın ve gerçek)
+       IndexedDB    → "ne kadar yer kaplıyorum?" (tavan ~151 GiB; yüzde
+                       anlamsız, her zaman %0 gösterirdi)
+     Aynı çubuğu ikisinde de göstermek, ikincisinde yalan söylemek olurdu. */
+  const label = quotaMeasured
+    ? used
+    : used + " / " + formatBytes(quotaBytes);
+
+  const meter = el("div", { class: cls, id:"storageMeter",
+    title: (storageKind === "indexedDB" ? t("storageIdb") : t("storageLocal"))
+           + (quotaMeasured ? " · " + formatBytes(quotaBytes) : "") },
     el("div", { class:"lbl" },
       el("span", { text: t("storageUsed") }),
-      el("span", { text: formatBytes(storageBytes()) + " / " + formatBytes(STORAGE_BUDGET) })
-    ),
-    el("div", { class:"bar" }, el("i", { style:"width:" + Math.max(1, pct) + "%" }))
+      el("span", { text: label })
+    )
   );
+  // Çubuk yalnız anlamlıysa çizilir; %0'da sabit duran bir çubuk gürültüdür.
+  if (!quotaMeasured || pct >= 1){
+    meter.append(el("div", { class:"bar" }, el("i", { style:"width:" + Math.max(1, pct) + "%" })));
+  }
+  return meter;
 }
 function renderStorageMeter(){
   const old = document.getElementById("storageMeter");
@@ -2592,6 +2609,8 @@ function processImage(file, cb){
 
 function insertImageFile(file, opts){
   if (!file || !/^image\//.test(file.type || "")) return;
+  /* Eşik artık GERÇEK kotaya göre. localStorage'ta ~5 MB'ın %95'i resimleri
+     erkenden kilitliyordu; IndexedDB'de o duvar yok ve kilit de olmamalı. */
   if (storagePercent() >= 95){ toast(t("imgTooBig"), null, 10000); return; }
   processImage(file, res => {
     if (!res || !res.url){ toast(t("imgFailed")); return; }
@@ -3729,7 +3748,21 @@ function withTimeout(promise, ms, fallback){
 }
 
 (async () => {
-  storageOK = probeStorage();
+  /* Sıra önemlidir:
+     1. localStorage var mı  — günlük ve geri düşme buna bağlı
+     2. IndexedDB açılıyor mu — açılırsa tavan ~5 MB'tan ~151 GiB'a çıkar
+     3. göç             — localStorage'daki veri IndexedDB'ye kopyalanır (atomik)
+     4. günlük kurtarma — kapanışta yetişemeyen yazma varsa geri konur
+     5. okuma                                                                  */
+  localOK = probeStorage();
+  storageOK = localOK;
+
+  await selectStorage();
+  if (storageKind === "indexedDB") storageOK = true;   // IndexedDB açıldı, yazabiliriz
+
+  await migrateToIdb();
+  const replayed = await replayJournal();
+  await refreshQuota();          // gösterge ve eşikler gerçek tavanı kullansın
 
   const FAILED = Symbol("okuma-basarisiz");
   const [s0, n0] = await Promise.all([
@@ -3752,5 +3785,10 @@ function withTimeout(promise, ms, fallback){
     buildShell();
     scheduleMidnight();
     installStorageHooks();
+    /* Kapanışta yetişemeyen bir yazma kurtarıldıysa kullanıcı bilsin:
+       sessizce kurtarmak, sessizce kaybetmek kadar yanıltıcıdır. */
+    if (replayed){
+      toast(replayed.notesDropped ? t("journalPartial") : t("journalRestored"), null, 7000);
+    }
   }
 })();

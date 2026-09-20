@@ -802,6 +802,9 @@ const I18N = {
     cmdToggleCompleted:"Tamamlananları göster / gizle",
     cmdNewNotebook:"Yeni defter", cmdNewPage:"Yeni sayfa",
     cmdTheme:"Temayı değiştir", cmdLang:"Dili değiştir (TR / EN)", cmdPrint:"Yazdır",
+    journalRestored:"Kapanışta kaydedilemeyen değişiklikler geri yüklendi.",
+    journalPartial:"Kapanıştaki görev değişiklikleri geri yüklendi; notlar yedek alana sığmadı.",
+    storageIdb:"Depolama: IndexedDB", storageLocal:"Depolama: tarayıcı belleği (localStorage)",
     theme:"Tema", themeAuto:"Tema: sistem", themeLight:"Tema: açık", themeDark:"Tema: koyu",
     lang:"Dil", exportJson:"JSON yedeği indir", importJson:"JSON'dan geri yükle", exportCsv:"CSV indir (Excel)",
     status:"Durum", all:"Tümü", active:"Açık", done:"Tamamlanan",
@@ -923,6 +926,9 @@ const I18N = {
     cmdToggleCompleted:"Show / hide completed",
     cmdNewNotebook:"New notebook", cmdNewPage:"New page",
     cmdTheme:"Switch theme", cmdLang:"Switch language (TR / EN)", cmdPrint:"Print",
+    journalRestored:"Changes that couldn't be saved on close were restored.",
+    journalPartial:"Task changes from close were restored; notes didn't fit the fallback area.",
+    storageIdb:"Storage: IndexedDB", storageLocal:"Storage: browser memory (localStorage)",
     theme:"Theme", themeAuto:"Theme: system", themeLight:"Theme: light", themeDark:"Theme: dark",
     lang:"Language", exportJson:"Download JSON backup", importJson:"Restore from JSON", exportCsv:"Download CSV (Excel)",
     status:"Status", all:"All", active:"Open", done:"Completed",
@@ -2017,6 +2023,17 @@ function createLocalAdapter(){
       catch (e){ return Promise.reject(e); }
     },
 
+    /** Arayüz eşitliği için var. DİKKAT: localStorage'ın işlemi yoktur, yani
+     *  bu ATOMİK DEĞİLDİR — ikinci yazma kotaya takılırsa ilki diskte kalır.
+     *  Göç yolu bu yüzden yalnız IndexedDB yönünde çalışır; ters yönde
+     *  (IDB → localStorage) bir göç YOK, çünkü güvenli yazılamaz. */
+    setMany(entries){
+      try {
+        for (const [k, v] of entries) localStorage.setItem(k, v);
+        return Promise.resolve();
+      } catch (e){ return Promise.reject(e); }
+    },
+
     /** Sayfa kapanırken kullanılır. Hata fırlatır, Promise döndürmez. */
     setSync(key, value){ localStorage.setItem(key, value); },
 
@@ -2029,6 +2046,103 @@ function createLocalAdapter(){
     estimate(){ return Promise.resolve(null); },
   };
 }
+/* ------------------------------------------------ IndexedDB adaptörü ---
+ * Ölçüldü (docs/olcumler/2026-09-20-file-protokolu-yetenekleri.md):
+ * Chromium 141'de `file://` üzerinde IndexedDB çalışıyor ve ~151 GiB kota
+ * bildiriyor — localStorage'ın ~5 MB'ına karşı yaklaşık 32.000 kat.
+ *
+ * Firefox ve Safari ÖLÇÜLMEDİ (T0.1, ortam engeli). Bu yüzden seçim koşum
+ * anında yapılır: açılamazsa sessizce localStorage'a düşülür. Mimari, bu
+ * sorunun cevabını beklemek zorunda kalmasın diye iki adaptörlü tasarlandı.
+ *
+ * `setSync` YOKTUR ve bu bilinçlidir. IndexedDB senkron yazamaz; adaptör
+ * yokmuş gibi davranmak yerine yokluğunu ilan eder. store.js bunu görüp
+ * günlük (journal) yoluna geçer — bkz. flushAllSync.                      */
+
+const IDB_NAME = "taskhub";
+const IDB_STORE = "kv";
+const IDB_VERSION = 1;
+/* Açılış nöbetçisi 1500 ms sonra "arayüz kurulamadı" diyor. IndexedDB açılışı
+   yerel diskte milisaniyeler sürer; asılırsa beklemek yerine localStorage'a
+   düşmek doğru davranıştır. 800 ms hem bolca yeterli hem de bütçeyi korur. */
+const IDB_OPEN_TIMEOUT = 800;
+
+function createIdbAdapter(){
+  let dbPromise = null;
+
+  function openDb(){
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      let settled = false;
+      const done = fn => (...a) => { if (!settled){ settled = true; fn(...a); } };
+      /* Açılış asılırsa başlangıç sonsuza kadar bekleyemez: kullanıcı boş
+         ekran görmektense localStorage'la çalışsın. */
+      const timer = setTimeout(done(reject), IDB_OPEN_TIMEOUT, new Error("IndexedDB açılışı zaman aşımına uğradı"));
+      let req;
+      try { req = indexedDB.open(IDB_NAME, IDB_VERSION); }
+      catch (e){ clearTimeout(timer); return done(reject)(e); }
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = () => { clearTimeout(timer); done(resolve)(req.result); };
+      req.onerror = () => { clearTimeout(timer); done(reject)(req.error || new Error("IndexedDB açılamadı")); };
+      req.onblocked = () => { clearTimeout(timer); done(reject)(new Error("IndexedDB engellendi")); };
+    });
+    dbPromise.catch(() => { dbPromise = null; });   // sonraki deneme yeniden kursun
+    return dbPromise;
+  }
+
+  function tx(mode, fn){
+    return openDb().then(db => new Promise((resolve, reject) => {
+      let t;
+      try { t = db.transaction(IDB_STORE, mode); }
+      catch (e){ return reject(e); }
+      const store = t.objectStore(IDB_STORE);
+      let result;
+      const req = fn(store);
+      if (req) req.onsuccess = () => { result = req.result; };
+      t.oncomplete = () => resolve(result);
+      t.onerror = () => reject(t.error || new Error("IndexedDB işlemi başarısız"));
+      t.onabort = () => reject(t.error || new Error("IndexedDB işlemi iptal edildi"));
+    }));
+  }
+
+  return {
+    name: "indexedDB",
+
+    available(){
+      try { return typeof indexedDB !== "undefined" && !!indexedDB; }
+      catch (e){ return false; }
+    },
+
+    /** Açılışı gerçekten dener. `available()` yalnız API'nin varlığına bakar;
+     *  Firefox'un file:// davranışı gibi şeyler ancak açarak anlaşılır. */
+    probe(){ return openDb().then(() => true, () => false); },
+
+    get(key){ return tx("readonly", s => s.get(key)).then(v => v === undefined ? null : v); },
+    set(key, value){ return tx("readwrite", s => s.put(value, key)).then(() => undefined); },
+
+    /** Hepsi ya da hiçbiri — TEK IndexedDB işleminde. Göçün yarım kalmaması
+     *  buna dayanıyor: işlem iptal olursa hiçbir anahtar yazılmaz. */
+    setMany(entries){
+      return tx("readwrite", store => {
+        for (const [k, v] of entries) store.put(v, k);
+        return null;
+      }).then(() => undefined);
+    },
+    remove(key){ return tx("readwrite", s => s.delete(key)).then(() => undefined); },
+
+    /* setSync YOK — bkz. dosya başı. */
+
+    estimate(){
+      try {
+        if (navigator.storage && navigator.storage.estimate) return navigator.storage.estimate();
+      } catch (e){ /* düş */ }
+      return Promise.resolve(null);
+    },
+  };
+}
 /* ------------------------------------------------------------- depolama */
 const STORAGE_KEY = "taskhub";
 const SCHEMA_VERSION = 1;
@@ -2038,13 +2152,122 @@ const params = new URLSearchParams(location.search);
 let storageOK = false;
 let corruptRecovered = false;
 
-/* Şu an tek adaptör var. T3.2 IndexedDB'yi ekleyecek ve seçim burada
-   yapılacak; store.js'in geri kalanı hangisinin seçildiğini bilmeyecek. */
-const storage = createLocalAdapter();
+/* localStorage her zaman elde durur: hem güvenli varsayılan hem de
+   IndexedDB seçildiğinde kapanış günlüğünün (journal) yazılacağı yer. */
+const localStore = createLocalAdapter();
+let storage = localStore;
+let storageKind = "localStorage";
+let localOK = false;
 
 function probeStorage(){
   if (params.get("nostorage") === "1") return false; // uyarı şeridini sınamak için
   return storage.available();
+}
+
+/* ------------------------------------------------------- adaptör seçimi
+ * IndexedDB'nin VARLIĞINA bakmak yetmez: Firefox ve Safari'nin file://
+ * davranışı ölçülmedi (T0.1 engellendi). Bu yüzden gerçekten AÇILIR mı diye
+ * bakılır; açılmazsa sessizce localStorage'da kalınır. Kullanıcı bir şey
+ * kaybetmez, yalnız tavan düşük kalır.
+ *
+ * `?noidb=1` sınama kapısıdır: düşüş yolunu gerçek tarayıcıda koşturmak için. */
+async function selectStorage(){
+  if (params.get("noidb") === "1") return;
+  if (params.get("nostorage") === "1") return;    // "depolama yok" her şeyi kapsar
+  const idb = createIdbAdapter();
+  if (!idb.available()) return;
+  if (!(await idb.probe())) return;
+  storage = idb;
+  storageKind = "indexedDB";
+}
+
+/* ---------------------------------------------------------------- göç
+ * Yalnız localStorage → IndexedDB yönünde. Ters yön YOK: localStorage'ın
+ * işlemi olmadığı için iki anahtarı güvenle yazamayız (adapter-local.js).
+ *
+ * ATOMİK: iki anahtar tek IndexedDB işleminde yazılır. İşlem yarıda kalırsa
+ * hiçbiri yazılmaz ve bir sonraki açılışta yeniden denenir — `put` anahtara
+ * göre yazdığı için tekrar zararsızdır.
+ *
+ * GERİ ALINABİLİR: localStorage kaydı SİLİNMEZ. Bir sürüm daha orada durur,
+ * böylece IndexedDB'de bir sorun çıkarsa veri hâlâ elde olur. */
+const MIGRATED_KEY = "taskhub.migratedAt";
+
+async function migrateToIdb(){
+  if (storageKind !== "indexedDB" || !localOK) return null;
+  const already = await storage.get(STORAGE_KEY);
+  if (already != null) return null;                 // IndexedDB zaten dolu
+
+  let rawState = null, rawNotes = null;
+  try {
+    rawState = await localStore.get(STORAGE_KEY);
+    rawNotes = await localStore.get(NOTES_KEY);
+  } catch (e){ return null; }
+  if (rawState == null && rawNotes == null) return null;   // taşınacak bir şey yok
+
+  const entries = [];
+  if (rawState != null) entries.push([STORAGE_KEY, rawState]);
+  if (rawNotes != null) entries.push([NOTES_KEY, rawNotes]);
+  try {
+    await storage.setMany(entries);
+    try { localStore.setSync(MIGRATED_KEY, new Date().toISOString()); } catch (e){}
+    return entries.length;
+  } catch (e){
+    // Yarım göç diske yazılmadı; localStorage'la devam et ki veri erişilebilir kalsın.
+    storage = localStore; storageKind = "localStorage";
+    return null;
+  }
+}
+
+/* ------------------------------------------------- kapanış günlüğü (journal)
+ * T3.1'de ortaya çıkan sorun: sayfa kapanırken `await`in devamı çalışmaz,
+ * IndexedDB ise senkron yazamaz. Yani IndexedDB'de son 300 ms'lik düzenleme
+ * normal bir sekme kapatmasında kaybolabilirdi — localStorage'da kaybolmazdı.
+ * Alanı büyütürken dayanıklılığı sessizce düşürmek kötü bir takastır.
+ *
+ * Çözüm: kapanış anında durum SENKRON olarak localStorage'a bırakılır.
+ * Sonraki açılışta günlük varsa seçilen depoya yazılır ve silinir. Günlük
+ * yalnız kapanışta yazıldığı için normal kullanımda hiçbir maliyeti yoktur.
+ *
+ * Günlük kazanır, çünkü asenkron yazmayla AYNI bellek durumundan, aynı anda
+ * üretilir: ya ikisi de yazıldı (aynı içerik) ya da yalnız günlük yazıldı. */
+const JOURNAL_KEY = "taskhub.journal";
+
+function writeJournalSync(){
+  if (!localOK) return;
+  const payload = { at: new Date().toISOString(), state: null, notes: null };
+  try { payload.state = JSON.stringify(state); } catch (e){}
+  try { payload.notes = JSON.stringify(notes); } catch (e){}
+  try {
+    localStore.setSync(JOURNAL_KEY, JSON.stringify(payload));
+  } catch (e){
+    /* Notlar localStorage'a sığmıyor (asıl sebep zaten buydu). Görevler
+       küçüktür; hiç günlük tutmamaktansa onları kurtar ve bunu kaydet. */
+    payload.notes = null;
+    payload.notesDropped = true;
+    try { localStore.setSync(JOURNAL_KEY, JSON.stringify(payload)); } catch (e2){}
+  }
+}
+
+async function replayJournal(){
+  if (!localOK) return null;
+  let raw = null;
+  try { raw = await localStore.get(JOURNAL_KEY); } catch (e){ return null; }
+  if (!raw) return null;
+  let j = null;
+  try { j = JSON.parse(raw); } catch (e){ }
+  try { await localStore.remove(JOURNAL_KEY); } catch (e){}
+  if (!j) return null;
+
+  const entries = [];
+  if (typeof j.state === "string") entries.push([STORAGE_KEY, j.state]);
+  if (typeof j.notes === "string") entries.push([NOTES_KEY, j.notes]);
+  if (!entries.length) return null;
+  try {
+    if (typeof storage.setMany === "function") await storage.setMany(entries);
+    else for (const [k, v] of entries) await storage.set(k, v);
+    return { at: j.at, notesDropped: !!j.notesDropped };
+  } catch (e){ return null; }
 }
 
 function defaultState(){
@@ -2212,7 +2435,29 @@ function storageBytes(){
   try { n += JSON.stringify(notes).length * 2; } catch(e){}
   return n;
 }
-const storagePercent = () => Math.min(100, Math.round(storageBytes() / STORAGE_BUDGET * 100));
+/* Gerçek kota. localStorage'ta ölçülemez, o yüzden ~5 MB varsayımı kalır.
+   IndexedDB'de `navigator.storage.estimate()` gerçek tavanı bildirir —
+   ölçülen: ~151 GiB (docs/olcumler/2026-09-20-file-protokolu-yetenekleri.md).
+
+   DİKKAT: `estimate()` bir TAVAN bildirir, bir REZERVASYON değil. Disk
+   dolduğunda yine QuotaExceededError gelir; o yüzden yazma yollarındaki
+   try/catch'ler yerinde duruyor. */
+let quotaBytes = STORAGE_BUDGET;
+let quotaMeasured = false;
+
+async function refreshQuota(){
+  try {
+    const est = await storage.estimate();
+    if (est && typeof est.quota === "number" && est.quota > 0){
+      quotaBytes = est.quota;
+      quotaMeasured = true;
+      return est;
+    }
+  } catch (e){ /* varsayımda kal */ }
+  return null;
+}
+
+const storagePercent = () => Math.min(100, Math.round(storageBytes() / quotaBytes * 100));
 function formatBytes(n){
   if (n < 1024) return n + " B";
   if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " KB";
@@ -2259,9 +2504,19 @@ async function saveNow(){
    kaybetmek yerine sınırı burada yazıyoruz. */
 function flushAllSync(){
   flushEditor();
-  if (!storageOK || typeof storage.setSync !== "function") return;
-  try { if (saveTimer) storage.setSync(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
-  try { if (notesSaveTimer || dirtyEditor) storage.setSync(NOTES_KEY, JSON.stringify(notes)); } catch(e){}
+  if (!storageOK) return;
+  const pending = !!saveTimer || !!notesSaveTimer || dirtyEditor;
+
+  if (typeof storage.setSync === "function"){
+    // localStorage: doğrudan ve senkron yaz, en güvenli yol.
+    try { if (saveTimer) storage.setSync(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+    try { if (notesSaveTimer || dirtyEditor) storage.setSync(NOTES_KEY, JSON.stringify(notes)); } catch(e){}
+  } else if (pending){
+    /* IndexedDB: asenkron yazmayı başlat (çoğu zaman yetişir) VE senkron
+       günlük bırak (yetişmezse bir sonraki açılış kurtarır). */
+    saveNow(); saveNotesNow();
+    writeJournalSync();
+  }
   clearTimeout(saveTimer); saveTimer = null;
   clearTimeout(notesSaveTimer); notesSaveTimer = null;
 }
@@ -3326,13 +3581,30 @@ function renderNotebooks(){
 function storageMeter(){
   const pct = storagePercent();
   const cls = "meter" + (pct >= 95 ? " full" : pct >= 80 ? " warn" : "");
-  return el("div", { class: cls, id:"storageMeter" },
+  const used = formatBytes(storageBytes());
+
+  /* Gösterge iki farklı soruya cevap veriyor, hangi deponun seçildiğine göre:
+       localStorage → "duvara ne kadar kaldı?" (tavan ~5 MB, yakın ve gerçek)
+       IndexedDB    → "ne kadar yer kaplıyorum?" (tavan ~151 GiB; yüzde
+                       anlamsız, her zaman %0 gösterirdi)
+     Aynı çubuğu ikisinde de göstermek, ikincisinde yalan söylemek olurdu. */
+  const label = quotaMeasured
+    ? used
+    : used + " / " + formatBytes(quotaBytes);
+
+  const meter = el("div", { class: cls, id:"storageMeter",
+    title: (storageKind === "indexedDB" ? t("storageIdb") : t("storageLocal"))
+           + (quotaMeasured ? " · " + formatBytes(quotaBytes) : "") },
     el("div", { class:"lbl" },
       el("span", { text: t("storageUsed") }),
-      el("span", { text: formatBytes(storageBytes()) + " / " + formatBytes(STORAGE_BUDGET) })
-    ),
-    el("div", { class:"bar" }, el("i", { style:"width:" + Math.max(1, pct) + "%" }))
+      el("span", { text: label })
+    )
   );
+  // Çubuk yalnız anlamlıysa çizilir; %0'da sabit duran bir çubuk gürültüdür.
+  if (!quotaMeasured || pct >= 1){
+    meter.append(el("div", { class:"bar" }, el("i", { style:"width:" + Math.max(1, pct) + "%" })));
+  }
+  return meter;
 }
 function renderStorageMeter(){
   const old = document.getElementById("storageMeter");
@@ -4872,6 +5144,8 @@ function processImage(file, cb){
 
 function insertImageFile(file, opts){
   if (!file || !/^image\//.test(file.type || "")) return;
+  /* Eşik artık GERÇEK kotaya göre. localStorage'ta ~5 MB'ın %95'i resimleri
+     erkenden kilitliyordu; IndexedDB'de o duvar yok ve kilit de olmamalı. */
   if (storagePercent() >= 95){ toast(t("imgTooBig"), null, 10000); return; }
   processImage(file, res => {
     if (!res || !res.url){ toast(t("imgFailed")); return; }
@@ -6009,7 +6283,21 @@ function withTimeout(promise, ms, fallback){
 }
 
 (async () => {
-  storageOK = probeStorage();
+  /* Sıra önemlidir:
+     1. localStorage var mı  — günlük ve geri düşme buna bağlı
+     2. IndexedDB açılıyor mu — açılırsa tavan ~5 MB'tan ~151 GiB'a çıkar
+     3. göç             — localStorage'daki veri IndexedDB'ye kopyalanır (atomik)
+     4. günlük kurtarma — kapanışta yetişemeyen yazma varsa geri konur
+     5. okuma                                                                  */
+  localOK = probeStorage();
+  storageOK = localOK;
+
+  await selectStorage();
+  if (storageKind === "indexedDB") storageOK = true;   // IndexedDB açıldı, yazabiliriz
+
+  await migrateToIdb();
+  const replayed = await replayJournal();
+  await refreshQuota();          // gösterge ve eşikler gerçek tavanı kullansın
 
   const FAILED = Symbol("okuma-basarisiz");
   const [s0, n0] = await Promise.all([
@@ -6032,6 +6320,11 @@ function withTimeout(promise, ms, fallback){
     buildShell();
     scheduleMidnight();
     installStorageHooks();
+    /* Kapanışta yetişemeyen bir yazma kurtarıldıysa kullanıcı bilsin:
+       sessizce kurtarmak, sessizce kaybetmek kadar yanıltıcıdır. */
+    if (replayed){
+      toast(replayed.notesDropped ? t("journalPartial") : t("journalRestored"), null, 7000);
+    }
   }
 })();
 /* ============================ KOMUT PALETİ ==============================

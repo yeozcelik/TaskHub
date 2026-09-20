@@ -7,13 +7,122 @@ const params = new URLSearchParams(location.search);
 let storageOK = false;
 let corruptRecovered = false;
 
-/* Şu an tek adaptör var. T3.2 IndexedDB'yi ekleyecek ve seçim burada
-   yapılacak; store.js'in geri kalanı hangisinin seçildiğini bilmeyecek. */
-const storage = createLocalAdapter();
+/* localStorage her zaman elde durur: hem güvenli varsayılan hem de
+   IndexedDB seçildiğinde kapanış günlüğünün (journal) yazılacağı yer. */
+const localStore = createLocalAdapter();
+let storage = localStore;
+let storageKind = "localStorage";
+let localOK = false;
 
 function probeStorage(){
   if (params.get("nostorage") === "1") return false; // uyarı şeridini sınamak için
   return storage.available();
+}
+
+/* ------------------------------------------------------- adaptör seçimi
+ * IndexedDB'nin VARLIĞINA bakmak yetmez: Firefox ve Safari'nin file://
+ * davranışı ölçülmedi (T0.1 engellendi). Bu yüzden gerçekten AÇILIR mı diye
+ * bakılır; açılmazsa sessizce localStorage'da kalınır. Kullanıcı bir şey
+ * kaybetmez, yalnız tavan düşük kalır.
+ *
+ * `?noidb=1` sınama kapısıdır: düşüş yolunu gerçek tarayıcıda koşturmak için. */
+async function selectStorage(){
+  if (params.get("noidb") === "1") return;
+  if (params.get("nostorage") === "1") return;    // "depolama yok" her şeyi kapsar
+  const idb = createIdbAdapter();
+  if (!idb.available()) return;
+  if (!(await idb.probe())) return;
+  storage = idb;
+  storageKind = "indexedDB";
+}
+
+/* ---------------------------------------------------------------- göç
+ * Yalnız localStorage → IndexedDB yönünde. Ters yön YOK: localStorage'ın
+ * işlemi olmadığı için iki anahtarı güvenle yazamayız (adapter-local.js).
+ *
+ * ATOMİK: iki anahtar tek IndexedDB işleminde yazılır. İşlem yarıda kalırsa
+ * hiçbiri yazılmaz ve bir sonraki açılışta yeniden denenir — `put` anahtara
+ * göre yazdığı için tekrar zararsızdır.
+ *
+ * GERİ ALINABİLİR: localStorage kaydı SİLİNMEZ. Bir sürüm daha orada durur,
+ * böylece IndexedDB'de bir sorun çıkarsa veri hâlâ elde olur. */
+const MIGRATED_KEY = "taskhub.migratedAt";
+
+async function migrateToIdb(){
+  if (storageKind !== "indexedDB" || !localOK) return null;
+  const already = await storage.get(STORAGE_KEY);
+  if (already != null) return null;                 // IndexedDB zaten dolu
+
+  let rawState = null, rawNotes = null;
+  try {
+    rawState = await localStore.get(STORAGE_KEY);
+    rawNotes = await localStore.get(NOTES_KEY);
+  } catch (e){ return null; }
+  if (rawState == null && rawNotes == null) return null;   // taşınacak bir şey yok
+
+  const entries = [];
+  if (rawState != null) entries.push([STORAGE_KEY, rawState]);
+  if (rawNotes != null) entries.push([NOTES_KEY, rawNotes]);
+  try {
+    await storage.setMany(entries);
+    try { localStore.setSync(MIGRATED_KEY, new Date().toISOString()); } catch (e){}
+    return entries.length;
+  } catch (e){
+    // Yarım göç diske yazılmadı; localStorage'la devam et ki veri erişilebilir kalsın.
+    storage = localStore; storageKind = "localStorage";
+    return null;
+  }
+}
+
+/* ------------------------------------------------- kapanış günlüğü (journal)
+ * T3.1'de ortaya çıkan sorun: sayfa kapanırken `await`in devamı çalışmaz,
+ * IndexedDB ise senkron yazamaz. Yani IndexedDB'de son 300 ms'lik düzenleme
+ * normal bir sekme kapatmasında kaybolabilirdi — localStorage'da kaybolmazdı.
+ * Alanı büyütürken dayanıklılığı sessizce düşürmek kötü bir takastır.
+ *
+ * Çözüm: kapanış anında durum SENKRON olarak localStorage'a bırakılır.
+ * Sonraki açılışta günlük varsa seçilen depoya yazılır ve silinir. Günlük
+ * yalnız kapanışta yazıldığı için normal kullanımda hiçbir maliyeti yoktur.
+ *
+ * Günlük kazanır, çünkü asenkron yazmayla AYNI bellek durumundan, aynı anda
+ * üretilir: ya ikisi de yazıldı (aynı içerik) ya da yalnız günlük yazıldı. */
+const JOURNAL_KEY = "taskhub.journal";
+
+function writeJournalSync(){
+  if (!localOK) return;
+  const payload = { at: new Date().toISOString(), state: null, notes: null };
+  try { payload.state = JSON.stringify(state); } catch (e){}
+  try { payload.notes = JSON.stringify(notes); } catch (e){}
+  try {
+    localStore.setSync(JOURNAL_KEY, JSON.stringify(payload));
+  } catch (e){
+    /* Notlar localStorage'a sığmıyor (asıl sebep zaten buydu). Görevler
+       küçüktür; hiç günlük tutmamaktansa onları kurtar ve bunu kaydet. */
+    payload.notes = null;
+    payload.notesDropped = true;
+    try { localStore.setSync(JOURNAL_KEY, JSON.stringify(payload)); } catch (e2){}
+  }
+}
+
+async function replayJournal(){
+  if (!localOK) return null;
+  let raw = null;
+  try { raw = await localStore.get(JOURNAL_KEY); } catch (e){ return null; }
+  if (!raw) return null;
+  let j = null;
+  try { j = JSON.parse(raw); } catch (e){ }
+  try { await localStore.remove(JOURNAL_KEY); } catch (e){}
+  if (!j) return null;
+
+  const entries = [];
+  if (typeof j.state === "string") entries.push([STORAGE_KEY, j.state]);
+  if (typeof j.notes === "string") entries.push([NOTES_KEY, j.notes]);
+  if (!entries.length) return null;
+  try {
+    if (typeof storage.setMany === "function") await storage.setMany(entries);
+    else for (const [k, v] of entries) await storage.set(k, v);
+    return { at: j.at, notesDropped: !!j.notesDropped };
+  } catch (e){ return null; }
 }
 
 function defaultState(){
@@ -181,7 +290,29 @@ function storageBytes(){
   try { n += JSON.stringify(notes).length * 2; } catch(e){}
   return n;
 }
-const storagePercent = () => Math.min(100, Math.round(storageBytes() / STORAGE_BUDGET * 100));
+/* Gerçek kota. localStorage'ta ölçülemez, o yüzden ~5 MB varsayımı kalır.
+   IndexedDB'de `navigator.storage.estimate()` gerçek tavanı bildirir —
+   ölçülen: ~151 GiB (docs/olcumler/2026-09-20-file-protokolu-yetenekleri.md).
+
+   DİKKAT: `estimate()` bir TAVAN bildirir, bir REZERVASYON değil. Disk
+   dolduğunda yine QuotaExceededError gelir; o yüzden yazma yollarındaki
+   try/catch'ler yerinde duruyor. */
+let quotaBytes = STORAGE_BUDGET;
+let quotaMeasured = false;
+
+async function refreshQuota(){
+  try {
+    const est = await storage.estimate();
+    if (est && typeof est.quota === "number" && est.quota > 0){
+      quotaBytes = est.quota;
+      quotaMeasured = true;
+      return est;
+    }
+  } catch (e){ /* varsayımda kal */ }
+  return null;
+}
+
+const storagePercent = () => Math.min(100, Math.round(storageBytes() / quotaBytes * 100));
 function formatBytes(n){
   if (n < 1024) return n + " B";
   if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " KB";
@@ -228,9 +359,19 @@ async function saveNow(){
    kaybetmek yerine sınırı burada yazıyoruz. */
 function flushAllSync(){
   flushEditor();
-  if (!storageOK || typeof storage.setSync !== "function") return;
-  try { if (saveTimer) storage.setSync(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
-  try { if (notesSaveTimer || dirtyEditor) storage.setSync(NOTES_KEY, JSON.stringify(notes)); } catch(e){}
+  if (!storageOK) return;
+  const pending = !!saveTimer || !!notesSaveTimer || dirtyEditor;
+
+  if (typeof storage.setSync === "function"){
+    // localStorage: doğrudan ve senkron yaz, en güvenli yol.
+    try { if (saveTimer) storage.setSync(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+    try { if (notesSaveTimer || dirtyEditor) storage.setSync(NOTES_KEY, JSON.stringify(notes)); } catch(e){}
+  } else if (pending){
+    /* IndexedDB: asenkron yazmayı başlat (çoğu zaman yetişir) VE senkron
+       günlük bırak (yetişmezse bir sonraki açılış kurtarır). */
+    saveNow(); saveNotesNow();
+    writeJournalSync();
+  }
   clearTimeout(saveTimer); saveTimer = null;
   clearTimeout(notesSaveTimer); notesSaveTimer = null;
 }

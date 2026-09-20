@@ -566,7 +566,7 @@ denetleyici artık satır numaralarını koruyarak yorumları soyuyor.
 **Dosyalar:** `src/core/store.js`, `src/core/store-localstorage.js`, `tests/store.test.js`
 **Boyut:** M
 
-### T3.2: IndexedDB adaptörü + geçiş
+### T3.2: IndexedDB adaptörü + geçiş — ✅ BİTTİ
 
 **Açıklama:** Ölçüldü: `file://` üzerinde IndexedDB çalışıyor, ~151 GiB kota
 (`docs/olcumler/`). İkinci adaptör yazılır; açılışta mevcut `localStorage` verisi
@@ -579,14 +579,36 @@ denetleyici artık satır numaralarını koruyarak yorumları soyuyor.
 - [ ] `QuotaExceededError` yakalanır, mevcut uyarı şeridi yolundan bildirilir (R6)
 - [ ] S11: v1 `localStorage` ve v1 JSON yedeği kayıpsız yüklenir — fikstürle sınanır
 
-**Doğrulama:** `node --test tests/store-migration.test.js`; `tools/probe` ile gerçek
-tarayıcıda geçiş turu; eski fikstürle geri yükleme.
+**Doğrulama:** `node tools/probe/migration.mjs` — **15/15**, gerçek sayfa
+yeniden yüklemeleriyle.
+
+**Sonuç.** `src/state/adapter-idb.js`. Seçim koşum anında ve **açılışı
+gerçekten deneyerek** yapılıyor: API'nin varlığına bakmak yetmez, çünkü
+Firefox/Safari'nin `file://` davranışı ölçülmedi (T0.1 engellendi). Açılmazsa
+sessizce localStorage'da kalınır — `?noidb=1` bu yolu CI'da koşturuyor.
+
+| Kabul | Kanıt |
+|---|---|
+| Atomik göç | İki anahtar tek IndexedDB işleminde (`setMany`) |
+| Geri alınabilir | localStorage kaydı **silinmiyor**, testle kilitli |
+| Açılamazsa düşer | `?noidb=1` → `storageKind === "localStorage"`, yazma çalışıyor |
+| Kota hatası yakalanır | Mevcut uyarı şeridi yolu korundu |
+| **S11** | v1 görev + ayarlar + defter, eski `html` → kutu dönüşümü dahil kayıpsız |
+| Bir kez olur | İkinci açılış eski veriyi geri getirmiyor |
+
+> **T3.1'in açtığı dayanıklılık sorunu çözüldü.** IndexedDB senkron yazamaz;
+> sayfa kapanırken son 300 ms'lik düzenleme kaybolabilirdi. **Kapanış
+> günlüğü**: durum kapanışta localStorage'a senkron bırakılır, sonraki
+> açılışta seçilen depoya yazılıp silinir. Yalnız kapanışta yazıldığı için
+> normal kullanımda maliyetsiz. Notlar sığmazsa görevler kurtarılır ve
+> kullanıcıya söylenir. Alanı büyütürken dayanıklılığı sessizce düşürmek
+> kötü bir takas olurdu.
 
 **Bağımlılık:** T3.1, T0.1
 **Dosyalar:** `src/core/store-idb.js`, `src/core/store.js`, `tests/store-migration.test.js`, `tests/fixtures/v1-*.json`
 **Boyut:** M
 
-### T3.3: Depolama göstergesini gerçek kotaya bağla
+### T3.3: Depolama göstergesini gerçek kotaya bağla — ✅ BİTTİ
 
 **Açıklama:** Gösterge bugün sabit `STORAGE_BUDGET = 5 MB` varsayımına dayanıyor.
 `navigator.storage.estimate()` varsa gerçek değer kullanılır.
@@ -596,10 +618,24 @@ tarayıcıda geçiş turu; eski fikstürle geri yükleme.
 - [ ] `estimate()` yoksa mevcut varsayıma düşer
 - [ ] %80 uyarısı ve %95 resim kilidi **gerçek** kotaya göre hesaplanır
 
-**Doğrulama:** `node --test tests/storage-meter.test.js`; tarayıcıda elle.
+**Doğrulama:** `node tools/probe/migration.mjs` (S5 kapısı).
+
+**Sonuç — S5 ölçülerek kanıtlandı.** 60 MB IndexedDB'ye yazıldı ve
+**62.914.560 / 62.914.560 bayt** birebir geri okundu; aynı 10 MB'lık parça
+localStorage'a **QuotaExceededError** verdi. Yani eski tavan gerçekti ve
+kalktı. Süre 0,8 sn — CI'da koşuyor.
+
+`estimate()` tek başına kanıt sayılmadı: **tavan bildirir, rezervasyon
+değil.** Gerçekten yazıp geri okumak tek dürüst kanıt.
+
+**Kullanıcıya yansıyan iki değişiklik:**
+- **Resim kilidi kalktı** — eşik artık gerçek kotaya göre.
+- **Gösterge deposuna göre farklı soruya cevap veriyor**: localStorage'ta
+  "duvara ne kadar kaldı", IndexedDB'de "ne kadar yer kaplıyorum". 151 GiB'ın
+  yanında yüzde göstermek yalan söylemek olurdu.
 
 **Bağımlılık:** T3.2
-**Dosyalar:** `src/ui/storage-meter.js`, `src/core/store.js`, `tests/storage-meter.test.js`
+**Dosyalar:** `src/state/store.js`, `src/ui/app.js`, `tools/probe/migration.mjs`, `docs/olcumler/*`
 **Boyut:** S
 
 ### T3.4: Pano (kanban) görünümü

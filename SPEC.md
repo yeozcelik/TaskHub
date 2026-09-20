@@ -154,7 +154,7 @@ aynı modülleri çağırmaya devam eder. İddia sayısının **azalması** CI h
 | S3a | Büyük listede yazma | 5.000 görevde **küçük deltalı** çizim **< 16 ms** (p95) | `node tools/probe/perf.mjs` |
 | S3b | Büyük listede toplu geçiş | **her** çizim < 16 ms | aynı koşum — **AÇIK**, pencereleme bekliyor (T2.3b) |
 | S4 | Çizimde DOM yıkımı | Arama filtresi değişince **eklenen düğüm sayısı O(değişen)**, O(toplam) değil | MutationObserver sayımı |
-| S5 | Depolama tavanı | Not+resim için **> 50 MB** kullanılabilir | `navigator.storage.estimate()` |
+| S5 | Depolama tavanı | Not+resim için **> 50 MB** kullanılabilir | `node tools/probe/migration.mjs` — 60 MB yazılıp geri okunarak ✅ |
 | S6 | Klavye kapsaması | Her kullanıcı aksiyonu `Ctrl+K` üzerinden ulaşılabilir | komut kayıt defteri sayımı vs. aksiyon envanteri |
 | S7 | Yakalama ayrıştırma | "yarın 15:00 !yüksek #iş" → doğru tarih/öncelik/etiket, TR ve EN | birim testi |
 | S8 | Varsayılan ekran sakin kalır | Varsayılan görünümde kalıcı kontrol sayısı **artmaz** | elle sayım, gözden geçirmede |
