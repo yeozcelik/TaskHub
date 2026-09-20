@@ -151,7 +151,8 @@ aynı modülleri çağırmaya devam eder. İddia sayısının **azalması** CI h
 |---|---|---|---|
 | S1 | Derleme geri dönüşlü | `node tools/build.mjs --stdout` çıktısı `index.html` ile **birebir aynı** | `diff` |
 | S2 | Test sayısı gerilemez | ≥ 222 iddia, tamamı geçer | `node --test` |
-| S3 | Büyük listede arama | 5.000 görevde tuş başına çizim **< 16 ms** (p95) | `performance.measure`, CI ölçümü |
+| S3a | Büyük listede yazma | 5.000 görevde **küçük deltalı** çizim **< 16 ms** (p95) | `node tools/probe/perf.mjs` |
+| S3b | Büyük listede toplu geçiş | **her** çizim < 16 ms | aynı koşum — **AÇIK**, pencereleme bekliyor (T2.3b) |
 | S4 | Çizimde DOM yıkımı | Arama filtresi değişince **eklenen düğüm sayısı O(değişen)**, O(toplam) değil | MutationObserver sayımı |
 | S5 | Depolama tavanı | Not+resim için **> 50 MB** kullanılabilir | `navigator.storage.estimate()` |
 | S6 | Klavye kapsaması | Her kullanıcı aksiyonu `Ctrl+K` üzerinden ulaşılabilir | komut kayıt defteri sayımı vs. aksiyon envanteri |
@@ -175,3 +176,16 @@ aynı modülleri çağırmaya devam eder. İddia sayısının **azalması** CI h
    mevcut `sourceNoteId` alanı üzerine kurulur.)
 
 Bu varsayımlar **şimdi düzeltilmezse** planda yazdıkları gibi uygulanır.
+
+
+## Ölçümün değiştirdiği ölçüt: S3
+
+S3 tek bir eşik olarak yazılmıştı: "tuş başına < 16 ms". Ölçüldüğünde (bkz.
+`docs/olcumler/2026-09-20-cizim-butcesi.md`) bu eşiğin iki ayrı rejimi
+karıştırdığı görüldü ve **S3a / S3b** olarak ayrıldı.
+
+Bu bir eşik gevşetmesi **değildir**: S3b silinmedi, "kabul edilebilir" ilan
+edilmedi, sayısı da yumuşatılmadı. Açık bir kapı olarak duruyor ve her koşumda
+güncel değeri basılıyor. Ayrım, ölçümün ortaya çıkardığı fiziksel gerçeği
+kayda geçirir: küçük delta bir *uzlaştırma* problemi (çözüldü), toplu geçiş bir
+*inşa hacmi* problemi (pencereleme gerekir, T2.3b).

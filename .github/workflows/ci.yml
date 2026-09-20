@@ -54,3 +54,16 @@ jobs:
       # İkisi farklı sorulardır (SPEC.md, test stratejisi).
       - name: Tarayıcı iddia seti
         run: node tools/probe/verify.mjs
+
+      # --- 7) liste DOĞRU mu çiziliyor? ---
+      # Uzlaştırıcı hızlı çizebilir ve yine de yanlış çizebilir. Bu kapı
+      # sırayı, kova geçişlerini, boş durumu ve ODAK KORUNUMUNU sınar.
+      # (Taşıma sonrası odak kaybı hatası tam olarak burada yakalandı.)
+      - name: Liste davranışı
+        run: node tools/probe/behavior.mjs
+
+      # --- 8) çizim bütçesi ---
+      # S3a (küçük delta < 16 ms) ve S4 (O(değişen) düğüm) zorunlu.
+      # S3b (toplu geçiş) raporlanır; pencereleme bekliyor — bkz. T2.3b.
+      - name: Çizim bütçesi
+        run: node tools/probe/perf.mjs

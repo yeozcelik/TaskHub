@@ -193,7 +193,7 @@ i18n anahtar eşitliği, boyut bütçesi.
 
 ## Faz 2 — `render` + `capture` + `command`: algılanan modernlik
 
-### T2.1: Anahtarlı uzlaştırıcı (saf çekirdek)
+### T2.1: Anahtarlı uzlaştırıcı (saf çekirdek) — ✅ BİTTİ
 
 **Açıklama:** `renderList()` bugün `box.textContent = ""` ile DOM'u tamamen yıkıp
 yeniden kuruyor (`index.html:2137` civarı). Yerine anahtarlı bir uzlaştırıcı:
@@ -206,14 +206,28 @@ DOM'a dokunulmaz — yalnız yamayı üreten saf fonksiyon ve testleri.
 - [ ] Anahtar çakışması ve yinelenen anahtar tanımlı davranışa sahip (sessizce bozulmaz)
 - [ ] Boş → dolu, dolu → boş, tamamen ters çevirme sınırlarının testi var
 
-**Doğrulama:** `node --test tests/dom-diff.test.js`; 1.000 elemanlı listede tek
-eleman taşındığında yama uzunluğu ≤ 3 olduğu iddia edilir.
+**Doğrulama:** `node --test` → `tests/list-diff.test.js`, **15 test**.
+
+**Sonuç.** `src/core/list-diff.js`. En uzun artan altdizi (LIS) ile taşıma
+sayısı **en aza** indiriliyor: 1.000 elemanda tek taşıma → **1 işlem**;
+5.000 elemanda sondan başa taşıma → yine 1. Yinelenen anahtar sessizce
+bozmak yerine hata veriyor.
+
+En değerli test senaryo testi değil: **3.000 rastgele durumda yama gerçekten
+uygulanıp** sonucun hedef listeye eşit olduğu doğrulanıyor. Tohumlu üretici
+kullanıldı, başarısızlık yeniden üretilebilsin diye.
+
+> **Yan bulgu (ADR 0002'nin tuzağı).** İlk koşumda en basit eşitlik testleri
+> kaldı, 3.000 rastgele durum geçti. Sebep algoritma değildi: `vm` bağlamında
+> üretilen nesnelerin prototipi host realm'inkiyle aynı olmadığı için
+> `deepStrictEqual` reddediyordu. `tests/_load.mjs` artık `plain()` yardımcısını
+> ve bu tuzağın açıklamasını taşıyor.
 
 **Bağımlılık:** T1.3
 **Dosyalar:** `src/core/dom-diff.js`, `tests/dom-diff.test.js`
 **Boyut:** M
 
-### T2.2: Görev listesini uzlaştırıcıya geçir
+### T2.2: Görev listesini uzlaştırıcıya geçir — ✅ BİTTİ
 
 **Açıklama:** `renderList()` ve `taskCard()` yamayı uygulayacak şekilde bağlanır.
 **Kapsam yalnız görev listesi** — not tuvali dokunulmaz (plan, karar 3).
@@ -232,7 +246,23 @@ eleman taşındığında yama uzunluğu ≤ 3 olduğu iddia edilir.
 - [ ] **Odak korunur**: bir kartta odaklıyken filtre değişirse odak kaybolmaz
 - [ ] Geri alma bildirimi ("Geri al") ve 8 sn'lik pencere aynen çalışır
 
-**Doğrulama:** `MutationObserver` sayım testi; elle odak sınaması; `?test=1` yeşil.
+**Doğrulama:** `node tools/probe/behavior.mjs` (**12/12**), `node tools/probe/perf.mjs`.
+
+**Sonuç.** `renderList()` artık bölümleri ve kartları uzlaştırıyor. Çizim durumu
+kabın üstünde (`box.__taskList`) duruyor: kap yeniden kurulunca durum onunla
+gider, ayrı bir geçersizleştirme mekanizması gerekmiyor. Kart imzası dili ve
+`today`'i de içeriyor — yoksa dil değişince kartlar sessizce bayat kalırdı.
+
+> **Bulunan hata — ve nasıl bulunduğu.** Odak korunumu ilk sürümde kart
+> yenilenirken yakalanıyordu. `behavior.mjs` taşıma senaryosunda kaldı:
+> `insertBefore` taşınan düğümü belgeden anlık olarak koparıyor ve tarayıcı
+> odağı düşürüyor, dolayısıyla kart yenilenirken bakmak **geç kalıyor**.
+> Yakalama çizimin başına alındı. Birim testleri ve 222 iddia bu hatayı
+> göremezdi: ikisi de DOM davranışını sınamıyor.
+>
+> Aynı yerde ikinci bir risk kilitlendi: odak listeden başka bir yere gittiyse
+> (ör. arama kutusu) **geri çalınmıyor** — yalnız gerçekten kaybolduysa geri
+> veriliyor.
 
 **Bağımlılık:** T2.1
 **Dosyalar:** `src/ui/task-list.js`, `src/ui/task-card.js`, `src/core/dom-diff.js`
@@ -240,7 +270,7 @@ eleman taşındığında yama uzunluğu ≤ 3 olduğu iddia edilir.
 
 > **R3'ün azaltımı.** Odak korunumu bir kabul ölçütü, bir dilek değil.
 
-### T2.3: Başarım bütçesini ölç ve kapıya bağla
+### T2.3: Başarım bütçesini ölç ve kapıya bağla — ✅ ÖLÇÜLDÜ (S3 ikiye ayrıldı)
 
 **Açıklama:** 5.000 görevlik sentetik veriyle arama tuşu başına çizim süresi ölçülür.
 
@@ -249,11 +279,53 @@ eleman taşındığında yama uzunluğu ≤ 3 olduğu iddia edilir.
 - [ ] Ölçüm geçiş öncesi/sonrası olarak kayda geçer (`docs/olcumler/`)
 - [ ] Bütçe CI'da koşar
 
-**Doğrulama:** `node tools/probe/run.mjs --perf` çıktısı; eşik aşılırsa kırılır.
+**Doğrulama:** `node tools/probe/perf.mjs`; CI kapısı.
+
+**Sonuç — ve ölçütün değişmesi.** Ölçüm `docs/olcumler/2026-09-20-cizim-butcesi.md`.
+
+| | Artımlı | Tam yıkım |
+|---|---|---|
+| Eklenen düğüm, medyan | **3** | 1006 |
+| Küçük deltalı çizim p95 | **5,9 ms** | — |
+| Toplu geçiş, en kötü | 493 ms | 1425 ms |
+
+- **S4 ✅** medyanda **335 kat** az düğüm.
+- **S3a ✅** normal yazmada p95 **5,9 ms**, bütçenin üçte biri.
+- **S3b ⛔ AÇIK** toplu geçişte 493 ms.
+
+S3b bir fark algoritması sorunu değil: uzlaştırıcı zaten en az işlemi üretiyor.
+Darboğaz düğüm **inşası** — ölçülen **0,164 ms/kart**. Bu sayı tasarım
+parametresini doğrudan veriyor: 16 ms'lik kareye **≈97 kart** sığar.
+
+> **Eşik düşürülmedi.** S3b silinmedi, gevşetilmedi, "kabul edilebilir" ilan
+> edilmedi. Ölçüm tek eşiğin iki ayrı fiziksel rejimi karıştırdığını gösterdi;
+> ikisi de tutuluyor ve `perf.mjs` her koşumda güncel sayıyı basıyor.
 
 **Bağımlılık:** T2.2
-**Dosyalar:** `tools/probe/perf.html`, `tools/probe/run.mjs`, `.github/workflows/ci.yml`, `docs/olcumler/*`
+**Dosyalar:** `tools/probe/perf.mjs`, `tools/probe/chrome.mjs`, `.github/workflows/ci.yml`, `docs/olcumler/*`, `SPEC.md`
 **Boyut:** S
+
+### T2.3b: Liste pencereleme (sanallaştırma) — 🆕 ÖLÇÜMDEN DOĞDU
+
+**Açıklama:** 5.000 kartı aynı anda DOM'a koymak yanlış tasarım. Yalnız görünür
+alana yakın kartlar çizilir; kaydırdıkça pencere kayar. Linear ve Todoist'in
+yaptığı da budur. Pencere boyutu tahmin değil **ölçümden** geliyor: 0,164 ms/kart
+→ 16 ms'lik kareye ≈97 kart.
+
+**Kabul ölçütleri:**
+- [ ] S3b karşılanır: **her** çizim < 16 ms (5.000 görevde, filtre temizleme dahil)
+- [ ] Kaydırma sırasında kare düşmez; `IntersectionObserver` kullanılır (ölçüldü: `file://` üzerinde mevcut)
+- [ ] Klavyeyle gezinme penceresiz gibi çalışır: `Tab` ve ok tuşları henüz çizilmemiş karta ulaşabilir
+- [ ] `Ctrl+F` / tarayıcı içi arama sınırlaması **açıkça belgelenir** (çizilmemiş kart bulunamaz — dürüst sınır)
+- [ ] Ekran okuyucu için toplam sayı duyurulur (`aria-setsize` / `aria-posinset`)
+- [ ] Yazdırma yolu pencerelenmez: `Ctrl+P` tüm görevleri basmalı
+
+**Doğrulama:** `node tools/probe/perf.mjs` (S3b kapısı aktif edilir); `behavior.mjs`
+genişletilir; axe taraması.
+
+**Bağımlılık:** T2.2
+**Dosyalar:** `src/ui/app.js`, `src/core/window.js`, `tests/window.test.js`, `tools/probe/perf.mjs`
+**Boyut:** M
 
 ### T2.4: Doğal dil yakalama ayrıştırıcısı (saf çekirdek)
 

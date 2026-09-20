@@ -412,7 +412,7 @@ function taskCard(task){
   for (const tg of task.tags) meta.append(el("span", { class:"chip", text:"#" + tg }));
 
   const card = el("li", { class: cls.join(" "), tabindex:"0", role:"button",
-    "aria-label": task.title,
+    "data-id": task.id, "aria-label": task.title,
     onclick(){ openPanel(task.id, card); },
     onkeydown(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); openPanel(task.id, card); } }
   },
@@ -428,13 +428,124 @@ function taskCard(task){
   return card;
 }
 
+/* Kartın GÖRÜNEN her şeyini tek dizeye sıkıştırır. İki çizim arasında bu dize
+   aynıysa kart yeniden kurulmaz. Dil ve "bugün" de içeride: dil değişince her
+   kartın metni değişir, gece yarısı geçilince tarih etiketi değişir — ikisi de
+   imzaya girmezse kartlar sessizce bayat kalırdı. */
+function cardSig(task){
+  const subs = task.subtasks.length
+    ? task.subtasks.filter(s => s.done).length + "/" + task.subtasks.length : "";
+  return [
+    task.title, task.done ? 1 : 0, task.priority, task.dueDate || "",
+    task.tags.join(","), subs, task.id === openTaskId ? 1 : 0,
+    state.settings.lang, today,
+  ].join("\u0001");
+}
+
+/* Odak korunumu. Filtre yazarken ya da bir görev sıralamada yer değiştirirken
+   odağın kaybolması klavye kullanıcısını listeden atar; bu bir incelik değil.
+
+   Yakalama ÇİZİMİN BAŞINDA yapılır, kart kart değil. Sebebi ölçüldü:
+   `insertBefore` ile taşınan düğüm belgeden anlık olarak kopar ve tarayıcı
+   odağı düşürür. Kart yeniden kurulurken bakmak GEÇ kalır — o anda
+   activeElement çoktan body olmuştur. (tools/probe/behavior.mjs bu hatayı
+   yakaladı; düzeltme oradaki iddiayla kilitlendi.) */
+function captureListFocus(box){
+  const a = document.activeElement;
+  if (!a || !box.contains(a)) return null;
+  const card = a.closest && a.closest(".card");
+  if (!card) return null;
+  const slot = a.classList && a.classList.contains("check") ? "check"
+             : a.classList && a.classList.contains("card-del") ? "del" : "card";
+  return { id: card.getAttribute("data-id"), slot };
+}
+
+/* Yalnız odak GERÇEKTEN kaybolduysa geri verilir. Kullanıcı bu sırada arama
+   kutusuna geçtiyse activeElement body değildir ve odağı geri çalmayız —
+   bu, düzeltmenin kendisinden daha sinir bozucu bir hata olurdu. */
+function restoreListFocus(st, f){
+  if (!f) return;
+  const a = document.activeElement;
+  if (a && a !== document.body) return;
+  for (const rec of st.sections.values()){
+    const node = rec.nodes.get(f.id);
+    if (node && node.isConnected){ applyFocusSlot(node, f.slot); return; }
+  }
+}
+function applyFocusSlot(card, slot){
+  if (!slot) return;
+  const target = slot === "check" ? card.querySelector(".check")
+               : slot === "del"   ? card.querySelector(".card-del")
+               : card;
+  if (target) target.focus({ preventScroll:true });
+}
+
+function groupHead(key, count, expanded){
+  const head = el("h2", { class:"group-head" + (key === "overdue" ? " overdue" : "") });
+  if (key === "completed"){
+    head.append(el("button", {
+      class:"group-toggle", "aria-expanded": String(expanded), "aria-controls":"g-" + key,
+      onclick(){ ui.showCompleted = !ui.showCompleted; renderList(); }
+    }, icon("chev"), el("span", { text: t("b_" + key) }), el("span", { class:"n", text:String(count) })));
+  } else {
+    head.append(el("span", { text: t("b_" + key) }), el("span", { class:"n", text:String(count) }));
+  }
+  return head;
+}
+
+function makeSection(key){
+  const list = el("ul", { class:"tasklist", id:"g-" + key });
+  const section = el("section", { class:"group" }, groupHead(key, 0, true), list);
+  return { section, list, keys: [], nodes: new Map(), sigs: new Map() };
+}
+
+/* Bir kovadaki kartları uzlaştırır. Yama O(değişen); tam yıkım yok. */
+function reconcileCards(rec, items){
+  const keys = items.map(x => x.id);
+  const byKey = new Map(items.map(x => [x.id, x]));
+  const ops = diffChildren(rec.keys, keys);
+
+  for (const op of ops){
+    if (op.type !== "remove") continue;
+    const n = rec.nodes.get(op.key);
+    if (n) n.remove();
+    rec.nodes.delete(op.key); rec.sigs.delete(op.key);
+  }
+  for (const op of ops){
+    if (op.type === "remove") continue;
+    let node = rec.nodes.get(op.key);
+    if (!node){
+      const task = byKey.get(op.key);
+      node = taskCard(task);
+      rec.nodes.set(op.key, node);
+      rec.sigs.set(op.key, cardSig(task));
+    }
+    rec.list.insertBefore(node, op.before ? rec.nodes.get(op.before) : null);
+  }
+  for (const task of items){
+    const sig = cardSig(task);
+    if (rec.sigs.get(task.id) === sig) continue;
+    const old = rec.nodes.get(task.id);
+    if (!old) continue;
+    const fresh = taskCard(task);
+    old.replaceWith(fresh);
+    rec.nodes.set(task.id, fresh);
+    rec.sigs.set(task.id, sig);
+  }
+  rec.keys = keys;
+}
+
+/* Çizim durumu KABIN ÜSTÜNDE durur (`box.__taskList`). Kap yeniden kurulunca
+   (görünüm değişimi, mountView) durum onunla birlikte gider — ayrı bir
+   geçersiz kılma mekanizması yazmaya gerek kalmaz. */
 function renderList(){
   const box = document.getElementById("list");
   if (!box) return;
-  box.textContent = "";
 
   const visible = state.tasks.filter(matches);
   if (!visible.length){
+    box.textContent = "";
+    box.__taskList = null;
     const filtered = filtersActive();
     box.append(el("div", { class:"empty" },
       el("span", { svg:ICON.inbox, "aria-hidden":"true" }),
@@ -446,28 +557,38 @@ function renderList(){
 
   const groups = new Map(BUCKETS.map(b => [b, []]));
   for (const task of visible) groups.get(bucketOf(task, today)).push(task);
+  const active = BUCKETS.filter(k => groups.get(k).length);
 
-  for (const key of BUCKETS){
-    const items = sortTasks(groups.get(key));
-    if (!items.length) continue;
+  const focusBefore = captureListFocus(box);
 
-    const isCompleted = key === "completed";
-    const expanded = isCompleted ? ui.showCompleted : true;
-    const head = el("h2", { class:"group-head" + (key === "overdue" ? " overdue" : "") });
-    if (isCompleted){
-      head.append(el("button", {
-        class:"group-toggle", "aria-expanded": String(expanded), "aria-controls":"g-" + key,
-        onclick(){ ui.showCompleted = !ui.showCompleted; renderList(); }
-      }, icon("chev"), el("span", { text: t("b_" + key) }), el("span", { class:"n", text:String(items.length) })));
-    } else {
-      head.append(el("span", { text: t("b_" + key) }), el("span", { class:"n", text:String(items.length) }));
+  let st = box.__taskList;
+  if (!st){ box.textContent = ""; st = box.__taskList = { order: [], sections: new Map() }; }
+
+  for (const op of diffChildren(st.order, active)){
+    if (op.type === "remove"){
+      const rec = st.sections.get(op.key);
+      if (rec) rec.section.remove();
+      st.sections.delete(op.key);
+      continue;
     }
-
-    const list = el("ul", { class:"tasklist", id:"g-" + key });
-    if (expanded) for (const task of items) list.append(taskCard(task));
-    box.append(el("section", { class:"group" }, head, list));
+    let rec = st.sections.get(op.key);
+    if (!rec){ rec = makeSection(op.key); st.sections.set(op.key, rec); }
+    const beforeRec = op.before ? st.sections.get(op.before) : null;
+    box.insertBefore(rec.section, beforeRec ? beforeRec.section : null);
   }
+  st.order = active.slice();
+
+  for (const key of active){
+    const rec = st.sections.get(key);
+    const items = sortTasks(groups.get(key));
+    const expanded = key === "completed" ? ui.showCompleted : true;
+    rec.section.replaceChild(groupHead(key, items.length, expanded), rec.section.firstChild);
+    reconcileCards(rec, expanded ? items : []);
+  }
+
+  restoreListFocus(st, focusBefore);
 }
+
 
 /* ------------------------------------------------------------- yan panel */
 function buildPanel(){

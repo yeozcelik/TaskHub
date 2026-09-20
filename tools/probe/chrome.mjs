@@ -25,9 +25,19 @@ export function findBrowser(explicit){
   return bin;
 }
 
-/* Sayfayı açar, hazır olmasını bekler, ifadeyi değerlendirir, kapatır.
+/* Sayfayı açar, hazır olmasını bekler, fn(evaluate)'i çağırır, kapatır.
+   evaluate(ifade) → { value } | { error }. Çok adımlı ölçümler için.
    waitFor: true dönene kadar yoklanan ifade (sayfa bağlamında). */
-export async function evaluateOnPage(url, expression, { browser, waitFor = "true", timeoutMs = 20000 } = {}){
+export async function withPage(url, fn, opts = {}){
+  return runPage(url, opts, fn);
+}
+
+/* Tek ifadelik kısayol. */
+export async function evaluateOnPage(url, expression, opts = {}){
+  return runPage(url, opts, evaluate => evaluate(expression));
+}
+
+async function runPage(url, { browser, waitFor = "true", timeoutMs = 20000 } = {}, fn){
   const bin = findBrowser(browser);
   const port = 9000 + Math.floor(Math.random() * 900);
   const profile = mkdtempSync(join(tmpdir(), "taskhub-probe-"));
@@ -83,7 +93,7 @@ export async function evaluateOnPage(url, expression, { browser, waitFor = "true
     }
     if (!ready) throw new Error(`Koşul ${timeoutMs}ms içinde sağlanmadı: ${waitFor}`);
 
-    const out = await evaluate(expression);
+    const out = await fn(evaluate);
     ws.close();
     return out;
   } finally { cleanup(); }

@@ -35,3 +35,19 @@ export function load(files, names){
   }
   return runInContext(`({ ${names.join(", ")} })`, ctx, { filename: "<extract>" });
 }
+
+/* --- realm tuzağı ---------------------------------------------------------
+   `vm` bağlamı kendi intrinsic'lerine sahiptir: orada üretilen bir dizinin
+   prototipi host realm'in Array.prototype'ı DEĞİLDİR. `node:assert/strict`
+   altındaki deepEqual prototip kimliğini de karşılaştırdığı için, yapısı
+   birebir aynı iki değer "same structure but not reference-equal" diyerek
+   kalır.
+
+   Bu, ADR 0002'nin (kaynağı vm ile yükleme) doğal bedeli ve sessiz bir tuzak:
+   hata mesajı algoritmanın bozuk olduğunu düşündürür, oysa karşılaştırma
+   bozuktur. `plain()` değeri host realm'e indirir.
+
+   Yalnız VERİ için kullan — fonksiyon, Map, Set, Date ve undefined alanlar
+   JSON turunda kaybolur. Böyle bir şeyi karşılaştırıyorsan alan alan
+   iddia etmek daha dürüsttür.                                              */
+export const plain = v => v === undefined ? undefined : JSON.parse(JSON.stringify(v));
