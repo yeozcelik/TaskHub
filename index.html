@@ -7,41 +7,48 @@
 <style>
 /* ---------- Tasarım tokenları ---------- */
 :root{
-  --bg:#f5f6f8; --surface:#ffffff; --surface-2:#eef0f4; --surface-3:#e6e9ef;
-  --border:#dfe3e9; --border-strong:#c8cedb;
-  --text:#14161b; --muted:#666e7d; --faint:#8b93a3;
-  --accent:#5b5bd6; --accent-soft:#ecebfb; --on-accent:#ffffff;
+  --bg:#f4f5f9; --surface:#ffffff; --surface-2:#f0f1f6; --surface-3:#e4e6ef;
+  --border:#e1e4ed; --border-strong:#c6ccdb;
+  --text:#14161b; --muted:#636b7c; --faint:#8b93a4;
+  --accent:#6244e0; --accent-2:#9061f0; --accent-soft:#eeeaff; --on-accent:#ffffff;
   --danger:#c92a2a; --danger-soft:#fdecec;
   --warn:#a86100; --warn-soft:#fff4e0;
   --ok:#0b7a55;
+  /* Tuvalin kâğıdı: yüzeyden biraz farklı olsun ki kutular kâğıdın üstünde dursun. */
+  --paper:#fbfbfe; --paper-dot:rgba(98,68,224,.10);
   --r-sm:6px; --r:10px; --r-lg:14px;
-  --sh-1:0 1px 2px rgba(15,20,35,.06), 0 1px 3px rgba(15,20,35,.05);
-  --sh-2:0 8px 30px rgba(15,20,35,.12);
+  --sh-1:0 1px 2px rgba(15,20,35,.05), 0 1px 3px rgba(15,20,35,.05);
+  --sh-2:0 10px 34px rgba(15,20,35,.13), 0 2px 8px rgba(15,20,35,.07);
+  --sh-3:0 18px 50px rgba(15,20,35,.18), 0 3px 10px rgba(15,20,35,.09);
   --sp:16px;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0d0f14; --surface:#161920; --surface-2:#1e222b; --surface-3:#272c37;
-    --border:#2a2f3a; --border-strong:#3a4150;
+    --bg:#0c0e13; --surface:#161920; --surface-2:#1c2028; --surface-3:#272c37;
+    --border:#282d38; --border-strong:#3b4252;
     --text:#e7eaef; --muted:#9aa3b2; --faint:#79818f;
-    --accent:#8080f2; --accent-soft:#22224a; --on-accent:#0d0f14;
+    --accent:#9b87ff; --accent-2:#b79bff; --accent-soft:#25234d; --on-accent:#0d0f14;
     --danger:#ff8080; --danger-soft:#3a1e22;
     --warn:#f5c164; --warn-soft:#3a2f18;
     --ok:#4ad9a4;
+    --paper:#111319; --paper-dot:rgba(155,135,255,.16);
     --sh-1:0 1px 2px rgba(0,0,0,.4);
-    --sh-2:0 8px 30px rgba(0,0,0,.55);
+    --sh-2:0 10px 34px rgba(0,0,0,.55);
+    --sh-3:0 18px 50px rgba(0,0,0,.62);
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0d0f14; --surface:#161920; --surface-2:#1e222b; --surface-3:#272c37;
-  --border:#2a2f3a; --border-strong:#3a4150;
+  --bg:#0c0e13; --surface:#161920; --surface-2:#1c2028; --surface-3:#272c37;
+  --border:#282d38; --border-strong:#3b4252;
   --text:#e7eaef; --muted:#9aa3b2; --faint:#79818f;
-  --accent:#8080f2; --accent-soft:#22224a; --on-accent:#0d0f14;
+  --accent:#9b87ff; --accent-2:#b79bff; --accent-soft:#25234d; --on-accent:#0d0f14;
   --danger:#ff8080; --danger-soft:#3a1e22;
   --warn:#f5c164; --warn-soft:#3a2f18;
   --ok:#4ad9a4;
+  --paper:#111319; --paper-dot:rgba(155,135,255,.16);
   --sh-1:0 1px 2px rgba(0,0,0,.4);
-  --sh-2:0 8px 30px rgba(0,0,0,.55);
+  --sh-2:0 10px 34px rgba(0,0,0,.55);
+  --sh-3:0 18px 50px rgba(0,0,0,.62);
 }
 
 *{box-sizing:border-box}
@@ -307,18 +314,27 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 /* ---------- Notlar düzeni ---------- */
 .notes-shell{display:flex;flex-direction:column;height:calc(100vh - 53px)}
 .notes-shell > #banners:not(:empty){padding:12px 18px 0}
-.notes-app{display:grid;grid-template-columns:212px 260px minmax(0,1fr);align-items:start;flex:1;min-height:0}
-.nb-pane,.pg-pane{height:100%;overflow-y:auto;border-right:1px solid var(--border);padding:16px 12px 30px}
-.pane-head{display:flex;align-items:center;gap:6px;margin:0 0 9px 6px}
-.pane-head h2{flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);margin:0}
+.notes-app{display:grid;grid-template-columns:206px 250px minmax(0,1fr);align-items:stretch;flex:1;min-height:0}
+.nb-pane,.pg-pane{height:100%;overflow-y:auto;border-right:1px solid var(--border);padding:14px 10px 30px}
+.nb-pane{background:var(--surface-2)}
+.pg-pane{background:var(--surface)}
+.pane-head{display:flex;align-items:center;gap:6px;margin:0 0 10px 6px}
+.pane-head h2{flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin:0}
 .pane-head .btn-icon{width:26px;height:26px;padding:5px}
 
-.nb-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;padding:7px 8px;border-radius:var(--r-sm);cursor:pointer;color:var(--muted)}
-.nb-item:hover{background:var(--surface-2);color:var(--text)}
-.nb-item[aria-current="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+/* Defterler: OneNote'taki gibi renkli sırt + seçilide sol şerit. */
+.nb-item{
+  display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:0;
+  padding:8px 9px;border-radius:var(--r-sm);cursor:pointer;color:var(--muted);
+  position:relative;transition:background .12s,color .12s;
+}
+.nb-item:hover{background:var(--surface-3);color:var(--text)}
+.nb-item[aria-current="true"]{background:var(--surface);color:var(--text);font-weight:600;box-shadow:var(--sh-1)}
+.nb-item[aria-current="true"]::before{
+  content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--accent);
+}
 .nb-item .nb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nb-item .count{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
-.nb-item[aria-current="true"] .count{color:var(--accent)}
 .nb-acts{display:flex;gap:1px;opacity:0}
 .nb-row:hover .nb-acts,.nb-row:focus-within .nb-acts{opacity:1}
 .nb-row{display:flex;align-items:center;gap:2px;border-radius:var(--r-sm)}
@@ -326,10 +342,10 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .nb-acts button:hover{background:var(--surface-3);color:var(--text)}
 .nb-acts svg{width:13px;height:13px}
 
-.pg-item{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;padding:9px 10px;border-radius:var(--r-sm);cursor:pointer;color:var(--text)}
+.pg-item{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;padding:9px 11px;border-radius:var(--r-sm);cursor:pointer;color:var(--text);transition:background .12s,border-color .12s}
 .pg-item:hover{background:var(--surface-2)}
-.pg-item[aria-current="true"]{background:var(--surface);border-color:var(--accent);box-shadow:var(--sh-1)}
-.pg-item .pg-title{font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg-item[aria-current="true"]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.pg-item .pg-title{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pg-item .pg-prev{font-size:12.5px;color:var(--muted);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2;overflow:hidden}
 .pg-item .pg-date{font-size:11px;color:var(--faint);margin-top:5px}
 .pg-list{display:flex;flex-direction:column;gap:2px;list-style:none;margin:0;padding:0}
@@ -345,9 +361,9 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .pg-row.drop-below{box-shadow:inset 0 -2px 0 var(--accent)}
 @media (hover:none){.pg-acts{opacity:1}}
 
-.ed-head{display:flex;align-items:flex-start;gap:6px;padding-right:20px}
+.ed-head{display:flex;align-items:flex-start;gap:6px;padding-right:18px}
 .ed-head .ed-title{flex:1}
-.ed-head .btn{margin-top:20px;flex:none}
+.ed-head .btn{margin-top:18px;flex:none}
 
 /* Resim boyutlandırma tutamakları — sayfa akışını bozmasın diye body'ye
    sabit konumla takılır, kaydırma ve pencere boyutunda yeniden konumlanır. */
@@ -362,18 +378,28 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .img-handles .h-se{right:-7px;bottom:-7px;cursor:nwse-resize}
 .img-pop{flex-wrap:wrap;max-width:min(92vw,340px)}
 
-/* ---------- Editör ---------- */
-.ed-pane{height:100%;display:flex;flex-direction:column;min-width:0}
-.ed-title{border:0;background:none;font-size:26px;font-weight:700;letter-spacing:-.02em;padding:18px 28px 6px;width:100%;color:var(--text)}
+/* ---------- Editör başlığı ve araç çubuğu ---------- */
+.ed-pane{height:100%;display:flex;flex-direction:column;min-width:0;background:var(--surface)}
+.ed-title{border:0;background:none;font-size:26px;font-weight:700;letter-spacing:-.02em;padding:16px 26px 4px;width:100%;color:var(--text)}
 .ed-title:focus{outline:none}
 .ed-title::placeholder{color:var(--faint)}
-.ed-meta{padding:0 28px 10px;font-size:12px;color:var(--faint)}
-.toolbar{display:flex;flex-wrap:wrap;gap:2px;align-items:center;padding:6px 24px;border-block:1px solid var(--border);background:var(--surface-2);position:sticky;top:0;z-index:5}
-.toolbar button{border:0;background:none;cursor:pointer;color:var(--muted);padding:6px;border-radius:5px;line-height:0;min-width:30px;display:inline-flex;align-items:center;justify-content:center}
+.ed-meta{padding:0 26px 9px;font-size:12px;color:var(--faint);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ed-meta .chip{
+  display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;
+  background:var(--surface-2);color:var(--muted);font-size:11.5px;
+}
+.toolbar{
+  display:flex;flex-wrap:wrap;gap:2px;align-items:center;padding:6px 20px;
+  border-block:1px solid var(--border);
+  background:color-mix(in srgb, var(--surface-2) 82%, transparent);
+  backdrop-filter:blur(8px);position:relative;z-index:5;
+}
+.toolbar button{border:0;background:none;cursor:pointer;color:var(--muted);padding:5px;border-radius:6px;line-height:0;min-width:28px;display:inline-flex;align-items:center;justify-content:center;transition:background .12s,color .12s}
 .toolbar button:hover{background:var(--surface-3);color:var(--text)}
 .toolbar button.on{background:var(--accent-soft);color:var(--accent)}
+.toolbar button:disabled{opacity:.35;cursor:default}
 .toolbar button svg{width:15px;height:15px}
-.toolbar .tb-sep{width:1px;height:18px;background:var(--border);margin:0 4px}
+.toolbar .tb-sep{width:1px;height:17px;background:var(--border-strong);margin:0 4px;opacity:.6}
 .toolbar .tb-txt{font-size:13px;font-weight:700;min-width:26px}
 .tb-hl{width:15px;height:15px;border-radius:4px;border:1px solid var(--border-strong)}
 .tb-hl-none{
@@ -381,77 +407,158 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
   background-image:linear-gradient(to top left,transparent 45%,var(--danger) 45%,var(--danger) 55%,transparent 55%);
 }
 
-.editor{
-  flex:1;overflow-y:auto;padding:20px 28px 120px;outline:none;line-height:1.65;
-  font-size:15.5px;caret-color:var(--accent);
+.toolbar #tbAddBox{color:var(--accent);background:var(--accent-soft)}
+.toolbar #tbAddBox:hover{background:color-mix(in srgb, var(--accent) 20%, transparent);color:var(--accent)}
+
+/* ---------- Tuval: istediğin yere not ----------
+   OneNote modeli. Sayfa artık tek bir belge değil; koordinatı olan not
+   kutularının durduğu bir yüzey. Boş yere tıkla, kutu orada açılsın. */
+.canvas-wrap{
+  flex:1;min-height:0;overflow:auto;position:relative;
+  background:var(--paper);
+  background-image:radial-gradient(var(--paper-dot) 1px, transparent 1px);
+  background-size:24px 24px;background-position:-1px -1px;
 }
-.editor:focus{outline:none}
-.editor > *:first-child{margin-top:0}
-.editor h1{font-size:23px;margin:22px 0 8px;font-weight:700;letter-spacing:-.01em}
-.editor h2{font-size:19px;margin:20px 0 7px;font-weight:700}
-.editor h3{font-size:16px;margin:17px 0 6px;font-weight:700;color:var(--muted)}
-.editor p{margin:0 0 10px}
-.editor ul,.editor ol{margin:0 0 10px;padding-left:26px}
-.editor li{margin:3px 0}
-.editor blockquote{margin:0 0 10px;padding:2px 0 2px 14px;border-left:3px solid var(--border-strong);color:var(--muted)}
-.editor code{background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:.9em;font-family:ui-monospace,Menlo,Consolas,monospace}
-.editor pre{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;overflow-x:auto;margin:0 0 10px}
-.editor pre code{background:none;border:0;padding:0}
-.editor a{color:var(--accent)}
-.editor hr{border:0;border-top:1px solid var(--border);margin:18px 0}
-.editor img{max-width:100%;height:auto;border-radius:var(--r-sm);margin:4px 0;cursor:pointer}
-.editor img.img-sm{max-width:220px} .editor img.img-md{max-width:460px}
-.editor img.sel{outline:2px solid var(--accent);outline-offset:2px}
-.editor .hl-y{background:#fde68a;color:#3a2f05;border-radius:3px;padding:0 2px}
-.editor .hl-g{background:#bbf7d0;color:#05321d;border-radius:3px;padding:0 2px}
-.editor .hl-b{background:#bfdbfe;color:#0a2540;border-radius:3px;padding:0 2px}
-.editor .hl-p{background:#f5d0fe;color:#3b0a3e;border-radius:3px;padding:0 2px}
-.editor table{border-collapse:collapse;margin:0 0 12px;font-size:.95em;max-width:100%}
-.editor .tbl-wrap{overflow-x:auto;margin:0 0 12px}
-.editor th,.editor td{border:1px solid var(--border-strong);padding:6px 9px;vertical-align:top;min-width:52px}
-.editor th{background:var(--surface-2);font-weight:700;text-align:left}
-.editor caption{caption-side:top;text-align:left;color:var(--muted);font-size:.9em;padding-bottom:4px}
-.editor .fs-xs{font-size:.78em} .editor .fs-s{font-size:.9em}
-.editor .fs-l{font-size:1.3em} .editor .fs-xl{font-size:1.7em}
-.editor .note-link{
+.canvas-wrap.plain{background-image:none}
+.canvas{position:relative;min-width:100%;min-height:100%;cursor:text}
+.canvas-hint{
+  position:absolute;left:46px;top:40px;max-width:min(480px,72vw);
+  color:var(--faint);font-size:14px;line-height:1.75;pointer-events:none;user-select:none;
+}
+.canvas-hint b{display:block;color:var(--muted);font-size:15px;margin-bottom:6px}
+.canvas-hint kbd{
+  font:inherit;font-size:12px;background:var(--surface-2);border:1px solid var(--border-strong);
+  border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--muted);
+}
+
+.nbox{
+  position:absolute;padding:14px 12px 9px;border-radius:10px;
+  border:1px solid transparent;transition:border-color .12s,background .12s,box-shadow .12s;
+}
+.nbox:hover{border-color:var(--border);background:color-mix(in srgb, var(--surface) 70%, transparent)}
+.nbox.focus{border-color:color-mix(in srgb,var(--accent) 45%,var(--border-strong));background:var(--surface);box-shadow:var(--sh-2)}
+.nbox.dragging{box-shadow:var(--sh-3);opacity:.96;cursor:grabbing}
+.nbox.dragging *{pointer-events:none}
+
+/* Tutma yeri kutunun bütün genişliğini kaplar (hedef büyük olsun) ama
+   yalnızca ortadaki kısa çubuk çizilir: şerit boydan boya çizilince kutu
+   kendi içeriğinden daha çok dikkat çekiyordu. */
+.nbox-grip{
+  position:absolute;left:8px;right:26px;top:2px;height:12px;
+  cursor:grab;opacity:0;touch-action:none;transition:opacity .12s;
+}
+.nbox-grip::after{
+  content:"";position:absolute;left:50%;top:4px;transform:translateX(-50%);
+  width:32px;height:4px;border-radius:2px;background:var(--border-strong);transition:background .12s,width .12s;
+}
+.nbox:hover .nbox-grip,.nbox.focus .nbox-grip{opacity:.9}
+.nbox-grip:hover{opacity:1}
+.nbox-grip:hover::after{background:var(--accent);width:44px}
+.nbox.dragging .nbox-grip{opacity:1;cursor:grabbing}
+.nbox.dragging .nbox-grip::after{background:var(--accent);width:44px}
+
+.nbox-rz{
+  position:absolute;right:-2px;top:16px;bottom:8px;width:9px;border-radius:5px;
+  cursor:ew-resize;opacity:0;touch-action:none;transition:opacity .12s,background .12s;
+}
+.nbox:hover .nbox-rz,.nbox.focus .nbox-rz{opacity:.55;background:var(--border-strong)}
+.nbox-rz:hover{opacity:1 !important;background:var(--accent)}
+
+.nbox-del{
+  position:absolute;right:4px;top:0;width:19px;height:19px;padding:0;border:1px solid var(--border);
+  background:var(--surface);color:var(--faint);border-radius:50%;cursor:pointer;opacity:0;
+  display:grid;place-items:center;line-height:0;box-shadow:var(--sh-1);transition:opacity .12s,color .12s,background .12s;
+}
+.nbox:hover .nbox-del,.nbox.focus .nbox-del{opacity:1}
+.nbox-del:hover{background:var(--danger-soft);color:var(--danger);border-color:var(--danger)}
+.nbox-del svg{width:11px;height:11px}
+@media (hover:none){.nbox-grip,.nbox-rz,.nbox-del{opacity:.6}}
+
+.nbox-body{outline:none;line-height:1.65;font-size:15.5px;caret-color:var(--accent);min-height:1.7em;word-wrap:break-word;overflow-wrap:break-word}
+.nbox-body:focus{outline:none}
+.nbox-body > *:first-child{margin-top:0}
+.nbox-body > *:last-child{margin-bottom:0}
+.nbox-body h1{font-size:22px;margin:16px 0 7px;font-weight:700;letter-spacing:-.01em}
+.nbox-body h2{font-size:18.5px;margin:15px 0 6px;font-weight:700}
+.nbox-body h3{font-size:16px;margin:13px 0 5px;font-weight:700;color:var(--muted)}
+.nbox-body p{margin:0 0 9px}
+.nbox-body ul,.nbox-body ol{margin:0 0 9px;padding-left:26px}
+.nbox-body li{margin:3px 0}
+.nbox-body blockquote{margin:0 0 9px;padding:2px 0 2px 14px;border-left:3px solid var(--accent);color:var(--muted)}
+.nbox-body code{background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:.9em;font-family:ui-monospace,Menlo,Consolas,monospace}
+.nbox-body pre{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;overflow-x:auto;margin:0 0 9px}
+.nbox-body pre code{background:none;border:0;padding:0}
+.nbox-body a{color:var(--accent)}
+.nbox-body hr{border:0;border-top:1px solid var(--border-strong);margin:14px 0}
+.nbox-body img{max-width:100%;height:auto;border-radius:var(--r-sm);margin:4px 0;cursor:pointer}
+.nbox-body img.img-sm{max-width:220px} .nbox-body img.img-md{max-width:460px}
+.nbox-body img.sel{outline:2px solid var(--accent);outline-offset:2px}
+.nbox-body .hl-y{background:#fde68a;color:#3a2f05;border-radius:3px;padding:0 2px}
+.nbox-body .hl-g{background:#bbf7d0;color:#05321d;border-radius:3px;padding:0 2px}
+.nbox-body .hl-b{background:#bfdbfe;color:#0a2540;border-radius:3px;padding:0 2px}
+.nbox-body .hl-p{background:#f5d0fe;color:#3b0a3e;border-radius:3px;padding:0 2px}
+.nbox-body table{border-collapse:collapse;margin:0 0 10px;font-size:.95em;max-width:100%}
+.nbox-body .tbl-wrap{overflow-x:auto;margin:0 0 10px}
+.nbox-body th,.nbox-body td{border:1px solid var(--border-strong);padding:6px 9px;vertical-align:top;min-width:52px}
+.nbox-body th{background:var(--surface-2);font-weight:700;text-align:left}
+.nbox-body caption{caption-side:top;text-align:left;color:var(--muted);font-size:.9em;padding-bottom:4px}
+.nbox-body .fs-xs{font-size:.78em} .nbox-body .fs-s{font-size:.9em}
+.nbox-body .fs-l{font-size:1.3em} .nbox-body .fs-xl{font-size:1.7em}
+.nbox-body .note-link{
   color:var(--accent);border-bottom:1px dashed var(--accent);cursor:pointer;
   text-decoration:none;padding-bottom:1px;
 }
-.editor .note-link::after{content:" ↗";font-size:.8em;vertical-align:super}
-.editor .note-link.dead{color:var(--faint);border-bottom-color:var(--faint)}
+.nbox-body .note-link::after{content:" ↗";font-size:.8em;vertical-align:super}
+.nbox-body .note-link.dead{color:var(--faint);border-bottom-color:var(--faint)}
 /* Notlardaki yapılacak maddesi: contenteditable içine gerçek <input> koymak
    imleç ve seçim davranışını bozduğu için işaretleyici CSS ile çizilir. */
-.editor ul li.todo{list-style:none;position:relative;padding-left:4px}
-.editor ul li.todo::before{
+.nbox-body ul li.todo{list-style:none;position:relative;padding-left:4px}
+.nbox-body ul li.todo::before{
   content:"";position:absolute;left:-22px;top:.28em;width:14px;height:14px;
   border:1.7px solid var(--border-strong);border-radius:4px;background:var(--surface);cursor:pointer;
 }
-.editor ul li.todo.done::before{
+.nbox-body ul li.todo.done::before{
   background:var(--accent);border-color:var(--accent);
   content:"✓";color:var(--on-accent);font-size:11px;line-height:12px;text-align:center;font-weight:700;
 }
-.editor ul li.todo.done{color:var(--faint);text-decoration:line-through}
+.nbox-body ul li.todo.done{color:var(--faint);text-decoration:line-through}
 
 .ed-empty{flex:1;display:grid;place-items:center;text-align:center;color:var(--faint);padding:40px}
 .ed-empty svg{width:38px;height:38px;opacity:.5;margin-bottom:12px}
 
+@media (max-width:900px){
+  .topbar{gap:8px;padding-inline:12px}
+  .topbar .spacer{display:none}
+  .search{max-width:none}
+}
 @media (max-width:1040px){
-  .notes-app{grid-template-columns:180px 220px minmax(0,1fr)}
-  .editor,.ed-title,.ed-meta{padding-left:20px;padding-right:20px}
-  .toolbar{padding-inline:16px}
+  .notes-app{grid-template-columns:176px 214px minmax(0,1fr)}
+  .ed-title,.ed-meta{padding-left:18px;padding-right:18px}
+  .toolbar{padding-inline:14px}
 }
 @media (max-width:860px){
   .notes-app{grid-template-columns:minmax(0,1fr);height:auto}
   .nb-pane,.pg-pane{height:auto;overflow:visible;border-right:0;border-bottom:1px solid var(--border);padding:12px 16px}
   .nb-pane .nb-row{display:inline-flex}
-  .ed-pane{height:auto;min-height:60vh}
+  .ed-pane{height:auto;min-height:70vh}
+  .canvas-wrap{min-height:60vh}
 }
 
+/* Yazdırma: tuval kâğıda düz akışa döner — üst üste binen kutular sayfa
+   sonlarında okunmaz hale gelirdi. Okuma sırası yukarıdan aşağıya kurulur. */
 @media print{
-  .tabs,.nb-pane,.pg-pane,.toolbar,.meter,.ed-meta{display:none !important}
+  .tabs,.nb-pane,.pg-pane,.toolbar,.meter,.ed-meta,.nbox-grip,.nbox-rz,.nbox-del{display:none !important}
   .notes-app{display:block;height:auto}
   .ed-pane{height:auto;display:block}
-  .editor{overflow:visible;padding:0;height:auto}
+  .canvas-wrap{overflow:visible;height:auto;background:none}
+  .canvas-hint{display:none !important}
+  /* Sütun akışı + beforeprint'te yazılan `order`: kâğıtta sıra DOM sırası
+     değil, tuvaldeki okuma sırası olsun. */
+  .canvas{position:static !important;width:auto !important;height:auto !important;display:flex;flex-direction:column}
+  .nbox{
+    position:static !important;width:auto !important;border:0;background:none;
+    box-shadow:none;padding:0;margin:0 0 16px;break-inside:avoid;
+  }
   .ed-title{padding:0 0 12px;font-size:22px}
 }
 
@@ -592,6 +699,9 @@ const ICON = {
   table:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>',
   palette:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="m6 16 6-12 6 12"/><path d="M8.5 12h7"/></svg>',
   fontsize:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18 8 6l5 12M4.6 14.5h6.8"/><path d="m15 18 3-8 3 8M15.9 15.5h4.2"/></svg>',
+  marker:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3 8 10l-2 5 5-2 7-7z"/><path d="m13 5 6 6"/><path d="M4 21h16"/></svg>',
+  sticky:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v10l-6 6H4z"/><path d="M20 14h-6v6"/></svg>',
+  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>',
   grip:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
   undo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>',
   redo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>',
@@ -663,6 +773,15 @@ const I18N = {
     tbQuote:"Alıntı", tbCode:"Kod", tbLink:"Bağlantı ekle", tbImage:"Resim ekle",
     tbClear:"Biçimi temizle", tbHl:"Vurgu", tbHlNone:"Vurguyu kaldır",
     tbTaskify:"Seçili metinden görev oluştur",
+    tbToolbar:"Biçimlendirme araçları",
+    tbAddBox:"Yeni not kutusu  (görünen alanın sol üstüne)",
+    tbGrid:"Tuval ızgarasını aç/kapat",
+    boxMove:"Sürükleyerek taşı  (Alt + ok tuşları)",
+    boxResize:"Genişliği ayarla",
+    boxDelete:"Bu not kutusunu sil",
+    boxDeleted:"Not kutusu silindi",
+    canvasHintTitle:"Boş bir yere tıkla, not oradan başlasın.",
+    canvasHintBody:"OneNote gibi çalışır: sayfanın istediğin noktasına yazarsın. Kutuyu üstündeki şeritten sürükleyerek taşı, sağ kenarından genişlet. Resmi doğrudan tuvale bırakabilirsin.",
     tbUndo:"Geri al (Ctrl+Z)", tbRedo:"Yinele (Ctrl+Y)",
     tbTable:"Tablo ekle", tbColor:"Yazı rengi", tbSize:"Punto",
     tblRows:"{r} × {c} tablo", tblHeader:"Başlık satırı",
@@ -763,6 +882,15 @@ const I18N = {
     tbQuote:"Quote", tbCode:"Code", tbLink:"Insert link", tbImage:"Insert image",
     tbClear:"Clear formatting", tbHl:"Highlight", tbHlNone:"Remove highlight",
     tbTaskify:"Create a task from the selection",
+    tbToolbar:"Formatting tools",
+    tbAddBox:"New note box  (top-left of the visible area)",
+    tbGrid:"Toggle the canvas grid",
+    boxMove:"Drag to move  (Alt + arrow keys)",
+    boxResize:"Adjust the width",
+    boxDelete:"Delete this note box",
+    boxDeleted:"Note box deleted",
+    canvasHintTitle:"Click anywhere — your note starts there.",
+    canvasHintBody:"It works like OneNote: write wherever you want on the page. Drag a box by the bar on top, widen it from the right edge. Drop images straight onto the canvas.",
     tbUndo:"Undo (Ctrl+Z)", tbRedo:"Redo (Ctrl+Y)",
     tbTable:"Insert table", tbColor:"Text colour", tbSize:"Font size",
     tblRows:"{r} × {c} table", tblHeader:"Header row",
@@ -821,6 +949,9 @@ function foldTr(s){
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 }
+
+const clamp = (v, lo, hi) => v < lo ? lo : (v > hi ? hi : v);
+const numOr = (v, d) => (typeof v === "number" && isFinite(v)) ? v : d;
 
 const pad2 = n => String(n).padStart(2, "0");
 /** Date -> "YYYY-MM-DD", yerel saatle. */
@@ -1352,7 +1483,7 @@ function probeStorage(){
 function defaultState(){
   return {
     version: SCHEMA_VERSION,
-    settings: { theme:"auto", lang:"tr", lastBackupAt:null, nagDismissedAt:null },
+    settings: { theme:"auto", lang:"tr", noteGrid:true, lastNote:null, lastBackupAt:null, nagDismissedAt:null },
     tasks: []
   };
 }
@@ -1391,6 +1522,16 @@ function normalizeState(raw){
   const set = raw.settings || {};
   if (["auto","light","dark"].includes(set.theme)) s.settings.theme = set.theme;
   if (["tr","en"].includes(set.lang)) s.settings.lang = set.lang;
+  if (typeof set.noteGrid === "boolean") s.settings.noteGrid = set.noteGrid;
+  if (set.lastNote && typeof set.lastNote === "object"){
+    const nbId = set.lastNote.nbId, pageId = set.lastNote.pageId;
+    if (typeof nbId === "string" || typeof pageId === "string"){
+      s.settings.lastNote = {
+        nbId: typeof nbId === "string" ? nbId.slice(0, 64) : null,
+        pageId: typeof pageId === "string" ? pageId.slice(0, 64) : null
+      };
+    }
+  }
   if (ts(set.lastBackupAt)) s.settings.lastBackupAt = set.lastBackupAt;
   if (ts(set.nagDismissedAt)) s.settings.nagDismissedAt = set.nagDismissedAt;
   s.tasks = Array.isArray(raw.tasks) ? raw.tasks.map(normalizeTask).filter(Boolean) : [];
@@ -1407,13 +1548,36 @@ let notesQuotaHit = false;
 
 function defaultNotes(){ return { version: SCHEMA_VERSION, notebooks: [] }; }
 
+/* Bir sayfa artık düz bir belge değil, SERBEST TUVAL: içeriği, tuvalde kendi
+ * koordinatı olan not kutularından oluşur — OneNote'un modeli budur.
+ * Eski sürümün tek `html` alanı okunmaya devam eder ve ilk kutuya dönüşür;
+ * eski localStorage kaydı ve eski JSON yedekleri böylece kaybolmaz. */
+const BOX_MIN_W = 150, BOX_MAX_W = 1600, BOX_DEF_W = 460;
+const CANVAS_MAX = 20000;                  // tuval koordinat tavanı
+
+function normalizeBox(raw){
+  if (!raw || typeof raw !== "object") return null;
+  return {
+    id: typeof raw.id === "string" && raw.id ? raw.id : uid(),
+    x: clamp(Math.round(numOr(raw.x, 44)), 0, CANVAS_MAX),
+    y: clamp(Math.round(numOr(raw.y, 36)), 0, CANVAS_MAX),
+    w: clamp(Math.round(numOr(raw.w, BOX_DEF_W)), BOX_MIN_W, BOX_MAX_W),
+    html: sanitizeHtml(typeof raw.html === "string" ? raw.html : "")
+  };
+}
+
 function normalizeNotePage(raw){
   if (!raw || typeof raw !== "object") return null;
   const now = new Date().toISOString();
+  let boxes = Array.isArray(raw.boxes) ? raw.boxes.map(normalizeBox).filter(Boolean) : null;
+  if (!boxes){
+    const legacy = sanitizeHtml(typeof raw.html === "string" ? raw.html : "");
+    boxes = legacy.trim() ? [{ id: uid(), x: 44, y: 36, w: 660, html: legacy }] : [];
+  }
   return {
     id: typeof raw.id === "string" && raw.id ? raw.id : uid(),
     title: typeof raw.title === "string" ? raw.title.slice(0, 300) : "",
-    html: sanitizeHtml(typeof raw.html === "string" ? raw.html : ""),
+    boxes,
     createdAt: ts(raw.createdAt) ? raw.createdAt : now,
     updatedAt: ts(raw.updatedAt) ? raw.updatedAt : (ts(raw.createdAt) ? raw.createdAt : now)
   };
@@ -2190,11 +2354,30 @@ function stampNote(nb, page){
   if (nb) nb.updatedAt = now;
 }
 
+/** Son açık defter/sayfa hatırlanır: tuval modelinde her açılışta "sayfa
+ *  seçilmedi" ekranına düşmek, yazmaya başlamadan önce iki tıklık bir vergi
+ *  demek olurdu. Kayıt yalnızca seçim DEĞİŞTİĞİNDE yazılır. */
+function rememberOpenNote(){
+  const cur = state.settings.lastNote || {};
+  if (cur.nbId === ui.nbId && cur.pageId === ui.pageId) return;
+  state.settings.lastNote = { nbId: ui.nbId, pageId: ui.pageId };
+  scheduleSave();
+}
+
 /** Seçili defter/sayfa hâlâ var mı; yoksa makul bir seçime düş. */
 function ensureNotebook(){
   if (!notes.notebooks.length) addNotebook(t("firstNotebook"));
+  const last = state.settings.lastNote || {};
+  if (!ui.nbId && last.nbId && getNotebook(last.nbId)) ui.nbId = last.nbId;
   if (!getNotebook(ui.nbId)) { ui.nbId = notes.notebooks[0].id; ui.pageId = null; }
+  if (!ui.pageId && last.pageId && getPage(ui.nbId, last.pageId)) ui.pageId = last.pageId;
   if (ui.pageId && !getPage(ui.nbId, ui.pageId)) ui.pageId = null;
+  // Hatırlanan sayfa silinmişse defterin ilk sayfasına düş.
+  if (!ui.pageId){
+    const nb = getNotebook(ui.nbId);
+    if (nb && nb.pages.length) ui.pageId = nb.pages[0].id;
+  }
+  rememberOpenNote();
 }
 
 function addNotebook(name){
@@ -2215,7 +2398,7 @@ function addPage(nbId){
   const nb = getNotebook(nbId);
   if (!nb) return null;
   const now = new Date().toISOString();
-  const page = { id: uid(), title:"", html:"", createdAt: now, updatedAt: now };
+  const page = { id: uid(), title:"", boxes: [], createdAt: now, updatedAt: now };
   nb.pages.unshift(page);
   nb.updatedAt = now;
   ui.pageId = page.id;
@@ -2267,10 +2450,15 @@ function deletePage(nbId, pageId){
    çağrıda HTML ayrıştırıyor. Defterdeki her sayfa için her tuş vuruşunda
    yeniden çıkarmak israf; updatedAt değişene kadar sonuç saklanır. */
 const plainCache = new Map();
+/** Tuvalde "okuma sırası" diye bir şey DOM sırasında yok: kutular serbest
+ *  konumlu. Arama ve önizleme için yukarıdan aşağıya, soldan sağa sıralanır. */
+function boxesInReadingOrder(page){
+  return (page.boxes || []).slice().sort((a, b) => (a.y - b.y) || (a.x - b.x));
+}
 function pagePlain(page){
   const hit = plainCache.get(page.id);
   if (hit && hit.stamp === page.updatedAt) return hit.text;
-  const text = noteText(page.html);
+  const text = boxesInReadingOrder(page).map(b => noteText(b.html)).filter(Boolean).join(" ");
   plainCache.set(page.id, { stamp: page.updatedAt, text });
   return text;
 }
@@ -2502,6 +2690,7 @@ let pageListTimer = null;
 
 const FORCE_EDITOR = { force: true };   // ui.pageId ile asla eşleşmeyen nöbetçi
 function renderNotesView(forceEditor){
+  rememberOpenNote();
   renderNotebooks();
   renderPageList();
   if (forceEditor) editorPageId = FORCE_EDITOR;
@@ -2511,7 +2700,7 @@ function renderNotesView(forceEditor){
 
 function schedulePageListRefresh(){
   clearTimeout(pageListTimer);
-  pageListTimer = setTimeout(() => { renderPageList(); renderStorageMeter(); }, 450);
+  pageListTimer = setTimeout(() => { renderPageList(); renderStorageMeter(); renderEdMeta(); }, 450);
 }
 
 /** Editördeki ham HTML'i süzüp modele yazar. Her tuşta değil, kaydetme
@@ -2522,7 +2711,7 @@ function flushEditor(){
   const ed = document.getElementById("editor");
   const page = getPage(ui.nbId, editorPageId);
   if (!ed || !page) return;
-  page.html = sanitizeHtml(ed.innerHTML);
+  page.boxes = readBoxes(ed);
   stampNote(currentNotebook(), page);
 }
 
@@ -2531,6 +2720,7 @@ function onEditorChanged(){
   scheduleSaveNotes();
   schedulePageListRefresh();
   updateToolbarState();
+  scheduleCanvasResize();
 }
 
 function focusPageTitle(){
@@ -2544,6 +2734,8 @@ function renderEditor(){
   flushEditor();
   pane.textContent = "";
   editorPageId = ui.pageId;
+  activeBoxId = null;
+  closeImgPopover();
 
   const page = currentPage();
   if (!page){
@@ -2564,13 +2756,14 @@ function renderEditor(){
       scheduleSaveNotes(); schedulePageListRefresh();
     },
     onkeydown(e){
-      if (e.key === "Enter"){ e.preventDefault(); const ed = document.getElementById("editor"); if (ed) ed.focus(); }
+      if (e.key === "Enter"){ e.preventDefault(); requireBody(); }
     }
   });
 
-  const editor = el("div", {
-    id:"editor", class:"editor", contenteditable:"true", spellcheck:"false",
-    role:"textbox", "aria-multiline":"true", "aria-label": t("editorPh"),
+  // Olaylar TEK TEK kutulara değil, tuvale bağlanır. Geri alma kutuları
+  // yeniden kurduğu için (innerHTML) kutuya takılan dinleyici kaybolurdu.
+  const canvas = el("div", {
+    id:"editor", class:"canvas",
     oninput: onEditorInput,
     oncompositionstart(){ composing = true; },
     oncompositionend(){ composing = false; onEditorInput(); },
@@ -2578,14 +2771,18 @@ function renderEditor(){
     onmouseup(){ updateToolbarState(); },
     onpaste: onEditorPaste,
     ondragover(e){ if (e.dataTransfer && e.dataTransfer.types && [].indexOf.call(e.dataTransfer.types, "Files") !== -1) e.preventDefault(); },
-    ondrop: onEditorDrop,
-    onclick: onEditorClick,
+    ondrop: onCanvasDrop,
+    onclick: onCanvasClick,
     ondblclick(e){ if (e.target && e.target.tagName === "IMG"){ e.preventDefault(); resetImgSize(e.target); } },
-    onkeydown: onEditorKeydown
+    onkeydown: onEditorKeydown,
+    onpointerdown: onCanvasPointerDown,
+    onfocusin: onCanvasFocusIn,
+    onfocusout: onCanvasFocusOut
   });
-  editor.innerHTML = sanitizeHtml(page.html);
-  wrapWideTables(editor);
-  if (!editor.innerHTML.trim()) editor.innerHTML = "<p><br></p>";
+  for (let i = 0; i < page.boxes.length; i++) canvas.appendChild(buildBoxEl(page.boxes[i]));
+
+  const wrap = el("div", { id:"canvasWrap",
+    class: "canvas-wrap" + (state.settings.noteGrid ? "" : " plain") }, canvas);
 
   pane.append(
     el("div", { class:"ed-head" },
@@ -2593,20 +2790,476 @@ function renderEditor(){
       el("button", { class:"btn btn-ghost btn-icon", title: t("deletePage"), "aria-label": t("deletePage"),
         onclick(){ deletePage(ui.nbId, page.id); } }, icon("trash"))
     ),
-    el("div", { class:"ed-meta", text: t("updated") + ": " + formatStamp(page.updatedAt) }),
+    el("div", { class:"ed-meta", id:"edMeta" }),
     buildToolbar(),
-    editor
+    wrap
   );
+
+  renderEdMeta();
+  refreshCanvasHint();
+  resizeCanvas();
 
   // Geçmişin tabanı: bu sayfanın yığını korunur, geri dönünce devam eder.
   clearTimeout(burstTimer); burstTimer = null; burstOpen = false; composing = false;
-  lastHtml = packImages(editor.innerHTML);
+  lastHtml = packImages(canvas.innerHTML);
   updateUndoButtons();
 
   // Etiket tabanlı biçimlendirme: kapalıyken tarayıcılar <span style> üretir,
   // süzgeç style'ı attığı için biçim kaybolurdu.
   try { document.execCommand("styleWithCSS", false, false); } catch(e){}
   updateToolbarState();
+}
+
+function renderEdMeta(){
+  const host = document.getElementById("edMeta");
+  const page = currentPage();
+  if (!host || !page) return;
+  const ed = canvasEl();
+  const n = ed ? ed.querySelectorAll(".nbox").length : (page.boxes || []).length;
+  host.textContent = "";
+  host.append(
+    el("span", { text: t("updated") + ": " + formatStamp(page.updatedAt) }),
+    el("span", { class:"chip" }, icon("sticky"), String(n))
+  );
+}
+
+/* ================================ TUVAL =================================
+ * OneNote modeli: sayfa bir yüzey, içerik ise o yüzeye konmuş not kutuları.
+ * Boş bir yere tıkla — kutu orada açılır, imleç içine girer.
+ *
+ * GEÇMİŞİN KÖKÜ TUVALİN KENDİSİDİR, tek bir kutu değil. Anlık görüntü her
+ * kutunun konumunu ve genişliğini de taşıdığı için taşıma, boyutlandırma ve
+ * kutu silme metinle AYNI geri alma yığınına düşer; ikinci bir mekanizma
+ * yazmaya gerek kalmaz. Bunun bedeli, kutuların olay dinleyicilerinin
+ * yeniden kurulan DOM'da kaybolmasıdır — bu yüzden her şey tuvalde
+ * delegasyonla dinlenir. */
+
+const CANVAS_PAD = 340;      // en sağdaki/alttaki kutunun ötesinde bırakılan boş alan
+let activeBoxId = null;
+
+function canvasEl(){ return document.getElementById("editor"); }
+
+/** node'u saran .nbox (yoksa null). parentNode ile yürünüyor: metin
+ *  düğümlerinde closest yok. */
+function boxOf(node){
+  let n = node;
+  while (n && n !== document.body){
+    if (n.nodeType === 1 && n.classList && n.classList.contains("nbox")) return n;
+    n = n.parentNode;
+  }
+  return null;
+}
+function boxElById(id){
+  const ed = canvasEl();
+  if (!ed || !id) return null;
+  const els = ed.querySelectorAll(".nbox");
+  for (let i = 0; i < els.length; i++) if (els[i].getAttribute("data-id") === id) return els[i];
+  return null;
+}
+function bodyOf(wrap){ return wrap ? wrap.querySelector(".nbox-body") : null; }
+function activeBody(){ return bodyOf(boxElById(activeBoxId)); }
+
+/** Odağı etkin kutuya verir. Araç çubuğu düğmeleri mousedown'da seçimi
+ *  koruduğu için odak genelde zaten oradadır; bu, kenar durumlar için. */
+function focusActive(){
+  const body = activeBody();
+  if (body && document.activeElement !== body) body.focus();
+  return body;
+}
+
+/** Biçimlendirme komutlarının hedefi. Hiç kutu yoksa bir tane açılır —
+ *  araç çubuğuna basmak sessizce hiçbir şey yapmasın. */
+function requireBody(){
+  const cur = focusActive();
+  if (cur) return cur;
+  const ed = canvasEl(); if (!ed) return null;
+  const first = ed.querySelector(".nbox");
+  if (first){ focusBox(first.getAttribute("data-id"), true); return activeBody(); }
+  const box = createBoxAt(44, 36);
+  return box ? activeBody() : null;
+}
+
+function buildBoxEl(box){
+  const wrap = document.createElement("div");
+  wrap.className = "nbox";
+  wrap.setAttribute("data-id", box.id);
+  wrap.style.left = box.x + "px";
+  wrap.style.top = box.y + "px";
+  wrap.style.width = box.w + "px";
+
+  const grip = document.createElement("div");
+  grip.className = "nbox-grip";
+  grip.setAttribute("title", t("boxMove"));
+
+  const del = document.createElement("button");
+  del.className = "nbox-del";
+  del.setAttribute("type", "button");
+  del.setAttribute("title", t("boxDelete"));
+  del.setAttribute("aria-label", t("boxDelete"));
+  del.innerHTML = ICON.x;
+
+  const body = document.createElement("div");
+  body.className = "nbox-body";
+  body.setAttribute("contenteditable", "true");
+  body.setAttribute("spellcheck", "false");
+  body.setAttribute("role", "textbox");
+  body.setAttribute("aria-multiline", "true");
+  body.setAttribute("aria-label", t("editorPh"));
+  body.innerHTML = sanitizeHtml(box.html || "");
+  if (!body.innerHTML.trim()) body.innerHTML = "<p><br></p>";
+  wrapWideTables(body);
+
+  const rz = document.createElement("div");
+  rz.className = "nbox-rz";
+  rz.setAttribute("title", t("boxResize"));
+
+  wrap.appendChild(grip);
+  wrap.appendChild(del);
+  wrap.appendChild(body);
+  wrap.appendChild(rz);
+  return wrap;
+}
+
+/** DOM -> model. Boş kutular KAYDEDİLMEZ: yazılmamış bir kutu içerik değil,
+ *  imlecin o an durduğu yerdir; saklanırsa her açılışta hayalet kutular
+ *  birikirdi. */
+function readBoxes(ed){
+  const out = [];
+  const els = ed.querySelectorAll(".nbox");
+  for (let i = 0; i < els.length; i++){
+    const n = els[i], body = bodyOf(n);
+    if (!body || boxIsEmpty(n)) continue;
+    out.push({
+      id: n.getAttribute("data-id") || uid(),
+      x: clamp(Math.round(parseFloat(n.style.left) || 0), 0, CANVAS_MAX),
+      y: clamp(Math.round(parseFloat(n.style.top) || 0), 0, CANVAS_MAX),
+      w: clamp(Math.round(parseFloat(n.style.width) || BOX_DEF_W), BOX_MIN_W, BOX_MAX_W),
+      html: sanitizeHtml(body.innerHTML)
+    });
+  }
+  return out;
+}
+
+function boxIsEmpty(wrap){
+  const body = bodyOf(wrap);
+  if (!body) return true;
+  if (body.querySelector("img, table, hr")) return false;
+  return String(body.textContent || "").replace(/​/g, "").trim() === "";
+}
+
+/** Tuval, en dıştaki kutunun ötesinde de tıklanacak yer bırakacak kadar
+ *  büyür: "istediğin yere" demek, görünen alanla sınırlı olmamak demek. */
+let canvasResizeReq = 0;
+function resizeCanvas(){
+  const ed = canvasEl(); if (!ed) return;
+  const wrap = ed.parentNode;
+  let right = 0, bottom = 0;
+  const els = ed.querySelectorAll(".nbox");
+  for (let i = 0; i < els.length; i++){
+    right = Math.max(right, els[i].offsetLeft + els[i].offsetWidth);
+    bottom = Math.max(bottom, els[i].offsetTop + els[i].offsetHeight);
+  }
+  const vw = wrap ? wrap.clientWidth : 0, vh = wrap ? wrap.clientHeight : 0;
+  ed.style.width = Math.max(vw, right + CANVAS_PAD) + "px";
+  ed.style.height = Math.max(vh, bottom + CANVAS_PAD) + "px";
+}
+function scheduleCanvasResize(){
+  if (canvasResizeReq) return;
+  const raf = window.requestAnimationFrame || (f => setTimeout(f, 16));
+  canvasResizeReq = 1;
+  raf(() => { canvasResizeReq = 0; resizeCanvas(); });
+}
+window.addEventListener("resize", () => { if (ui.view === "notes") scheduleCanvasResize(); });
+
+/* İpucu TUVALİN İÇİNE konmaz: tuvalin innerHTML'i geri alma yığınına giriyor,
+   içine konan her süs anlık görüntülere sızardı. Kaydırma kabına konur. */
+function refreshCanvasHint(){
+  const ed = canvasEl(), wrap = document.getElementById("canvasWrap");
+  if (!ed || !wrap) return;
+  const old = wrap.querySelector(".canvas-hint");
+  const empty = !ed.querySelector(".nbox");
+  if (empty && !old){
+    wrap.appendChild(el("div", { class:"canvas-hint" },
+      el("b", { text: t("canvasHintTitle") }),
+      t("canvasHintBody")
+    ));
+  } else if (!empty && old){
+    old.parentNode.removeChild(old);
+  }
+}
+
+function setActiveBox(id){
+  const ed = canvasEl(); if (!ed) return;
+  activeBoxId = id || null;
+  const els = ed.querySelectorAll(".nbox");
+  for (let i = 0; i < els.length; i++){
+    els[i].classList.toggle("focus", els[i].getAttribute("data-id") === activeBoxId);
+  }
+}
+
+function focusBox(id, toEnd){
+  const wrap = boxElById(id); if (!wrap) return;
+  const body = bodyOf(wrap); if (!body) return;
+  setActiveBox(id);
+  body.focus();
+  try {
+    const sel = window.getSelection();
+    const r = document.createRange();
+    r.selectNodeContents(body);
+    r.collapse(!toEnd);
+    sel.removeAllRanges(); sel.addRange(r);
+  } catch(e){}
+}
+
+/** Yeni boş kutu AYRI BİR GERİ ALMA ADIMI AÇMAZ: henüz içerik yok, adım
+ *  açmak Ctrl+Z'yi "hiçbir şey olmadı" gibi görünen adımlarla doldururdu.
+ *  Geçmişin tabanı sessizce güncellenir; ilk tuşa basıldığında o taban
+ *  geri alma adımına dönüşür. */
+function createBoxAt(x, y){
+  const ed = canvasEl(); if (!ed) return null;
+  closeBurst();
+  x = clamp(Math.round(x), 0, CANVAS_MAX);
+  y = clamp(Math.round(y), 0, CANVAS_MAX);
+  // Sağ kenara yakın tıklandığında varsayılan genişlik görünen alandan taşar
+  // ve kutu daha ilk harften önce yatay kaydırma açardı. Önce daralt, yine
+  // sığmıyorsa sola kaydır; ikisi de olmuyorsa asgari genişlikte bırak.
+  const wrap = document.getElementById("canvasWrap");
+  let w = BOX_DEF_W;
+  if (wrap && wrap.clientWidth){
+    const visRight = wrap.scrollLeft + wrap.clientWidth - 24;
+    if (x + w > visRight){
+      w = Math.max(BOX_MIN_W, visRight - x);
+      if (x + w > visRight) x = Math.max(0, visRight - w);
+    }
+  }
+  const box = { id: uid(), x, y, w: clamp(Math.round(w), BOX_MIN_W, BOX_MAX_W), html: "" };
+  ed.appendChild(buildBoxEl(box));
+  lastHtml = packImages(ed.innerHTML);
+  refreshCanvasHint();
+  renderEdMeta();
+  focusBox(box.id, false);
+  scheduleCanvasResize();
+  return box;
+}
+
+/** Yazılmamış kutuyu sessizce toplar (OneNote de böyle yapar). Geri alma
+ *  adımı açılmaz ama TABAN GÜNCELLENİR — yoksa bir sonraki adım silinen
+ *  kutuyu geri getirirdi. */
+function dropEmptyBox(id){
+  const wrap = boxElById(id);
+  if (!wrap || !boxIsEmpty(wrap)) return false;
+  wrap.parentNode.removeChild(wrap);
+  if (activeBoxId === id) activeBoxId = null;
+  const ed = canvasEl();
+  if (ed) lastHtml = packImages(ed.innerHTML);
+  refreshCanvasHint();
+  scheduleCanvasResize();
+  renderEdMeta();
+  return true;
+}
+
+/** Dolu kutuyu silmek gerçek bir içerik kaybıdır: geri alınabilir olmalı. */
+function removeBox(id){
+  const wrap = boxElById(id); if (!wrap) return;
+  if (boxIsEmpty(wrap)){ dropEmptyBox(id); return; }
+  closeImgPopover();
+  withUndo(() => {
+    wrap.parentNode.removeChild(wrap);
+    if (activeBoxId === id) activeBoxId = null;
+    onEditorChanged();
+  });
+  refreshCanvasHint();
+  renderEdMeta();
+  toast(t("boxDeleted"), { label: t("undo"), run: doUndo }, 7000);
+}
+
+function canvasPoint(e){
+  const ed = canvasEl();
+  const r = ed.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+/** Görünen alanın sol üstüne yakın, boş bir yer. Klavye ve dokunmatik için:
+ *  fare olmadan da "buraya not al" diyebilmek gerekiyor. */
+function addBoxInView(){
+  const ed = canvasEl(), wrap = document.getElementById("canvasWrap");
+  if (!ed || !wrap) return null;
+  let x = wrap.scrollLeft + 40, y = wrap.scrollTop + 32;
+  // Var olan bir kutunun tam üstüne düşmesin: boş yer bulunana dek aşağı kay.
+  const els = ed.querySelectorAll(".nbox");
+  for (let guard = 0; guard < 60; guard++){
+    let clash = false;
+    for (let i = 0; i < els.length; i++){
+      const n = els[i];
+      if (Math.abs(n.offsetLeft - x) < 60 && Math.abs(n.offsetTop - y) < 60){ clash = true; break; }
+    }
+    if (!clash) break;
+    y += 46;
+  }
+  return createBoxAt(x, y);
+}
+
+/* ----------------------------------------------- kutu taşıma / genişletme */
+let boxDrag = null;
+
+function onCanvasPointerDown(e){
+  if (e.button !== 0) return;
+  const target = e.target;
+  if (!target || target.nodeType !== 1 || !target.classList) return;
+  const wrap = boxOf(target);
+  if (!wrap) return;
+  if (target.classList.contains("nbox-grip")) startBoxDrag(e, wrap, "move");
+  else if (target.classList.contains("nbox-rz")) startBoxDrag(e, wrap, "size");
+}
+
+function startBoxDrag(e, wrap, mode){
+  e.preventDefault();
+  closeBurst();
+  closeImgPopover();
+  const ed = canvasEl(); if (!ed) return;
+  boxDrag = {
+    mode, wrap,
+    sx: e.clientX, sy: e.clientY,
+    ox: parseFloat(wrap.style.left) || 0,
+    oy: parseFloat(wrap.style.top) || 0,
+    ow: parseFloat(wrap.style.width) || BOX_DEF_W,
+    before: packImages(ed.innerHTML),
+    moved: false
+  };
+  wrap.classList.add("dragging");
+  // Taşınan kutu öne gelsin: üst üste binen kutularda başka türlü tutulamaz.
+  if (mode === "move" && ed.lastChild !== wrap) ed.appendChild(wrap);
+  document.addEventListener("pointermove", onBoxDragMove, true);
+  document.addEventListener("pointerup", endBoxDrag, true);
+  document.addEventListener("pointercancel", endBoxDrag, true);
+}
+
+function onBoxDragMove(e){
+  if (!boxDrag) return;
+  const dx = e.clientX - boxDrag.sx, dy = e.clientY - boxDrag.sy;
+  if (!boxDrag.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+  boxDrag.moved = true;
+  if (boxDrag.mode === "move"){
+    boxDrag.wrap.style.left = clamp(Math.round(boxDrag.ox + dx), 0, CANVAS_MAX) + "px";
+    boxDrag.wrap.style.top  = clamp(Math.round(boxDrag.oy + dy), 0, CANVAS_MAX) + "px";
+  } else {
+    boxDrag.wrap.style.width = clamp(Math.round(boxDrag.ow + dx), BOX_MIN_W, BOX_MAX_W) + "px";
+  }
+}
+
+function endBoxDrag(){
+  if (!boxDrag) return;
+  const d = boxDrag;
+  boxDrag = null;
+  document.removeEventListener("pointermove", onBoxDragMove, true);
+  document.removeEventListener("pointerup", endBoxDrag, true);
+  document.removeEventListener("pointercancel", endBoxDrag, true);
+  d.wrap.classList.remove("dragging");
+  const ed = canvasEl(); if (!ed) return;
+  if (!d.moved){
+    // Yalnızca öne alındı; içerik değişmedi ama sıralama değişmiş olabilir.
+    lastHtml = packImages(ed.innerHTML);
+    dirtyEditor = true; scheduleSaveNotes();
+    return;
+  }
+  pushUndo(d.before);
+  lastHtml = packImages(ed.innerHTML);
+  dirtyEditor = true;
+  scheduleSaveNotes(); schedulePageListRefresh();
+  scheduleCanvasResize(); updateUndoButtons();
+}
+
+/** Klavyeyle taşıma: Alt+ok. Fare kullanamayan biri için tek yol bu. */
+function nudgeBox(dx, dy){
+  const wrap = boxElById(activeBoxId); if (!wrap) return false;
+  const ed = canvasEl(); if (!ed) return false;
+  closeBurst();
+  const before = packImages(ed.innerHTML);
+  wrap.style.left = clamp(Math.round((parseFloat(wrap.style.left) || 0) + dx), 0, CANVAS_MAX) + "px";
+  wrap.style.top  = clamp(Math.round((parseFloat(wrap.style.top)  || 0) + dy), 0, CANVAS_MAX) + "px";
+  pushUndo(before);
+  lastHtml = packImages(ed.innerHTML);
+  dirtyEditor = true;
+  scheduleSaveNotes(); scheduleCanvasResize(); updateUndoButtons();
+  return true;
+}
+
+/** Kâğıtta kutular DOM sırasına göre akardı; DOM sırası tuvalde okuma sırası
+ *  DEĞİL (kutular serbest konumlu, sıra da öne alma ile değişiyor). Yazdırmadan
+ *  önce her kutuya konumundan hesaplanan bir `order` yazılır, sonra silinir —
+ *  kalıcı olsaydı geçmiş anlık görüntülerine de sızardı. */
+function orderBoxesForPrint(){
+  const ed = canvasEl(); if (!ed) return;
+  const els = [].slice.call(ed.querySelectorAll(".nbox"));
+  els.sort((a, b) => (a.offsetTop - b.offsetTop) || (a.offsetLeft - b.offsetLeft));
+  for (let i = 0; i < els.length; i++) els[i].style.order = String(i + 1);
+}
+function clearPrintOrder(){
+  const ed = canvasEl(); if (!ed) return;
+  const els = ed.querySelectorAll(".nbox");
+  for (let i = 0; i < els.length; i++) els[i].style.order = "";
+}
+window.addEventListener("beforeprint", orderBoxesForPrint);
+window.addEventListener("afterprint", clearPrintOrder);
+
+/* ------------------------------------------------------- tuval olayları */
+function onCanvasFocusIn(e){
+  const wrap = boxOf(e.target);
+  if (wrap) setActiveBox(wrap.getAttribute("data-id"));
+}
+
+/** Kutudan çıkınca boşsa toplanır. activeBoxId BİLEREK temizlenmez: araç
+ *  çubuğu düğmeleri odağı almasa da menüler alabiliyor ve komutun hedefi
+ *  "en son yazdığın kutu" olmalı. */
+function onCanvasFocusOut(e){
+  const leaving = boxOf(e.target);
+  if (!leaving) return;
+  const id = leaving.getAttribute("data-id");
+  setTimeout(() => {
+    const wrap = boxElById(id);
+    if (!wrap || wrap.contains(document.activeElement)) return;
+    if (boxDrag) return;
+    dropEmptyBox(id);
+  }, 0);
+}
+
+function onCanvasClick(e){
+  const del = boxOf(e.target) && upClass(e.target, "nbox-del");
+  if (del){
+    e.preventDefault();
+    const wrap = boxOf(del);
+    if (wrap) removeBox(wrap.getAttribute("data-id"));
+    return;
+  }
+  if (boxOf(e.target)){ onEditorClick(e); return; }
+  // Boş tuval: OneNote'un can alıcı davranışı — tıkladığın yere kutu açılır.
+  if (e.target !== canvasEl()) return;
+  const pt = canvasPoint(e);
+  createBoxAt(pt.x - 12, pt.y - 15);
+}
+
+function upClass(node, cls){
+  let n = node;
+  while (n && n !== document.body){
+    if (n.nodeType === 1 && n.classList && n.classList.contains(cls)) return n;
+    n = n.parentNode;
+  }
+  return null;
+}
+
+/** Resim sürüklenip bırakıldığında BIRAKILAN NOKTA kutu olur: dosyayı
+ *  tuvalin ortasına atıp "nereye gitti" dedirtmenin anlamı yok. */
+function onCanvasDrop(e){
+  const dt = e.dataTransfer;
+  if (!dt || !dt.files || !dt.files.length) return;
+  const f = dt.files[0];
+  if (!/^image\//.test(f.type || "")) return;
+  e.preventDefault();
+  if (!boxOf(e.target)){
+    const pt = canvasPoint(e);
+    createBoxAt(pt.x - 12, pt.y - 15);
+  }
+  insertImageFile(f);
 }
 
 /* ========================= GERİ ALMA / YİNELEME =========================
@@ -2854,6 +3507,11 @@ function applyState(ed, st){
   updateToolbarState();
   updateUndoButtons();
   closeImgPopover();
+  // Kutular baştan kuruldu: seçili kutu vurgusu, ipucu ve tuval boyu tazelenir.
+  setActiveBox(boxElById(activeBoxId) ? activeBoxId : null);
+  refreshCanvasHint();
+  renderEdMeta();
+  resizeCanvas();
 }
 
 function doUndo(){
@@ -2905,8 +3563,11 @@ function tbText(key, textLabel, onclick, label){
 }
 
 function buildToolbar(){
-  const bar = el("div", { class:"toolbar", id:"toolbar", role:"toolbar", "aria-label": t("tbBold") });
+  const bar = el("div", { class:"toolbar", id:"toolbar", role:"toolbar", "aria-label": t("tbToolbar") });
   bar.append(
+    el("button", { type:"button", id:"tbAddBox", title: t("tbAddBox"), "aria-label": t("tbAddBox"),
+      onmousedown(e){ e.preventDefault(); }, onclick(){ addBoxInView(); } }, icon("sticky")),
+    el("span", { class:"tb-sep" }),
     el("button", { type:"button", id:"tbUndo", title: t("tbUndo"), "aria-label": t("tbUndo"),
       onmousedown(e){ e.preventDefault(); }, onclick: doUndo }, icon("undo")),
     el("button", { type:"button", id:"tbRedo", title: t("tbRedo"), "aria-label": t("tbRedo"),
@@ -2929,17 +3590,9 @@ function buildToolbar(){
     tbBtn("pre", "code", () => block("pre"), t("tbCode")),
     el("span", { class:"tb-sep" })
   );
-  for (const [bg, fg] of HILITES){
-    bar.append(el("button", { type:"button", title: t("tbHl"), "aria-label": t("tbHl"),
-      onmousedown(e){ e.preventDefault(); }, onclick(){ highlight(bg, fg); } },
-      el("span", { class:"tb-hl", style:"background:" + bg })));
-  }
   bar.append(
-    // Silgi simgesi "biçimi temizle"ye ayrılır; vurgu kaldırma, diğer vurgu
-    // örnekleriyle aynı dili konuşsun diye üstü çizili bir örnek olarak çizilir.
-    el("button", { type:"button", title: t("tbHlNone"), "aria-label": t("tbHlNone"),
-      onmousedown(e){ e.preventDefault(); }, onclick(){ highlight(null, null); } },
-      el("span", { class:"tb-hl tb-hl-none" })),
+    el("button", { type:"button", id:"tbHl", title: t("tbHl"), "aria-label": t("tbHl"),
+      onmousedown(e){ e.preventDefault(); }, onclick(e){ openHiliteMenu(e.currentTarget); } }, icon("marker")),
     el("span", { class:"tb-sep" }),
     el("button", { type:"button", title: t("tbTable"), "aria-label": t("tbTable"),
       onmousedown(e){ e.preventDefault(); }, onclick(e){ openTableMenu(e.currentTarget); } }, icon("table")),
@@ -2952,16 +3605,30 @@ function buildToolbar(){
     tbBtn("image", "image", () => document.getElementById("imgInput").click(), t("tbImage")),
     tbBtn("removeFormat", "eraser", () => { exec("removeFormat"); highlight(null, null); }, t("tbClear")),
     el("span", { class:"tb-sep" }),
-    tbBtn("taskify", "taskify", taskifySelection, t("tbTaskify"))
+    tbBtn("taskify", "taskify", taskifySelection, t("tbTaskify")),
+    el("span", { class:"tb-sep" }),
+    el("button", { type:"button", id:"tbGrid", class: state.settings.noteGrid ? "on" : "",
+      title: t("tbGrid"), "aria-label": t("tbGrid"),
+      onmousedown(e){ e.preventDefault(); }, onclick: toggleNoteGrid }, icon("grid"))
   );
   return bar;
 }
 
-function editorEl(){ return document.getElementById("editor"); }
+function toggleNoteGrid(){
+  state.settings.noteGrid = !state.settings.noteGrid;
+  scheduleSave();
+  const w = document.getElementById("canvasWrap");
+  if (w) w.classList.toggle("plain", !state.settings.noteGrid);
+  const b = document.getElementById("tbGrid");
+  if (b) b.classList.toggle("on", !!state.settings.noteGrid);
+}
+
+/* Geçmişin kökü ile tuval AYNI elemandır: anlık görüntü bütün kutuları ve
+   konumlarını kapsasın diye böyle. Ad, geçmiş modülünün diliyle korunuyor. */
+function editorEl(){ return canvasEl(); }
 
 function exec(cmd, val){
-  const ed = editorEl(); if (!ed) return;
-  ed.focus();
+  if (!requireBody()) return;
   withUndo(() => {
     try { document.execCommand(cmd, false, val === undefined ? null : val); } catch(e){}
     onEditorChanged();
@@ -3000,8 +3667,7 @@ function currentLi(){
 }
 
 function toggleTodo(){
-  const ed = editorEl(); if (!ed) return;
-  ed.focus();
+  if (!requireBody()) return;
   let li = currentLi();
   if (!li){ try { document.execCommand("insertUnorderedList"); } catch(e){} li = currentLi(); }
   if (!li) return;
@@ -3016,8 +3682,7 @@ function toggleTodo(){
  *  için burada doğrudan izinli sınıfla sarılır. cls null ise vurgu kaldırılır. */
 const HL_SEL = 'span.hl-y, span.hl-g, span.hl-b, span.hl-p, span[style*="background-color"]';
 function highlight(bg, fg){
-  const ed = editorEl(); if (!ed) return;
-  ed.focus();
+  if (!focusActive()){ toast(t("selectFirst")); return; }
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
   const range = sel.getRangeAt(0);
@@ -3068,8 +3733,7 @@ function removeTableEl(table){
 }
 
 function insertTable(rows, cols, header){
-  const ed = editorEl(); if (!ed) return;
-  ed.focus();
+  const ed = editorEl(); if (!ed || !requireBody()) return;
   if (currentTable()){ toast(t("tblNested")); return; }
   const cell = "<td><br></td>";
   let html = "<table>";
@@ -3095,7 +3759,7 @@ function insertTable(rows, cols, header){
 
 function tableOp(op){
   const ed = editorEl(); if (!ed) return;
-  ed.focus();
+  focusActive();
   const cell = currentCell(), table = currentTable();
   if (!cell || !table){ toast(t("tblNoCell")); return; }
   if (hasMergedCells(table)){ toast(t("tblMerged"), null, 6000); return; }
@@ -3193,8 +3857,7 @@ document.addEventListener("mousedown", e => {
 /** Seçimi bir span'a sarar. Renk ve punto aynı yolu kullanır; vurgu ile aynı
  *  kanonik temsil (doğrulanmış satır içi renk / izinli punto sınıfı). */
 function wrapSelectionWith(mutate){
-  const ed = editorEl(); if (!ed) return;
-  ed.focus();
+  if (!focusActive()){ toast(t("selectFirst")); return; }
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
   const range = sel.getRangeAt(0);
@@ -3266,9 +3929,20 @@ function openSizeMenu(btn){
   ]);
 }
 
+function openHiliteMenu(anchor){
+  openMenu(anchor, [
+    el("div", { class:"tb-menu-lbl", text: t("tbHl") }),
+    el("div", { class:"tb-colors" }, HILITES.map(([bg, fg]) =>
+      el("button", { class:"cs", style:"background:" + bg, title: t("tbHl"), "aria-label": t("tbHl"),
+        onclick(){ highlight(bg, fg); closeMenu(); } }))),
+    el("div", { class:"tb-menu-sep" }),
+    el("div", { class:"tb-menu-ops" },
+      el("button", { class:"btn", onclick(){ highlight(null, null); closeMenu(); } }, t("tbHlNone")))
+  ]);
+}
+
 function insertLink(){
-  const ed = editorEl(); if (!ed) return;
-  ed.focus();
+  if (!focusActive()){ toast(t("selectFirst")); return; }
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
   const url = window.prompt(t("linkPrompt"), "https://");
@@ -3388,8 +4062,7 @@ function insertImageFile(file, opts){
   if (storagePercent() >= 95){ toast(t("imgTooBig"), null, 10000); return; }
   processImage(file, res => {
     if (!res || !res.url){ toast(t("imgFailed")); return; }
-    const ed = editorEl(); if (!ed) return;
-    ed.focus();
+    const ed = editorEl(); if (!ed || !requireBody()) return;
     withUndo(() => {
       const img = document.createElement("img");
       img.src = res.url;
@@ -3421,7 +4094,10 @@ function insertNodeAtCaret(node){
     range.setStartAfter(node); range.collapse(true);
     sel.removeAllRanges(); sel.addRange(range);
   } else {
-    ed.appendChild(node);
+    // Seçim tuvalin dışındaysa düğüm etkin kutunun sonuna eklenir; tuvale
+    // doğrudan eklemek onu hiçbir kutuya ait olmayan bir öksüz yapardı.
+    const body = requireBody();
+    if (body) body.appendChild(node);
   }
 }
 
@@ -3502,13 +4178,6 @@ function onEditorPaste(e){
   closeBurst();
 }
 
-function onEditorDrop(e){
-  const dt = e.dataTransfer;
-  if (!dt || !dt.files || !dt.files.length) return;
-  const f = dt.files[0];
-  if (/^image\//.test(f.type || "")){ e.preventDefault(); insertImageFile(f); }
-}
-
 function onEditorClick(e){
   // Resim, kendisini saran bir görev bağlantısından önce gelir: resme tıklamak
   // resmi seçmelidir, sayfayı terk etmemeli.
@@ -3564,6 +4233,12 @@ function onEditorKeydown(e){
   if (e.key === "Escape"){
     if (resizing){ e.preventDefault(); e.stopPropagation(); cancelResize(); return; }
     e.stopPropagation(); e.target.blur(); return;
+  }
+  // Alt + ok: kutuyu klavyeyle taşı. Fare kullanamayan biri için tek yol bu.
+  if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.slice(0, 5) === "Arrow"){
+    const step = e.shiftKey ? 4 : 16;
+    const d = { ArrowUp:[0,-step], ArrowDown:[0,step], ArrowLeft:[-step,0], ArrowRight:[step,0] }[e.key];
+    if (d && nudgeBox(d[0], d[1])){ e.preventDefault(); return; }
   }
   // Enter, kes ve yapıştır açık yazma serisini kapatır: ayrı geri alma adımları olsun.
   if (e.key === "Enter"){ closeBurst(); setTimeout(stripCaretHighlight, 0); return; }
@@ -3746,8 +4421,7 @@ document.addEventListener("mousedown", e => {
 
 /* ----------------------------------------------------- nottan görev yapma */
 function taskifySelection(){
-  const ed = editorEl(); if (!ed) return;
-  ed.focus();
+  if (!focusActive()){ toast(t("selectFirst")); return; }
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount || sel.isCollapsed){ toast(t("selectFirst")); return; }
   const text = String(sel.toString()).replace(/\s+/g, " ").trim();
@@ -3880,6 +4554,8 @@ function notesToHtml(){
     "code{background:#f1f3f5;border-radius:4px;padding:1px 5px}",
     "pre{background:#f1f3f5;border-radius:8px;padding:11px 13px;overflow-x:auto}",
     "hr{border:0;border-top:1px solid #dfe3e9;margin:18px 0}",
+    ".box{margin:0 0 16px;padding-left:14px;border-left:2px solid #e6e8f2}",
+    ".box > *:last-child{margin-bottom:0}",
     "table{border-collapse:collapse;margin:0 0 12px;font-size:.95em}",
     "th,td{border:1px solid #c8cedb;padding:6px 9px;vertical-align:top}",
     "th{background:#f1f3f5;text-align:left}",
@@ -3894,7 +4570,11 @@ function notesToHtml(){
     for (const page of nb.pages){
       out.push('<h2 class="pg">' + esc(pageTitleOf(page)) + "</h2>");
       out.push('<p class="meta">' + esc(formatStamp(page.updatedAt)) + "</p>");
-      out.push(sanitizeHtml(page.html) || '<p class="meta">' + esc(t("emptyPagePreview")) + "</p>");
+      // Tuvaldeki serbest konum kâğıda taşınmaz; kutular okuma sırasına
+      // (yukarıdan aşağı, soldan sağa) dizilip ayrı bloklar olarak yazılır.
+      const boxes = boxesInReadingOrder(page);
+      if (!boxes.length) out.push('<p class="meta">' + esc(t("emptyPagePreview")) + "</p>");
+      for (const box of boxes) out.push('<div class="box">' + sanitizeHtml(box.html) + "</div>");
     }
   }
   out.push("</body></html>");
@@ -4193,7 +4873,8 @@ function runTests(){
 
   // --- not şeması ---
   eq("normalizeNotePage: başlık kırpılır", normalizeNotePage({ title:"x" }).title, "x");
-  ok("normalizeNotePage: html süzgeçten geçer", normalizeNotePage({ title:"x", html:"<script>k<\/script><p>iyi</p>" }).html.indexOf("script") === -1);
+  ok("normalizeNotePage: eski html süzgeçten geçer",
+     normalizeNotePage({ title:"x", html:"<script>k<\/script><p>iyi</p>" }).boxes[0].html.indexOf("script") === -1);
   ok("normalizeNotePage: çöp girdi null", normalizeNotePage(null) === null && normalizeNotePage(7) === null);
   eq("normalizeNotebook: isimsiz deftere ad verilir", !!normalizeNotebook({}).name, true);
   eq("normalizeNotebook: pages dizi değilse boşalır", normalizeNotebook({ name:"a", pages:"olmaz" }).pages, []);
@@ -4383,8 +5064,51 @@ function runTests(){
   ok("genişleme sonrası: onerror yine düşer", PS('<td style="color:#f00" onerror="alert(1)">x</td>').indexOf("onerror") === -1);
   ok("genişleme sonrası: javascript: yine düşer", PS('<a href="javascript:alert(1)" style="color:#f00">x</a>').indexOf("javascript") === -1);
 
+  // --- tuval modeli: sayfa = konumlu not kutuları ---
+  const legacyPage = normalizeNotePage({ html: "<p>eski not</p>" });
+  eq("v1 göçü: tek belge tek kutuya döner", legacyPage.boxes.length, 1);
+  ok("v1 göçü: metin korunur", legacyPage.boxes[0].html.indexOf("eski not") !== -1);
+  ok("v1 göçü: kutu tuvale yerleşir", legacyPage.boxes[0].x >= 0 && legacyPage.boxes[0].y >= 0);
+  eq("boş sayfa kutusuz açılır", normalizeNotePage({}).boxes.length, 0);
+  eq("boş html hayalet kutu üretmez", normalizeNotePage({ html: "   " }).boxes.length, 0);
+
+  const clamped = normalizeNotePage({ boxes: [
+    { id:"b1", x:-500, y:-9, w:5, html:"<p>a</p>" },
+    { id:"b2", x:1e9, y:12, w:99999, html:"<p>b</p>" }
+  ]});
+  eq("negatif koordinat sıfıra çekilir", [clamped.boxes[0].x, clamped.boxes[0].y], [0, 0]);
+  eq("dar genişlik alt sınıra çekilir", clamped.boxes[0].w, BOX_MIN_W);
+  eq("uçuk koordinat tavana çekilir", clamped.boxes[1].x, CANVAS_MAX);
+  eq("geniş genişlik üst sınıra çekilir", clamped.boxes[1].w, BOX_MAX_W);
+  ok("kutu html'i de süzgeçten geçer",
+     normalizeNotePage({ boxes:[{ x:0, y:0, w:300, html:'<p>x</p><script>alert(1)<\/script>' }] })
+       .boxes[0].html.indexOf("script") === -1);
+  ok("bozuk kutu girdisi atılır", normalizeNotePage({ boxes:[null, 7, "x"] }).boxes.length === 0);
+
+  // Tuvalde DOM sırası okuma sırası değildir: yukarıdan aşağı, soldan sağa.
+  const scattered = normalizeNotePage({ boxes: [
+    { x:300, y:200, w:300, html:"<p>ucuncu</p>" },
+    { x:400, y:40,  w:300, html:"<p>ikinci</p>" },
+    { x:20,  y:40,  w:300, html:"<p>birinci</p>" }
+  ]});
+  eq("okuma sırası: önce y, sonra x",
+     boxesInReadingOrder(scattered).map(b => noteText(b.html)),
+     ["birinci", "ikinci", "ucuncu"]);
+  eq("sayfa düz metni okuma sırasını izler", pagePlain(scattered), "birinci ikinci ucuncu");
+
   // --- notlardan HTML üretimi ---
   ok("notesToHtml: doctype ile başlar", notesToHtml().indexOf("<!doctype html>") === 0);
+  (function(){
+    const keep = notes.notebooks;
+    notes.notebooks = [normalizeNotebook({ name:"Test", pages:[{ boxes:[
+      { x:10, y:99, w:300, html:"<p>alttaki</p>" },
+      { x:10, y:10, w:300, html:"<p>ustteki</p>" }
+    ]}] })];
+    const html = notesToHtml();
+    notes.notebooks = keep;
+    ok("notesToHtml: kutu içerikleri yazılır", html.indexOf("ustteki") !== -1 && html.indexOf("alttaki") !== -1);
+    ok("notesToHtml: kutular okuma sırasına dizilir", html.indexOf("ustteki") < html.indexOf("alttaki"));
+  })();
 
   const failed = results.filter(r => !r.pass);
   document.getElementById("root").append(el("div", { class:"testwrap" },
@@ -4433,7 +5157,7 @@ function runClipDebug(){
     }
   }, el("p", { style:"margin:0;color:var(--muted)", text:"Word / OneNote'tan kopyaladığın içeriği BURAYA yapıştır (Ctrl+V)." }));
 
-  const prev = el("div", { class:"editor", style:"border:1px solid var(--border);border-radius:10px;padding:14px;max-height:40vh;overflow:auto" });
+  const prev = el("div", { class:"nbox-body", style:"border:1px solid var(--border);border-radius:10px;padding:14px;max-height:40vh;overflow:auto" });
   const sanOut = el("textarea", { class:"input", readonly:true, spellcheck:"false",
     style:"width:100%;height:20vh;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px" });
 

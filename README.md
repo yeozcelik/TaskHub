@@ -1,6 +1,6 @@
 # TaskHub
 
-Çevrimdışı bilgisayarlar için tek dosyalık görev listesi **ve not defteri**.
+Çevrimdışı bilgisayarlar için tek dosyalık görev listesi **ve serbest not defteri**.
 Kurulum yok, sunucu yok, internet yok — `index.html` dosyasına çift tıkla, açılsın.
 
 Üstteki **Görevler / Notlar** sekmeleriyle iki bölüm arasında geçersin.
@@ -33,18 +33,47 @@ günlerce açık kalsa bile gruplar gece yarısında kendiliğinden tazelenir.
 
 ## Notlar
 
-OneNote tarzı, iki seviyeli: **defter → sayfa**. Solda defterler, ortada seçili
-defterin sayfaları, sağda yazdığın alan.
+OneNote tarzı, üç seviyeli: **defter → sayfa → tuval**. Solda defterler, ortada
+seçili defterin sayfaları, sağda sayfanın tuvali.
 
-Biçimlendirme araç çubuğu: geri/ileri al, kalın, italik, altı/üstü çizili, üç
-başlık düzeyi, madde ve numaralı liste, yapılacak maddesi, alıntı, kod, dört
-vurgu rengi, **tablo**, **yazı rengi**, **punto**, bağlantı, resim.
-**Kaydet düğmesi yok**, yazdıkça kaydedilir.
+### Sayfa bir belge değil, bir tuval
+
+**Boş bir yere tıkla, not oradan başlasın.** Sayfa yukarıdan aşağı akan tek bir
+metin değil; her notun kendi koordinatı olduğu bir yüzey. Bir köşeye toplantı
+maddeleri, öbür köşeye fikirler, aşağıya hatırlatma yazarsın; sıraya girmeleri
+gerekmez.
+
+- **Kutu açmak**: tuvalde boş bir yere tıkla. İmleç oraya iner. Faresiz yol:
+  araç çubuğunun ilk düğmesi görünen alanın sol üstüne yeni kutu koyar.
+- **Taşımak**: kutunun üstünde beliren tutma çubuğundan sürükle. Klavyeyle
+  `Alt+ok` (16 piksel), ince ayar için `Alt+Shift+ok` (4 piksel).
+- **Genişletmek**: sağ kenardaki tutamağı sürükle. Yükseklik içeriğe göre
+  kendiliğinden ayarlanır.
+- **Silmek**: kutunun sağ üstündeki ✕. Doluysa "Geri al" çıkar, `Ctrl+Z` de
+  geri getirir.
+- **Boş kutu saklanmaz**: yazmadan başka yere tıklarsan kutu sessizce kaybolur.
+  Yazılmamış bir kutu içerik değil, imlecin o an durduğu yerdir.
+- **Tuval biter mi**: bitmez. En dıştaki kutunun ötesinde her zaman boş alan
+  bırakılır; sağa ve aşağı kaydırdıkça uzar.
+- **Izgara**: araç çubuğunun son düğmesi arkadaki nokta ızgarasını açıp kapatır.
+  Tercih kaydedilir.
+- **Nereye tıklarsan tıkla taşmaz**: sağ kenara yakın açılan kutu, görünen alana
+  sığacak kadar daraltılır — ilk harften önce yatay kaydırma açılmaz.
+
+Biçimlendirme araç çubuğu: yeni kutu, geri/ileri al, kalın, italik, altı/üstü
+çizili, üç başlık düzeyi, madde ve numaralı liste, yapılacak maddesi, alıntı,
+kod, **vurgu**, **tablo**, **yazı rengi**, **punto**, bağlantı, resim, biçimi
+temizle, nottan görev, ızgara. Komutlar **o an yazdığın kutuya** uygulanır;
+hiç kutu yoksa bir tane açılır. **Kaydet düğmesi yok**, yazdıkça kaydedilir.
+
+Son açık defter ve sayfa hatırlanır: uygulamayı açtığında kaldığın yerden
+devam edersin.
 
 - **Geri alma**: `Ctrl+Z` geri, `Ctrl+Y` (ya da `Ctrl+Shift+Z`) ileri. Yazma,
-  biçimlendirme, vurgu, kutucuk, resim ekleme/silme/boyutlandırma — hepsi kapsam
-  içinde. Art arda yazdıkların tek adımda birleşir; her sayfanın kendi geçmişi
-  vardır ve sayfalar arasında gidip gelince kaybolmaz.
+  biçimlendirme, vurgu, kutucuk, resim ekleme/silme/boyutlandırma **ve kutu
+  taşıma / genişletme / silme** — hepsi kapsam içinde, tek yığında. Art arda
+  yazdıkların tek adımda birleşir; her sayfanın kendi geçmişi vardır ve sayfalar
+  arasında gidip gelince kaybolmaz.
 - **Yapılacak maddesi**: listedeki bir satıra araç çubuğundan kutucuk ekle;
   kutucuğa tıklayınca tamamlanır.
 - **Vurgu paragraf sonunda biter.** Kalın ve italik yeni satıra taşınır (Ctrl+B
@@ -52,7 +81,8 @@ vurgu rengi, **tablo**, **yazı rengi**, **punto**, bağlantı, resim.
 - **Sayfa silme**: sayfa listesinde üzerine gelince çıkan çöp kutusundan ya da
   editörde başlığın yanındaki düğmeden. Her ikisi de "Geri al" bildirimi verir
   ve sayfayı özgün sırasına koyar.
-- **Resim**: yapıştır ya da sürükle. En uzun kenarı 1600 piksele indirilip
+- **Resim**: yapıştır ya da sürükle. Tuvalin boş bir yerine bıraktığın resim,
+  **bıraktığın noktada** yeni bir kutu açar. En uzun kenarı 1600 piksele indirilip
   sıkıştırılır — 4 MB'lık bir ekran görüntüsü ~20 KB'a iner. Saydamlığı olan
   PNG'ler PNG kalır; 512 KB'a kadar GIF'lere hiç dokunulmaz, animasyonu korunur.
 - **Resim boyutu**: resme tıkla, köşelerdeki tutamaklardan sürükle. Oran korunur,
@@ -72,8 +102,10 @@ vurgu rengi, **tablo**, **yazı rengi**, **punto**, bağlantı, resim.
 - **Nottan görev**: editörde bir satırı seç, araç çubuğundaki son düğmeye bas.
   Görev listesine düşer, notta bağlantı işareti kalır, görev panelinden nota
   tek tıkla dönersin.
-- `N` yeni sayfa, `/` arama, `Esc` çıkış. Arama başlıkta ve sayfa içeriğinde
-  çalışır, Türkçe harflere duyarsızdır ("istanbul" → "İstanbul").
+- `N` yeni sayfa, `/` arama, `Esc` kutudan çık. Arama başlıkta ve **bütün
+  kutuların içinde** çalışır, Türkçe harflere duyarsızdır ("istanbul" →
+  "İstanbul"). Arama ve önizleme kutuları okuma sırasına dizer: önce yukarıdan
+  aşağı, eşitlikte soldan sağa.
 
 ### Word / OneNote'tan yapıştırma
 
@@ -162,6 +194,9 @@ Görünüme göre üçüncü bir dışa aktarma düğmesi çıkar:
 - **Notlar sekmesinde HTML** — tüm defterler tek bir kendi kendine yeten dosyaya
   dökülür; resimler içinde gömülü gelir, herhangi bir tarayıcıda açılır ve
   yazdırılır. Zengin metnin kendi biçimine kilitlenmesine karşı çıkış kapısıdır.
+  Tuvaldeki serbest konum kâğıda taşınmaz: kutular okuma sırasına dizilip ayrı
+  bloklar olarak yazılır. `Ctrl+P` ile yazdırma da aynı yolu izler — üst üste
+  binen kutular sayfa sonlarında okunmaz hale gelirdi.
 
 İkisi de tek yönlüdür — rapor içindir, yedek değildir. Yedek için JSON kullan.
 
@@ -181,11 +216,12 @@ modül yüklemeleri ve `fetch` çağrıları CORS'a takılır.
 
 Hatası kolay saf fonksiyonlar (`sanitizeHtml`, `noteText`, `foldTr`, `bucketOf`,
 `csvEscape`, `mergeImport`, `mergeNotebooks`, `sortTasks`, `normalizeTask`,
-`normalizeNotebook`, `packImages`/`unpackImages`, `presentationalToSemantic`,
-`normColor`, `normFontSize`) yerleşik bir iddia setiyle sınanır:
+`normalizeNotebook`, `normalizeNotePage`, `boxesInReadingOrder`,
+`packImages`/`unpackImages`, `presentationalToSemantic`, `normColor`,
+`normFontSize`) yerleşik bir iddia setiyle sınanır:
 
 ```
-index.html?test=1      → 207 iddia, geçen/kalan dökümüyle
+index.html?test=1      → 222 iddia, geçen/kalan dökümüyle
 index.html?nostorage=1 → depolama uyarı şeridini görmek için
 index.html?clipdebug=1 → panonun ham içeriğini incelemek için
 ```
@@ -194,6 +230,28 @@ Editör yalnızca açık sayfa değiştiğinde yeniden kurulur; her çizimde kur
 imleç her tuşta başa atardı. Editördeki ham HTML modele her tuşta değil,
 kaydetme anında (`flushEditor`) süzülerek yazılır — geri yazma olmadığı için
 imleç güvende, süzgeç de tuş başına değil kayıt başına bir kez çalışır.
+
+**Tuval, iki şema değil tek şema.** Sayfanın `html` alanı yerini konumlu
+kutuların dizisine bıraktı: `boxes: [{ id, x, y, w, html }]`. "Akan belge" ve
+"serbest yerleşim" diye iki kip tutulabilirdi; tutulmadı, çünkü o zaman her
+özellik (araç çubuğu, geri alma, arama, dışa aktarma, nottan görev) iki yoldan
+geçmek zorunda kalırdı. Eski tek `html` alanı okunmaya devam eder ve yüklenirken
+ilk kutuya dönüşür (`normalizeNotePage`), böylece eski localStorage kaydı ve eski
+JSON yedekleri kaybolmaz.
+
+**Geri almanın kökü kutu değil, tuvaldir.** Anlık görüntü `#editor`in (yani
+tuvalin) `innerHTML`i olduğu için her kutunun konumu ve genişliği de görüntüye
+girer; taşıma, genişletme, kutu açma ve silme metinle **aynı** yığına düşer ve
+ikinci bir geri alma mekanizması yazmak gerekmez. Bunun bedeli, geri alma
+kutuları `innerHTML` ile yeniden kurduğunda kutulara takılı olay dinleyicilerinin
+kaybolmasıdır — bu yüzden bütün olaylar (yazma, yapıştırma, tıklama, sürükleme)
+tek tek kutulara değil, **tuvale delegasyonla** bağlanır. Aynı sebeple tuvalin
+içine süs konmaz: boş sayfa ipucu bile tuvalin değil, kaydırma kabının çocuğudur.
+
+Boş kutu açmak ve boş kutuyu toplamak **geri alma adımı açmaz** (yalnızca taban
+`lastHtml` güncellenir). Açsaydı `Ctrl+Z`, ekranda hiçbir şeyi değiştirmeyen
+adımlarla dolardı. Aynı gerekçeyle boş kutular `readBoxes` aşamasında
+saklanmaz — yoksa her açılışta hayalet kutular birikirdi.
 
 Word biçimi `style` nitelikleriyle gelir ve süzgeç `style`'ı atar; bu yüzden
 araya `presentationalToSemantic` girer: **atmadan önce** niteliğin anlamını okuyup
@@ -229,7 +287,8 @@ Tekrarlayan görevler, çöp kutusu, hatırlatma bildirimleri (sayfa kapalıyken
 gelmez), takvim ve pano görünümü, cihazlar arası senkronizasyon.
 
 Notlar tarafında: üçüncü seviye (bölüm), çizim/kalem, ses kaydı, sayfa şablonu,
-sürüm geçmişi, serbest yerleşim (metin kutuları), alt sayfa.
+sürüm geçmişi, alt sayfa. Tuvalde: kutuları birbirine bağlayan oklar, kutu
+arkaplan rengi, hizalama kılavuzu, yakınlaştırma.
 
 Tablolarda birleştirilmiş hücre **oluşturma** (yapıştırılanlar korunur), iç içe
 tablo, sütun genişliği ayarı.
