@@ -51,10 +51,13 @@ gerekir, çalıştırana değil.**
 ```
 Derle:        node tools/build.mjs                 # src/ → index.html
 Doğrula:      node tools/build.mjs --check         # index.html güncel mi (CI kapısı)
-Test:         node --test tests/
-Tek test:     node --test tests/parse-capture.test.js
+Test:         node --test                       # tests/*.test.js taranır
+Tek test:     node --test tests/core-util.test.js
 Tarayıcı test: index.html?test=1
 Boyut bütçesi: node tools/build.mjs --budget
+Çekirdek saflığı: node tools/check-purity.mjs
+i18n eşitliği: node tools/check-i18n.mjs
+Tarayıcı testi: node tools/probe/verify.mjs      # ?test=1 iddia setini koşar
 Yetenek ölçümü: node tools/probe/run.mjs
 ```
 
@@ -63,15 +66,23 @@ Yetenek ölçümü: node tools/probe/run.mjs
 ```
 index.html              → DERLENMİŞ ÇIKTI. Elle düzenlenmez. Repoda durur.
 src/
-  index.html.tmpl       → iskelet; <!--@inline src/... --> yönergeleri
-  styles/*.css          → bölünmüş stil katmanları
-  core/                 → saf fonksiyonlar (DOM'a dokunmaz, Node'da test edilir)
-  ui/                   → DOM kuran/çizen modüller
-  notes/                → not tuvali (bu girişimde çizim yolu değişmez)
-tests/                  → node --test dosyaları, src/core ile birebir eşleşir
+  index.html.tmpl       → iskelet; <!--@inline ... --> yönergeleri, sıra buradadır
+  preamble.js           → "use strict" ve dosya başlığı
+  styles/*.css          → yedi stil katmanı, dosya sırasıyla
+  core/                 → SAF: DOM'a dokunmaz, Node'da test edilir (check-purity)
+  i18n/strings.js       → I18N sözlüğü ve t()
+  html/sanitize.js      → DOM ayrıştırıcısına ihtiyaç duyar → tarayıcıda sınanır
+  state/store.js        → depolama (T3.1 bunu soyutlayacak)
+  ui/app.js             → arayüz; sonraki fazlarda bölünecek
+tests/
+  _load.mjs             → kaynağı vm ile yükleyen test yükleyicisi (ADR 0002)
+  *.test.js             → node --test dosyaları
 tools/
-  build.mjs             → gömücü
-  probe/                → tarayıcı yetenek ölçüm koşumu (gönderilmez)
+  build.mjs             → gömücü (yalnız birleştirir, dönüştürmez)
+  check-purity.mjs      → src/core/ tarayıcıya dokunuyor mu
+  check-i18n.mjs        → iki dil eşit mi
+  probe/                → tarayıcı koşumu: verify (iddialar) + run (yetenek)
+.github/workflows/ci.yml → altı kapı
 tasks/plan.md           → uygulama planı
 tasks/todo.md           → görev listesi
 docs/adr/               → mimari karar kayıtları

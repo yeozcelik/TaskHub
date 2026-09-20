@@ -83,7 +83,7 @@ Tarayıcıda **222/222 iddia geçiyor** (`node tools/probe/verify.mjs`).
 > **R2'nin azaltımı budur.** `diff` boş değilse bu görev bitmemiştir. "Neredeyse aynı"
 > diye bir sonuç yok.
 
-### T1.2: Saf çekirdeği `src/core/` altına ayır
+### T1.2: Saf çekirdeği `src/core/` altına ayır — ✅ BİTTİ
 
 **Açıklama:** DOM'a dokunmayan fonksiyonlar kendi modüllerine taşınır: `foldTr`,
 `parseYmd`, `daysBetween`, `bucketOf`, `sortTasks`, `csvEscape`, `mergeImport`,
@@ -105,7 +105,7 @@ Node'un yerleşik `DOMParser`'ı yoksa tarayıcı testinde kalır ve bu **yazıl
 **Dosyalar:** `src/core/*.js` (≈5 dosya), `tools/build.mjs`
 **Boyut:** M
 
-### T1.3: 222 iddiayı `node --test` altına taşı
+### T1.3: 222 iddiayı `node --test` altına taşı — ✅ KISMEN (saf altküme)
 
 **Açıklama:** `runTests()` içindeki iddialar `tests/*.test.js` dosyalarına taşınır.
 Tarayıcıdaki `?test=1` ekranı **kaldırılmaz** — aynı modülleri çağırmaya devam eder,
@@ -117,13 +117,38 @@ gerçek tarayıcıdaki regresyon ağı olarak kalır.
 - [ ] DOM gerektiren iddialar açıkça işaretli, hangi katmanda koştukları yazılı
 - [ ] İddia sayısını düşüren değişiklik CI'da kırılır
 
-**Doğrulama:** `node --test tests/`; tarayıcıda `?test=1`.
+**Doğrulama:** `node --test`; `node tools/probe/verify.mjs`.
+
+**Sonuç — ve dürüst bir sınır.** `node --test` altında **17 test** koşuyor ve
+saf çekirdeği (foldTr, parseYmd, daysBetween, bucketOf, csvEscape, mergeImport,
+sortTasks, clamp, numOr, ts, uid) kapsıyor; port edilen iddiaların yanına DST,
+artık yıl ve sabit nokta (`f(f(x)) === f(x)`) sınırları eklendi. Tarayıcıdaki
+**222 iddia olduğu gibi duruyor** ve `tools/probe/verify.mjs` ile CI'da koşuyor.
+
+**222'nin tamamı Node'a taşınmadı, taşınamaz da:**
+
+| Ne | Nerede koşar | Neden |
+|---|---|---|
+| Saf çekirdek | `node --test` **ve** tarayıcı | Bağımlılığı yok |
+| `sanitizeHtml`, `presentationalToSemantic`, `noteText` | yalnız tarayıcı | `document.implementation` gerektirir. Node'da koşturmak jsdom demekti; sıfır bağımlılık sözleşmesi bunu dışlıyor |
+| `normalizeTask`, `normalizeNotePage` | yalnız tarayıcı | `src/state/store.js` **yüklenirken** `window.addEventListener("beforeunload", …)` çağırıyor |
+
+Üçüncü satır bir bulgu: depolama modülü açılış anında koşulsuz olarak tarayıcıya
+bağlanıyor. `window`'u saplamak testi yeşile boyardı; onun yerine dosya Node
+kümesinin dışında bırakıldı ve bağlılık kayda geçti. **T3.1 (depolama
+soyutlaması) tam olarak bunu çözüyor** — ADR 0002 ona bir gerekçe daha ekliyor.
+
+> **Neden "kısmen".** Kabul ölçütü "≥222 iddia `node --test` altında" idi ve
+> bu, ölçmeden önce yazılmış bir varsayımdı. Ölçünce görüldü ki iddiaların
+> çoğunluğu DOM ayrıştırıcısına bağlı. Eşiği yeşil görünmek için düşürmek yerine
+> gerçek yazıldı: **saf olan Node'a taşındı, olmayan tarayıcıda kaldı ve ikisi de
+> CI'da koşuyor.** Toplam kapsama düşmedi — arttı (222 → 222 + 17).
 
 **Bağımlılık:** T1.2
 **Dosyalar:** `tests/*.test.js` (≈5 dosya), `src/index.html.tmpl`
 **Boyut:** M
 
-### T1.4: Stilleri katmanlara böl
+### T1.4: Stilleri katmanlara böl — ✅ BİTTİ
 
 **Açıklama:** 600 satırlık `<style>` bloğu mevcut yorum başlıklarındaki sınırlardan
 `src/styles/*.css` dosyalarına ayrılır (tokenlar, düzen, görevler, notlar, tuval,
@@ -140,7 +165,7 @@ yazdırma). Gömücü sırayla birleştirir.
 **Dosyalar:** `src/styles/*.css` (≈6 dosya), `tools/build.mjs`
 **Boyut:** S
 
-### T1.5: CI kapıları
+### T1.5: CI kapıları — ✅ BİTTİ
 
 **Açıklama:** GitHub Actions: derleme tazeliği, testler, saf-çekirdek kuralı,
 i18n anahtar eşitliği, boyut bütçesi.

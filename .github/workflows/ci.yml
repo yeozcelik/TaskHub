@@ -1,0 +1,56 @@
+# TaskHub CI — beş kapı.
+#
+# Hepsi ucuz ve hepsi bir şeyi KANITLAR. Hiçbiri "iyi hissettiren" kontrol değil:
+# her biri kasıtlı bozmayla sınandı ve kırıldığı görüldü.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # GitHub runner imajı Chrome'u buraya kurar; tools/probe/chrome.mjs aday
+      # listesinde bunu zaten arıyor ama açıkça yazmak hata mesajını netleştirir.
+      CHROME_PATH: /usr/bin/google-chrome
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # --- 1) index.html src/ ile güncel mi? ---
+      # index.html üretilmiş dosyadır. Elle düzenlenmiş ya da derlenmeden
+      # gönderilmişse kaynakla çıktı ayrışmıştır; burada yakalanır.
+      - name: Derleme tazeliği
+        run: node tools/build.mjs --check
+
+      # --- 2) boyut bütçesi (SPEC.md S10) ---
+      - name: Boyut bütçesi
+        run: node tools/build.mjs --budget
+
+      # --- 3) saf çekirdek testleri ---
+      # Tarayıcı gerektirmez; saniyeler sürer.
+      - name: Birim testleri
+        run: node --test
+
+      # --- 4) src/core/ saflığı ---
+      # Testedilebilirliğin dayanağı. İlk document. çağrısı onu sessizce bozar.
+      - name: Çekirdek saflığı
+        run: node tools/check-purity.mjs
+
+      # --- 5) iki dil eşit mi? ---
+      # Tek dilde kalmış anahtar, diğer dilde ham anahtar adının basılması demek.
+      - name: i18n eşitliği
+        run: node tools/check-i18n.mjs
+
+      # --- 6) derlenmiş dosya GERÇEK tarayıcıda çalışıyor mu? ---
+      # node --test saf çekirdeği kanıtlar; bu, gönderilen artefaktı kanıtlar.
+      # İkisi farklı sorulardır (SPEC.md, test stratejisi).
+      - name: Tarayıcı iddia seti
+        run: node tools/probe/verify.mjs

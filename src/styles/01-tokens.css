@@ -1,0 +1,61 @@
+/* ---------- Tasarım tokenları ---------- */
+:root{
+  --bg:#f4f5f9; --surface:#ffffff; --surface-2:#f0f1f6; --surface-3:#e4e6ef;
+  --border:#e1e4ed; --border-strong:#c6ccdb;
+  --text:#14161b; --muted:#4f5765; --faint:#616978;
+  --accent:#6244e0; --accent-2:#9061f0; --accent-soft:#eeeaff; --on-accent:#ffffff;
+  --danger:#c92a2a; --danger-soft:#fdecec;
+  --warn:#a86100; --warn-soft:#fff4e0;
+  --ok:#0b7a55;
+  /* --muted ve --faint, kullanılan EN KOYU açık zemine (--accent-soft) göre
+     seçildi: ikisi de WCAG AA küçük metin eşiğini (4.5:1) geçer. Daha açık bir
+     gri "incelikli" görünüyordu ama 11-12 piksellik etiketleri okunmaz
+     yapıyordu — ölçüm references/accessibility ile değil axe-core ile yapıldı. */
+  /* Tuvalin kâğıdı: yüzeyden biraz farklı olsun ki kutular kâğıdın üstünde dursun. */
+  --paper:#fbfbfe; --paper-dot:rgba(98,68,224,.10);
+  --r-sm:6px; --r:10px; --r-lg:14px;
+  --sh-1:0 1px 2px rgba(15,20,35,.05), 0 1px 3px rgba(15,20,35,.05);
+  --sh-2:0 10px 34px rgba(15,20,35,.13), 0 2px 8px rgba(15,20,35,.07);
+  --sh-3:0 18px 50px rgba(15,20,35,.18), 0 3px 10px rgba(15,20,35,.09);
+  --sp:16px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c0e13; --surface:#161920; --surface-2:#1c2028; --surface-3:#272c37;
+    --border:#282d38; --border-strong:#3b4252;
+    --text:#e7eaef; --muted:#a8b1c0; --faint:#8d96a5;
+    --accent:#9b87ff; --accent-2:#b79bff; --accent-soft:#25234d; --on-accent:#0d0f14;
+    --danger:#ff8080; --danger-soft:#3a1e22;
+    --warn:#f5c164; --warn-soft:#3a2f18;
+    --ok:#4ad9a4;
+    --paper:#111319; --paper-dot:rgba(155,135,255,.16);
+    --sh-1:0 1px 2px rgba(0,0,0,.4);
+    --sh-2:0 10px 34px rgba(0,0,0,.55);
+    --sh-3:0 18px 50px rgba(0,0,0,.62);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c0e13; --surface:#161920; --surface-2:#1c2028; --surface-3:#272c37;
+  --border:#282d38; --border-strong:#3b4252;
+  --text:#e7eaef; --muted:#a8b1c0; --faint:#8d96a5;
+  --accent:#9b87ff; --accent-2:#b79bff; --accent-soft:#25234d; --on-accent:#0d0f14;
+  --danger:#ff8080; --danger-soft:#3a1e22;
+  --warn:#f5c164; --warn-soft:#3a2f18;
+  --ok:#4ad9a4;
+  --paper:#111319; --paper-dot:rgba(155,135,255,.16);
+  --sh-1:0 1px 2px rgba(0,0,0,.4);
+  --sh-2:0 10px 34px rgba(0,0,0,.55);
+  --sh-3:0 18px 50px rgba(0,0,0,.62);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+::selection{background:var(--accent); color:var(--on-accent)}
+

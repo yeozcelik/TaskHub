@@ -1,0 +1,98 @@
+/* ---------- Notlar düzeni ---------- */
+.notes-shell{display:flex;flex-direction:column;height:calc(100vh - 53px)}
+.notes-shell > #banners:not(:empty){padding:12px 18px 0}
+.notes-app{display:grid;grid-template-columns:206px 250px minmax(0,1fr);align-items:stretch;flex:1;min-height:0}
+.nb-pane,.pg-pane{height:100%;overflow-y:auto;border-right:1px solid var(--border);padding:14px 10px 30px}
+.nb-pane{background:var(--surface-2)}
+.pg-pane{background:var(--surface)}
+.pane-head{display:flex;align-items:center;gap:6px;margin:0 0 10px 6px}
+.pane-head h2{flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin:0}
+.pane-head .btn-icon{width:26px;height:26px;padding:5px}
+
+/* Defterler: OneNote'taki gibi renkli sırt + seçilide sol şerit. */
+.nb-item{
+  display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:0;
+  padding:8px 9px;border-radius:var(--r-sm);cursor:pointer;color:var(--muted);
+  position:relative;transition:background .12s,color .12s;
+}
+.nb-item:hover{background:var(--surface-3);color:var(--text)}
+.nb-item[aria-current="true"]{background:var(--surface);color:var(--text);font-weight:600;box-shadow:var(--sh-1)}
+.nb-item[aria-current="true"]::before{
+  content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--accent);
+}
+.nb-item .nb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nb-item .count{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.nb-acts{display:flex;gap:1px;opacity:0}
+.nb-row:hover .nb-acts,.nb-row:focus-within .nb-acts{opacity:1}
+.nb-row{display:flex;align-items:center;gap:2px;border-radius:var(--r-sm)}
+.nb-acts button{border:0;background:none;cursor:pointer;color:var(--faint);padding:4px;border-radius:4px;line-height:0}
+.nb-acts button:hover{background:var(--surface-3);color:var(--text)}
+.nb-acts svg{width:13px;height:13px}
+
+.pg-item{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;padding:9px 11px;border-radius:var(--r-sm);cursor:pointer;color:var(--text);transition:background .12s,border-color .12s}
+.pg-item:hover{background:var(--surface-2)}
+.pg-item[aria-current="true"]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+/* Seçili kart vurgulu bir zemin: üstündeki ikincil metin varsayılan --faint
+   ile eşiğin altında kalıyor, bir kademe koyu/açık tona alınır. */
+.pg-item[aria-current="true"] .pg-prev{color:var(--text)}
+.pg-item[aria-current="true"] .pg-date{color:var(--muted)}
+.pg-item .pg-title{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg-item .pg-prev{font-size:12.5px;color:var(--muted);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2;overflow:hidden}
+.pg-item .pg-date{font-size:11px;color:var(--faint);margin-top:5px}
+.pg-list{display:flex;flex-direction:column;gap:2px;list-style:none;margin:0;padding:0}
+.pg-row{position:relative}
+.pg-acts{position:absolute;top:5px;right:5px;opacity:0;transition:opacity .12s}
+.pg-row:hover .pg-acts,.pg-row:focus-within .pg-acts{opacity:1}
+.pg-acts button{border:0;background:var(--surface);cursor:pointer;color:var(--faint);padding:5px;border-radius:5px;line-height:0;box-shadow:var(--sh-1)}
+.pg-acts button:hover{background:var(--danger-soft);color:var(--danger)}
+.pg-acts svg{width:13px;height:13px}
+.pg-acts button:disabled{opacity:.35;cursor:default}
+.pg-row[draggable="true"]{cursor:grab}
+.pg-row.drop-above{box-shadow:inset 0 2px 0 var(--accent)}
+.pg-row.drop-below{box-shadow:inset 0 -2px 0 var(--accent)}
+@media (hover:none){.pg-acts{opacity:1}}
+
+.ed-head{display:flex;align-items:flex-start;gap:6px;padding-right:18px}
+.ed-head .ed-title{flex:1}
+.ed-head .btn{margin-top:18px;flex:none}
+
+/* Resim boyutlandırma tutamakları — sayfa akışını bozmasın diye body'ye
+   sabit konumla takılır, kaydırma ve pencere boyutunda yeniden konumlanır. */
+.img-handles{position:fixed;z-index:70;pointer-events:none;outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.img-handles .h{
+  position:absolute;width:12px;height:12px;background:var(--accent);border:2px solid var(--surface);
+  border-radius:3px;pointer-events:auto;touch-action:none;
+}
+.img-handles .h-nw{left:-7px;top:-7px;cursor:nwse-resize}
+.img-handles .h-ne{right:-7px;top:-7px;cursor:nesw-resize}
+.img-handles .h-sw{left:-7px;bottom:-7px;cursor:nesw-resize}
+.img-handles .h-se{right:-7px;bottom:-7px;cursor:nwse-resize}
+.img-pop{flex-wrap:wrap;max-width:min(92vw,340px)}
+
+/* ---------- Editör başlığı ve araç çubuğu ---------- */
+.ed-pane{height:100%;display:flex;flex-direction:column;min-width:0;background:var(--surface)}
+.ed-title{border:0;background:none;font-size:26px;font-weight:700;letter-spacing:-.02em;padding:16px 26px 4px;width:100%;color:var(--text)}
+.ed-title:focus{outline:none}
+.ed-title::placeholder{color:var(--faint)}
+.ed-meta{padding:0 26px 9px;font-size:12px;color:var(--faint);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ed-meta .chip{
+  display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;
+  background:var(--surface-2);color:var(--muted);font-size:11.5px;
+}
+.toolbar{
+  display:flex;flex-wrap:wrap;gap:2px;align-items:center;padding:6px 20px;
+  border-block:1px solid var(--border);
+  background:color-mix(in srgb, var(--surface-2) 82%, transparent);
+  backdrop-filter:blur(8px);position:relative;z-index:5;
+}
+.toolbar button{border:0;background:none;cursor:pointer;color:var(--muted);padding:5px;border-radius:6px;line-height:0;min-width:28px;display:inline-flex;align-items:center;justify-content:center;transition:background .12s,color .12s}
+.toolbar button:hover{background:var(--surface-3);color:var(--text)}
+.toolbar button.on{background:var(--accent-soft);color:var(--accent)}
+.toolbar button:disabled{opacity:.35;cursor:default}
+.toolbar button svg{width:15px;height:15px}
+.toolbar .tb-sep{width:1px;height:17px;background:var(--border-strong);margin:0 4px;opacity:.6}
+.toolbar .tb-txt{font-size:13px;font-weight:700;min-width:26px}
+
+.toolbar #tbAddBox{color:var(--accent);background:var(--accent-soft)}
+.toolbar #tbAddBox:hover{background:color-mix(in srgb, var(--accent) 20%, transparent);color:var(--accent)}
+
