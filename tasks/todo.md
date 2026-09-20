@@ -691,7 +691,7 @@ yolu tutmak gerekmedi.
 **Dosyalar:** `src/ui/view-board.js`, `src/core/projections.js`, `tests/views.test.js`, `src/styles/board.css`
 **Boyut:** M
 
-### T3.5: Takvim (ay) görünümü
+### T3.5: Takvim (ay) görünümü — ✅ BİTTİ
 
 **Açıklama:** Aynı izdüşüm sözleşmesi. Ay ızgarası; tarihsiz görevler ayrı bir şeritte
 (gizlenmez — gizlemek veriyi kaybetmek gibi görünürdü).
@@ -703,8 +703,30 @@ yolu tutmak gerekmedi.
 - [ ] Klavyeyle gün gün gezinilir; seçili gün duyurulur
 - [ ] Gece yarısı tazelenmesi (mevcut `scheduleMidnight`) takvimde de geçerli
 
-**Doğrulama:** `node --test tests/calendar.test.js` (ay ızgarası saf, DST sınırları
-dahil); axe.
+**Doğrulama:** `node --test` → `tests/projections.test.js` (ızgara saf, DST ve
+artık yıl dahil); `node tools/probe/behavior.mjs` (**83/83**, takvimin 15 iddiası).
+
+**Sonuç.** Ay ızgarası `monthGrid` ile üretiliyor — gün gün ilerleyerek değil,
+**sayaçla**: yaz saati geçişinde saat ekleyip çıkarmak günü yineletir ya da
+atlatır. Testler 2025/2026/2027'nin mart ve ekim aylarını ayrı ayrı sınıyor.
+
+| Kabul | Sonuç |
+|---|---|
+| Ay sınırları yerel saatle | ✅ `parseYmd`/`ymd` sözleşmesi |
+| Hafta başlangıcı dile göre | ✅ TR pazartesi (2026-04-27), EN pazar (2026-04-26); gün adları `Intl`'den |
+| Tarihsizler ayrı, görünür bölümde | ✅ gizlenmiyor — takvimde görünmeyen görev kaybolmuş görevdir |
+| Klavyeyle gün gün gezinme | ✅ oklar, `PageUp/Down`; **ay sınırını geçince ay değişiyor** |
+| Seçili gün duyuruluyor | ✅ `role="grid"/"gridcell"/"columnheader"`, tarih `aria-label`'da |
+| Gece yarısı tazelenmesi | ✅ mevcut `scheduleMidnight` → `render()` yolunu kullanır |
+
+Izgarada **tek sekme durağı** var; içinde ok tuşlarıyla gezilir. 42 ayrı `Tab`
+durağı klavye kullanıcısını boğardı.
+
+> **a11y kapısı yeni bir ihlal yakaladı ve doğru olanı yaptım: ölçtüm.**
+> Uyarısı `.grow` öğesini gösteriyordu — takvim değil, **uyarı şeridi**; yani
+> aynı devralınan kontrast borcu (4,404:1) yeni bir durumda sayılıyor.
+> Takvimin **kendi** renkleri ölçüldü: 4,899 / 6,456 / 16,045 — hepsi AA
+> eşiğinin üstünde. Taban 12'den 13'e çıktı, kusur sayısı değişmedi.
 
 **Bağımlılık:** T3.4
 **Dosyalar:** `src/ui/view-calendar.js`, `src/core/calendar.js`, `tests/calendar.test.js`, `src/styles/calendar.css`

@@ -175,3 +175,58 @@
   #list.board{display:block; overflow:visible}
   #list.board .group{max-width:none; border:0; background:none; padding:0}
 }
+
+/* ---------- Takvim görünümü ----------
+   Izgara; liste/panonun kart yığını değil. Aynı veriyi okur, farklı gösterir. */
+.cal-head{display:flex;align-items:center;gap:6px;margin:0 0 12px}
+.cal-title{margin:0;font-size:17px;font-weight:700;flex:1;text-transform:capitalize}
+.cal-next svg{transform:rotate(180deg)}
+.cal-head .btn svg{transform:rotate(90deg)}
+.cal-next svg{transform:rotate(-90deg)}
+
+.cal-grid{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--border)}
+.cal-row{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.cal-names{background:var(--surface-2)}
+.cal-name{
+  padding:7px 8px;font-size:12px;font-weight:600;color:var(--muted);
+  text-transform:capitalize;background:var(--surface-2);
+}
+.cal-day{
+  background:var(--surface);min-height:104px;padding:5px 5px 7px;
+  display:flex;flex-direction:column;gap:3px;
+}
+.cal-day.out{background:var(--surface-2)}
+.cal-day.out .cal-num{color:var(--faint)}
+.cal-day.today{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal-day:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.cal-num{font-size:12px;font-weight:600;color:var(--muted);padding:1px 3px}
+.cal-day.today .cal-num{color:var(--accent)}
+
+.cal-chip{
+  display:flex;align-items:center;gap:5px;width:100%;text-align:left;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+  border-radius:var(--r-sm);padding:2px 5px;font-size:12px;cursor:pointer;
+}
+.cal-chip:hover{border-color:var(--accent);background:var(--accent-soft)}
+.cal-chip.done .cal-chip-t{text-decoration:line-through;color:var(--muted)}
+.cal-chip-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.cal-chip .dot{width:6px;height:6px;border-radius:50%;flex:none}
+.cal-more{font-size:11px;color:var(--muted);padding:0 4px}
+
+.cal-undated{margin-top:14px}
+.cal-undated-t{display:flex;align-items:center;gap:7px;margin:0 0 7px;font-size:13px;color:var(--muted)}
+.cal-undated-t .n{
+  background:var(--surface-3);border-radius:999px;padding:0 7px;font-size:11px;
+}
+.cal-undated-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.cal-undated-list li{flex:0 0 auto;max-width:240px}
+
+@media (max-width:720px){
+  .cal-day{min-height:70px}
+  .cal-chip-t{display:none}                 /* dar ekranda yalnız renk noktası */
+  .cal-chip{justify-content:center;padding:3px}
+}
+@media print{
+  .cal-head .btn{display:none}
+  .cal-day{min-height:80px}
+}

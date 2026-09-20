@@ -135,6 +135,9 @@ const isNotes = () => ui.view === "notes";
   { id:"taskview.board", label:() => t("cmdViewBoard"), when:() => isTasks() && ui.taskView !== "board",
     run(){ switchTaskView("board"); } },
 
+  { id:"taskview.calendar", label:() => t("cmdViewCalendar"), when:() => isTasks() && ui.taskView !== "calendar",
+    run(){ switchTaskView("calendar"); } },
+
   { id:"task.new", label:() => t("cmdNewTask"), keys:"N", when:isTasks,
     run(){ const q = document.getElementById("quick"); if (q) q.focus(); } },
   { id:"search.focus", label:() => t("cmdSearch"), keys:"/", when:isTasks,

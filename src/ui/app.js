@@ -7,7 +7,8 @@ let lastFocused = null;
 const ui = {
   q:"", status:"all", prios:new Set(), tags:new Set(), showCompleted:true, nagHidden:false,
   view:"tasks",          // "tasks" | "notes"
-  taskView:"list",       // "list" | "board" — AYNI veriye iki izdüşüm (Notion yasası)
+  taskView:"list",       // "list" | "board" | "calendar" — AYNI veriye izdüşümler (Notion yasası)
+  calYm:null,            // takvimde görüntülenen ay: { y, m } — null = bu ay
   nbId:null, pageId:null // seçili defter ve sayfa
 };
 
@@ -436,11 +437,12 @@ function renderSidebar(){
      çalıştığı şey. */
   const viewGroup = el("div", { class:"side-group" }, el("h2", { class:"side-title", text: t("viewLbl") }));
   const viewList = el("ul", { class:"side-list" });
-  for (const v of ["list", "board"]){
+  for (const v of ["list", "board", "calendar"]){
     viewList.append(el("li", {}, el("button", {
       class:"side-item", "aria-pressed": String(ui.taskView === v),
       onclick(){ switchTaskView(v); }
-    }, icon(v === "list" ? "list" : "grid"), el("span", { text: t("view_" + v) }))));
+    }, icon(v === "list" ? "list" : v === "board" ? "grid" : "cal"),
+       el("span", { text: t("view_" + v) }))));
   }
   viewGroup.append(viewList);
 
@@ -654,6 +656,135 @@ function reconcileCards(rec, items){
   rec.keys = keys;
 }
 
+/* =============================== TAKVİM ================================
+ * Ay ızgarası. Liste/pano ile AYNI veriyi okur (Notion yasası) ama DOM'u
+ * farklıdır: kart yığını değil, ızgara. O yüzden uzlaştırıcıyı kullanmaz —
+ * 35-42 hücre zaten ucuzdur ve hücre içerikleri kart değil, kısa çipler.
+ *
+ * Tarihsiz görevler GİZLENMEZ: ızgaranın altında ayrı bir şeritte durur.
+ * Takvimde görünmeyen görev, kullanıcı için kaybolmuş görevdir.            */
+const CAL_MAX_PER_DAY = 4;      // hücrede gösterilen çip sayısı; fazlası "+N"
+
+function calYm(){
+  if (ui.calYm) return ui.calYm;
+  const d = parseYmd(today) || new Date();
+  return { y: d.getFullYear(), m: d.getMonth() };
+}
+function calShift(delta){
+  const { y, m } = calYm();
+  const d = new Date(y, m + delta, 1);
+  ui.calYm = { y: d.getFullYear(), m: d.getMonth() };
+  renderList();
+}
+function calToday(){ ui.calYm = null; renderList(); }
+
+/** Hafta başlangıcı dile göre: TR pazartesi, EN pazar. */
+const calWeekStart = () => state.settings.lang === "tr" ? 1 : 0;
+
+function calDayNames(){
+  const fmt = new Intl.DateTimeFormat(LOCALE(), { weekday: "short" });
+  const ws = calWeekStart();
+  const out = [];
+  for (let i = 0; i < 7; i++){
+    // 2026-03-01 bir pazar; oradan sayarak gün adlarını locale'den al.
+    out.push(fmt.format(new Date(2026, 2, 1 + ((ws + i) % 7))));
+  }
+  return out;
+}
+
+function calChip(task){
+  return el("button", {
+    class:"cal-chip" + (task.done ? " done" : "") + " p-" + task.priority,
+    "aria-label": task.title + " — " + t(task.priority),
+    onclick(e){ e.stopPropagation(); openPanel(task.id, e.currentTarget); }
+  }, el("span", { class:"dot " + task.priority, "aria-hidden":"true" }),
+     el("span", { class:"cal-chip-t", text: task.title || "—" }));
+}
+
+function renderCalendar(box, visible){
+  const { y, m } = calYm();
+  const weeks = monthGrid(y, m, calWeekStart());
+  const { map, undated } = tasksByDate(visible);
+  const monthLabel = new Intl.DateTimeFormat(LOCALE(), { month: "long", year: "numeric" })
+    .format(new Date(y, m, 1));
+
+  const head = el("div", { class:"cal-head" },
+    el("button", { class:"btn btn-ghost btn-icon", "aria-label": t("calPrev"),
+      onclick(){ calShift(-1); } }, icon("chev")),
+    el("h2", { class:"cal-title", id:"calTitle", text: monthLabel }),
+    el("button", { class:"btn btn-ghost btn-icon cal-next", "aria-label": t("calNext"),
+      onclick(){ calShift(1); } }, icon("chev")),
+    el("button", { class:"btn btn-ghost", onclick: calToday }, t("calToday"))
+  );
+
+  const grid = el("div", { class:"cal-grid", role:"grid", "aria-labelledby":"calTitle" });
+  const names = calDayNames();
+  const hrow = el("div", { class:"cal-row cal-names", role:"row" });
+  for (const n of names) hrow.append(el("div", { class:"cal-name", role:"columnheader", text:n }));
+  grid.append(hrow);
+
+  for (const week of weeks){
+    const row = el("div", { class:"cal-row", role:"row" });
+    for (const cell of week){
+      const items = map.get(cell.ymd) || [];
+      const isToday = cell.ymd === today;
+      const day = el("div", {
+        class:"cal-day" + (cell.inMonth ? "" : " out") + (isToday ? " today" : ""),
+        role:"gridcell", tabindex:"-1", "data-ymd": cell.ymd,
+        "aria-label": new Intl.DateTimeFormat(LOCALE(), { dateStyle:"long" }).format(parseYmd(cell.ymd))
+          + (items.length ? " — " + t("calNTasks", { n: items.length }) : ""),
+        onkeydown(e){ calKey(e, cell.ymd); }
+      }, el("div", { class:"cal-num", text:String(cell.day) }));
+      for (const task of items.slice(0, CAL_MAX_PER_DAY)) day.append(calChip(task));
+      if (items.length > CAL_MAX_PER_DAY){
+        day.append(el("div", { class:"cal-more", text: "+" + (items.length - CAL_MAX_PER_DAY) }));
+      }
+      row.append(day);
+    }
+    grid.append(row);
+  }
+
+  box.append(head, grid);
+
+  /* Tarihsizler: gizlemek veriyi kaybetmek gibi görünürdü. */
+  if (undated.length){
+    const strip = el("section", { class:"cal-undated", role:"group", "aria-label": t("b_nodate") },
+      el("h3", { class:"cal-undated-t" },
+        el("span", { text: t("b_nodate") }), el("span", { class:"n", text:String(undated.length) })));
+    const ul = el("ul", { class:"cal-undated-list" });
+    for (const task of undated) ul.append(el("li", {}, calChip(task)));
+    strip.append(ul);
+    box.append(strip);
+  }
+
+  // Izgarada tek bir sekme durağı olsun; içinde ok tuşlarıyla gezilir.
+  const first = grid.querySelector('.cal-day:not(.out)') || grid.querySelector(".cal-day");
+  if (first) first.setAttribute("tabindex", "0");
+}
+
+/* Ok tuşları gün gün gezer; ay sınırını geçince ay değişir. Izgarada
+   Tab ile 42 durak olması klavye kullanıcısını boğardı. */
+function calKey(e, ymdStr){
+  const map = { ArrowLeft:-1, ArrowRight:1, ArrowUp:-7, ArrowDown:7 };
+  if (e.key === "PageUp"){ e.preventDefault(); calShift(-1); return; }
+  if (e.key === "PageDown"){ e.preventDefault(); calShift(1); return; }
+  if (!(e.key in map)) return;
+  e.preventDefault();
+  const target = addDays(ymdStr, map[e.key]);
+  if (!target) return;
+  const d = parseYmd(target), cur = calYm();
+  if (d.getFullYear() !== cur.y || d.getMonth() !== cur.m){
+    ui.calYm = { y: d.getFullYear(), m: d.getMonth() };
+    renderList();
+  }
+  const cell = document.querySelector('.cal-day[data-ymd="' + target + '"]');
+  if (cell){
+    for (const n of document.querySelectorAll(".cal-day")) n.setAttribute("tabindex", "-1");
+    cell.setAttribute("tabindex", "0");
+    cell.focus({ preventScroll:false });
+  }
+}
+
 /* Çizim durumu KABIN ÜSTÜNDE durur (`box.__taskList`). Kap yeniden kurulunca
    (görünüm değişimi, mountView) durum onunla birlikte gider — ayrı bir
    geçersiz kılma mekanizması yazmaya gerek kalmaz. */
@@ -662,9 +793,10 @@ function renderList(){
   if (!box) return;
 
   const visible = state.tasks.filter(matches);
-  if (!visible.length){
+  if (!visible.length && ui.taskView !== "calendar"){
     box.textContent = "";
     box.__taskList = null;
+    box.classList.remove("board", "calendar");
     const filtered = filtersActive();
     box.append(el("div", { class:"empty" },
       el("span", { svg:ICON.inbox, "aria-hidden":"true" }),
@@ -677,6 +809,16 @@ function renderList(){
   /* Görünümler aynı `visible` dizisi üzerine izdüşümdür (src/core/projections.js).
      Pano ayrı bir depo açmaz, ayrı bir süzgeç uygulamaz; arama ve filtreler
      her ikisinde de aynen geçerlidir. */
+  if (ui.taskView === "calendar"){
+    box.textContent = "";
+    box.__taskList = null;
+    box.classList.remove("board");
+    box.classList.add("calendar");
+    renderCalendar(box, visible);
+    return;
+  }
+  box.classList.remove("calendar");
+
   const board = ui.taskView === "board";
   const groups = board ? boardGroups(visible) : listGroups(visible, today);
   const byKey = new Map(groups.map(g => [g.key, g]));

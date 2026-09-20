@@ -199,7 +199,7 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   check("Esc/kapatma sonrası palet kapalı", await ev(`!document.querySelector("dialog.palette[open]")`), true);
 
   // S6: envanter. Bir komut kaldırılırsa CI kırılır.
-  const EXPECTED = ["view.tasks","view.notes","taskview.list","taskview.board",
+  const EXPECTED = ["view.tasks","view.notes","taskview.list","taskview.board","taskview.calendar",
     "task.new","search.focus","filters.clear",
     "completed.toggle","notebook.new","page.new","theme.cycle","lang.toggle",
     "export.json","import.json","export.csv","export.notes","print"];
@@ -307,6 +307,74 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
 
   check("T3.2: günlük yokken oynatma sessizce hiçbir şey yapmaz",
     await ev(`replayJournal().then(r => r === null)`), true);
+
+  // ---------------- T3.5: takvim görünümü ----------------
+  await ev(`state.settings.lang = "tr"; ui.calYm = { y:2026, m:4 }; today = "2026-05-10";
+    state.tasks = [
+      { id:"c1", title:"onda", notes:"", dueDate:"2026-05-10", priority:"high", tags:[], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+      { id:"c2", title:"onbeşte", notes:"", dueDate:"2026-05-15", priority:"low", tags:[], subtasks:[], done:false, createdAt:"2026-01-02T00:00:00.000Z", updatedAt:"2026-01-02T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+      { id:"c3", title:"tarihsiz", notes:"", dueDate:null, priority:"med", tags:[], subtasks:[], done:false, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    ]; switchTaskView("calendar"); true`);
+
+  // Mayıs 2026: 1'i cuma, pazartesi başlangıçla 4 boşluk + 31 gün = 35 hücre
+  // = tam 5 hafta. Sayıyı sabitlemek yerine ilişkiyi iddia etmek daha sağlam.
+  check("takvim: tam haftalar çizildi",
+    await ev(`(() => { const rows = document.querySelectorAll(".cal-grid .cal-row:not(.cal-names)");
+      const cells = document.querySelectorAll(".cal-grid .cal-day").length;
+      return [cells % 7 === 0, cells / 7 === rows.length,
+              Array.from(rows).every(r => r.children.length === 7)]; })()`), [true, true, true]);
+  check("takvim: ayın her günü tam bir kez",
+    await ev(`(() => { const inMonth = Array.from(document.querySelectorAll(".cal-day:not(.out)")).map(n => n.dataset.ymd);
+      return [inMonth.length, new Set(inMonth).size]; })()`), [31, 31]);
+  check("takvim: TR'de hafta pazartesi başlar",
+    await ev(`document.querySelector(".cal-row:not(.cal-names) .cal-day").getAttribute("data-ymd")`), "2026-04-27");
+  check("takvim: görev kendi gününde",
+    await ev(`Array.from(document.querySelector('.cal-day[data-ymd="2026-05-10"]').querySelectorAll(".cal-chip-t")).map(n => n.textContent)`),
+    ["onda"]);
+  check("takvim: bugün işaretli",
+    await ev(`document.querySelector('.cal-day[data-ymd="2026-05-10"]').classList.contains("today")`), true);
+  check("takvim: TARİHSİZ görev gizlenmez, şeritte görünür",
+    await ev(`Array.from(document.querySelectorAll(".cal-undated .cal-chip-t")).map(n => n.textContent)`),
+    ["tarihsiz"]);
+  check("takvim: hücre ekran okuyucuda tarihiyle adlı",
+    await ev(`document.querySelector('.cal-day[data-ymd="2026-05-10"]').getAttribute("aria-label").includes("2026")`), true);
+  check("takvim: ızgara rolleri",
+    await ev(`[document.querySelector(".cal-grid").getAttribute("role"),
+               document.querySelector(".cal-day").getAttribute("role"),
+               document.querySelector(".cal-name").getAttribute("role")]`),
+    ["grid", "gridcell", "columnheader"]);
+
+  // Izgarada tek sekme durağı: 42 durak klavye kullanıcısını boğardı.
+  check("takvim: ızgarada tek sekme durağı",
+    await ev(`document.querySelectorAll('.cal-day[tabindex="0"]').length`), 1);
+
+  // Ay gezinme
+  await ev(`calShift(1);`);
+  check("takvim: sonraki ay", await ev(`[ui.calYm.y, ui.calYm.m]`), [2026, 5]);
+  await ev(`calShift(-2);`);
+  check("takvim: önceki ay", await ev(`[ui.calYm.y, ui.calYm.m]`), [2026, 3]);
+  await ev(`calToday();`);
+  check("takvim: bugüne dön", await ev(`ui.calYm`), null);
+
+  // Klavyeyle gezinme ve ay sınırını geçme
+  await ev(`ui.calYm = { y:2026, m:4 }; renderList();
+    const c = document.querySelector('.cal-day[data-ymd="2026-05-31"]'); c.setAttribute("tabindex","0"); c.focus();
+    c.dispatchEvent(new KeyboardEvent("keydown", { key:"ArrowRight", bubbles:true, cancelable:true })); true`);
+  check("takvim: ok tuşu ay sınırını geçince ay değişir",
+    await ev(`[ui.calYm.y, ui.calYm.m]`), [2026, 5]);
+  check("takvim: odak yeni güne taşındı",
+    await ev(`document.activeElement.getAttribute("data-ymd")`), "2026-06-01");
+
+  // Notion yasası: aynı veri, filtre geçerli
+  await ev(`ui.calYm = { y:2026, m:4 }; ui.q = "onda"; renderList();`);
+  check("takvim: arama takvimde de geçerli",
+    await ev(`document.querySelectorAll(".cal-grid .cal-chip").length`), 1);
+  await ev(`ui.q = ""; renderList();`);
+
+  // Çipe tıklamak paneli açar
+  await ev(`document.querySelector('.cal-day[data-ymd="2026-05-10"] .cal-chip').click();`);
+  check("takvim: çip görev panelini açar", await ev(`openTaskId`), "c1");
+  await ev(`closePanel(); switchTaskView("list"); ui.calYm = null; true`);
 
   // Bu blok state'i değiştirdi; sonraki iddiaların beklediği düzeni geri kur.
   await ev(`state.tasks = [

@@ -63,6 +63,7 @@ const STATES = [
   { id: "görev-paneli", setup: `(() => { try { openPanel("a"); } catch (e){} return true; })()` },
   { id: "komut-paleti", setup: `(() => { try { closePalette(); openPalette(); } catch (e){} return true; })()` },
   { id: "pano", setup: `(() => { try { switchTaskView("board"); } catch (e){} return true; })()` },
+  { id: "takvim", setup: `(() => { try { switchTaskView("calendar"); } catch (e){} return true; })()` },
 ];
 const RESET = `(() => {
   try { switchTaskView("list"); } catch (e){}
