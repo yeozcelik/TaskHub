@@ -7,6 +7,7 @@ let lastFocused = null;
 const ui = {
   q:"", status:"all", prios:new Set(), tags:new Set(), showCompleted:true, nagHidden:false,
   view:"tasks",          // "tasks" | "notes"
+  taskView:"list",       // "list" | "board" — AYNI veriye iki izdüşüm (Notion yasası)
   nbId:null, pageId:null // seçili defter ve sayfa
 };
 
@@ -211,6 +212,17 @@ function formatStamp(iso){
 }
 
 /* ============================== ARAYÜZ ================================== */
+
+/* Liste ↔ pano geçişi bölüm anahtarlarını tümden değiştirir (kova → sütun).
+   Uzlaştırıcıya "hepsini sil, hepsini ekle" dedirtmek yerine durumu bırakıp
+   baştan kurmak hem daha hızlı hem daha az sürprizli. */
+function switchTaskView(v){
+  if (ui.taskView === v) return;
+  ui.taskView = v;
+  const box = document.getElementById("list");
+  if (box){ box.__taskList = null; box.textContent = ""; }
+  render();
+}
 
 function switchView(v){
   if (ui.view === v) return;
@@ -418,6 +430,20 @@ function renderSidebar(){
   if (!bar) return;
   bar.textContent = "";
 
+  /* Görünüm seçimi kenar çubuğunun EN ÜSTÜNDE. Things'in kendi yaptığı da bu:
+     kalıcı bir kenar çubuğunda görünüm listesi. Bu ekleme S8'in envanterine
+     ADIYLA yazıldı — sessizce büyüyen arayüz, S8'in tam olarak engellemeye
+     çalıştığı şey. */
+  const viewGroup = el("div", { class:"side-group" }, el("h2", { class:"side-title", text: t("viewLbl") }));
+  const viewList = el("ul", { class:"side-list" });
+  for (const v of ["list", "board"]){
+    viewList.append(el("li", {}, el("button", {
+      class:"side-item", "aria-pressed": String(ui.taskView === v),
+      onclick(){ switchTaskView(v); }
+    }, icon(v === "list" ? "list" : "grid"), el("span", { text: t("view_" + v) }))));
+  }
+  viewGroup.append(viewList);
+
   const statusCounts = {
     all: state.tasks.length,
     active: state.tasks.filter(x => !x.done).length,
@@ -461,7 +487,7 @@ function renderSidebar(){
     tagGroup.append(tagList);
   }
 
-  bar.append(statusGroup, prioGroup, tagGroup);
+  bar.append(viewGroup, statusGroup, prioGroup, tagGroup);
 }
 
 /* ------------------------------------------------------------------ liste */
@@ -565,22 +591,30 @@ function applyFocusSlot(card, slot){
   if (target) target.focus({ preventScroll:true });
 }
 
-function groupHead(key, count, expanded){
-  const head = el("h2", { class:"group-head" + (key === "overdue" ? " overdue" : "") });
-  if (key === "completed"){
+function groupHead(group, count, expanded){
+  const key = group.key;
+  const label = t(group.labelKey);
+  const head = el("h2", { class:"group-head" + (key === "overdue" ? " overdue" : "")
+                                             + (ui.taskView === "board" ? " col-" + key : "") });
+  // Katlama yalnız liste görünümünde: panoda sütunun kapanması, sütunun
+  // kendisinin kaybolması gibi görünürdü.
+  if (key === "completed" && ui.taskView === "list"){
     head.append(el("button", {
       class:"group-toggle", "aria-expanded": String(expanded), "aria-controls":"g-" + key,
       onclick(){ ui.showCompleted = !ui.showCompleted; renderList(); }
-    }, icon("chev"), el("span", { text: t("b_" + key) }), el("span", { class:"n", text:String(count) })));
+    }, icon("chev"), el("span", { text: label }), el("span", { class:"n", text:String(count) })));
   } else {
-    head.append(el("span", { text: t("b_" + key) }), el("span", { class:"n", text:String(count) }));
+    head.append(el("span", { text: label }), el("span", { class:"n", text:String(count) }));
   }
   return head;
 }
 
-function makeSection(key){
-  const list = el("ul", { class:"tasklist", id:"g-" + key });
-  const section = el("section", { class:"group" }, groupHead(key, 0, true), list);
+function makeSection(group){
+  const list = el("ul", { class:"tasklist", id:"g-" + group.key });
+  /* Sütun/kova ekran okuyucuda adlı olsun: "Yüksek, 3 görev" gibi bir bölge
+     olmadan pano, ekranı görmeyen için yalnız bir kart yığınıdır. */
+  const section = el("section", { class:"group", role:"group",
+    "aria-label": t(group.labelKey) }, groupHead(group, 0, true), list);
   return { section, list, keys: [], nodes: new Map(), sigs: new Map() };
 }
 
@@ -640,9 +674,14 @@ function renderList(){
     return;
   }
 
-  const groups = new Map(BUCKETS.map(b => [b, []]));
-  for (const task of visible) groups.get(bucketOf(task, today)).push(task);
-  const active = BUCKETS.filter(k => groups.get(k).length);
+  /* Görünümler aynı `visible` dizisi üzerine izdüşümdür (src/core/projections.js).
+     Pano ayrı bir depo açmaz, ayrı bir süzgeç uygulamaz; arama ve filtreler
+     her ikisinde de aynen geçerlidir. */
+  const board = ui.taskView === "board";
+  const groups = board ? boardGroups(visible) : listGroups(visible, today);
+  const byKey = new Map(groups.map(g => [g.key, g]));
+  const active = groups.map(g => g.key);
+  box.classList.toggle("board", board);
 
   const focusBefore = captureListFocus(box);
 
@@ -657,7 +696,7 @@ function renderList(){
       continue;
     }
     let rec = st.sections.get(op.key);
-    if (!rec){ rec = makeSection(op.key); st.sections.set(op.key, rec); }
+    if (!rec){ rec = makeSection(byKey.get(op.key)); st.sections.set(op.key, rec); }
     const beforeRec = op.before ? st.sections.get(op.before) : null;
     box.insertBefore(rec.section, beforeRec ? beforeRec.section : null);
   }
@@ -665,9 +704,10 @@ function renderList(){
 
   for (const key of active){
     const rec = st.sections.get(key);
-    const items = sortTasks(groups.get(key));
-    const expanded = key === "completed" ? ui.showCompleted : true;
-    rec.section.replaceChild(groupHead(key, items.length, expanded), rec.section.firstChild);
+    const group = byKey.get(key);
+    const items = group.items;                       // izdüşüm zaten sıraladı
+    const expanded = (key === "completed" && !board) ? ui.showCompleted : true;
+    rec.section.replaceChild(groupHead(group, items.length, expanded), rec.section.firstChild);
     reconcileCards(rec, expanded ? items : []);
   }
 

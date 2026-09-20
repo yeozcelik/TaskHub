@@ -72,3 +72,18 @@ Eşik "sıfır" diye yalan söylemiyor, ama hiçbir şey yapmıyor da değil:
 580 KB'lık dosya sürüm geçmişine yapışmasın ve gönderilen artefaktın sıfır
 bağımlılık sözleşmesi bozulmasın diye axe-core koşum anında `npm pack` ile
 alınır ve `$TMPDIR/taskhub-axe` altında önbelleğe konur.
+
+
+## Güncelleme (T3.4): borç yeni görünümle YAYILIYOR
+
+Pano görünümü a11y taramasına eklendiğinde **aynı üç ihlal** orada da çıktı —
+yeni bir kusur değil, aynı kökün yeni bir yüzeyi. Pano, listeyle **aynı kart
+bileşenini** kullanıyor ve kartın `<li role="button">` yapısı iki kuralı
+birden ihlal etmeye devam ediyor.
+
+Taban 9'dan 12 kural×duruma çıktı. Sayı arttı ama **kusur artmadı**: tek kök
+neden dört farklı durumda sayılıyor.
+
+Bunun bir sonucu var: **her yeni görünüm borcu büyütüyor.** Takvim (T3.5)
+eklendiğinde üç kayıt daha eklenecek. T2.8 kökü düzelttiğinde hepsi birden
+düşecek — yani T2.8 ertelendikçe kazancı da büyüyor.

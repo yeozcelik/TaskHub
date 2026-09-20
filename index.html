@@ -282,6 +282,46 @@ textarea.input{resize:vertical; min-height:78px; line-height:1.55}
 .cap-off{opacity:.62; border-style:dashed}
 .cap-off:hover{opacity:1}
 .cap-note{color:var(--muted)}
+
+/* ---------- Pano görünümü ----------
+   Liste ile AYNI DOM'u kullanır: section.group > h2.group-head + ul.tasklist.
+   Değişen yalnız düzen. Uzlaştırıcı, odak korunumu, kart imzası — hepsi
+   olduğu gibi çalışır; iki ayrı çizim yolu tutmak gerekmedi. */
+#list.board{
+  display:flex; gap:14px; align-items:flex-start;
+  overflow-x:auto; padding-bottom:10px;
+  scroll-snap-type:x proximity;
+}
+#list.board .group{
+  flex:0 0 300px; max-width:300px; scroll-snap-align:start;
+  background:var(--surface-2); border:1px solid var(--border);
+  border-radius:var(--r); padding:10px; margin:0;
+}
+#list.board .group-head{
+  margin:0 0 9px; padding:0 2px; position:sticky; top:0;
+  display:flex; align-items:center; gap:7px;
+}
+#list.board .group-head::before{
+  content:""; width:8px; height:8px; border-radius:50%; flex:none;
+  background:var(--border-strong);
+}
+#list.board .col-high::before{background:var(--danger)}
+#list.board .col-med::before{background:var(--warn)}
+#list.board .col-low::before{background:var(--ok)}
+#list.board .col-completed::before{background:var(--muted)}
+#list.board .tasklist{display:flex; flex-direction:column; gap:8px}
+#list.board .card{background:var(--surface)}
+/* Boş sütun kaybolmaz; yerini korur ki sürükleme hedefi belli olsun. */
+#list.board .tasklist:empty{min-height:56px; border:1px dashed var(--border); border-radius:var(--r-sm)}
+
+@media (max-width:720px){
+  #list.board .group{flex-basis:82vw; max-width:82vw}
+}
+@media print{
+  /* Kâğıtta yatay kaydırma yoktur: pano listeye döner. */
+  #list.board{display:block; overflow:visible}
+  #list.board .group{max-width:none; border:0; background:none; padding:0}
+}
 /* ---------- Toast ---------- */
 .toasts{position:fixed;left:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px}
 .toast{
@@ -805,6 +845,8 @@ const I18N = {
     journalRestored:"Kapanışta kaydedilemeyen değişiklikler geri yüklendi.",
     journalPartial:"Kapanıştaki görev değişiklikleri geri yüklendi; notlar yedek alana sığmadı.",
     storageIdb:"Depolama: IndexedDB", storageLocal:"Depolama: tarayıcı belleği (localStorage)",
+    viewLbl:"Görünüm", view_list:"Liste", view_board:"Pano",
+    cmdViewList:"Görünüm: Liste", cmdViewBoard:"Görünüm: Pano",
     theme:"Tema", themeAuto:"Tema: sistem", themeLight:"Tema: açık", themeDark:"Tema: koyu",
     lang:"Dil", exportJson:"JSON yedeği indir", importJson:"JSON'dan geri yükle", exportCsv:"CSV indir (Excel)",
     status:"Durum", all:"Tümü", active:"Açık", done:"Tamamlanan",
@@ -929,6 +971,8 @@ const I18N = {
     journalRestored:"Changes that couldn't be saved on close were restored.",
     journalPartial:"Task changes from close were restored; notes didn't fit the fallback area.",
     storageIdb:"Storage: IndexedDB", storageLocal:"Storage: browser memory (localStorage)",
+    viewLbl:"View", view_list:"List", view_board:"Board",
+    cmdViewList:"View: List", cmdViewBoard:"View: Board",
     theme:"Theme", themeAuto:"Theme: system", themeLight:"Theme: light", themeDark:"Theme: dark",
     lang:"Language", exportJson:"Download JSON backup", importJson:"Restore from JSON", exportCsv:"Download CSV (Excel)",
     status:"Status", all:"All", active:"Open", done:"Completed",
@@ -1663,6 +1707,89 @@ function diffList(oldItems, newItems, keyOf, isEqual){
     if (!isEqual(oldByKey.get(k), it)) ops.push({ type: "update", key: k, item: it });
   }
   return ops;
+}
+/* ------------------------------------------------------------ izdüşümler ---
+ * Notion yasası (CAPABILITY-MAP.md): HİÇBİR GÖRÜNÜM VERİYE SAHİP DEĞİLDİR.
+ * Liste, pano ve takvim aynı `state.tasks` üzerine izdüşümdür; hiçbiri kendi
+ * deposunu açmaz, hiçbiri diğerinin göremediği bir şey bilmez.
+ *
+ * Bu dosya saftır: girdi görev dizisi, çıktı gruplanmış görev dizisi. DOM yok,
+ * çizim yok, i18n yok — etiketler anahtar olarak döner, metne arayüz çevirir. */
+
+const BOARD_COLUMNS = ["high", "med", "low"];
+
+/** Liste görünümü: son tarihe göre kovalar (mevcut davranış). */
+function listGroups(tasks, todayY){
+  const by = new Map(BUCKETS.map(b => [b, []]));
+  for (const task of tasks) by.get(bucketOf(task, todayY)).push(task);
+  return BUCKETS
+    .map(key => ({ key, labelKey: "b_" + key, items: sortTasks(by.get(key)) }))
+    .filter(g => g.items.length);
+}
+
+/** Pano görünümü: önceliğe göre sütunlar.
+ *
+ *  Neden öncelik: SPEC.md'deki açık soru #2'nin varsayılan cevabı. Duruma göre
+ *  (açık/tamamlanan) iki sütun panoyu anlamsız kılardı; kovaya göre yedi sütun
+ *  ekrana sığmazdı. Öncelik üç sütun verir ve zaten modelde var.
+ *
+ *  Tamamlananlar panoda AYRI bir sütun değil: tamamlanmış bir görevin önceliği
+ *  artık bir karar değil, bir geçmiş. `done` olanlar listeden çıkar. */
+function boardGroups(tasks){
+  const by = new Map(BOARD_COLUMNS.map(c => [c, []]));
+  const doneItems = [];
+  for (const task of tasks){
+    if (task.done){ doneItems.push(task); continue; }
+    (by.get(task.priority) || by.get("med")).push(task);
+  }
+  const cols = BOARD_COLUMNS.map(key => ({ key, labelKey: key, items: sortTasks(by.get(key)) }));
+  if (doneItems.length) cols.push({ key: "completed", labelKey: "b_completed", items: sortTasks(doneItems) });
+  return cols;
+}
+
+/** Bir ay ızgarası: hafta hafta, her hücre bir gün.
+ *
+ *  Gün gün ilerlemek yerine sayaçla üretilir; yaz saati geçişinde saat ekleyip
+ *  çıkarmak günü yineletebilir ya da atlatabilir. `parseYmd`/`ymd` sözleşmesi
+ *  yerel saatle çalışır ve gün bazında güvenlidir.
+ *
+ *  @param weekStart 1 = pazartesi (TR), 0 = pazar (EN) */
+function monthGrid(year, month, weekStart){
+  const first = new Date(year, month, 1);
+  const lead = (first.getDay() - weekStart + 7) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < lead; i++){
+    const d = new Date(year, month, 1 - (lead - i));
+    cells.push({ ymd: ymd(d), inMonth: false, day: d.getDate() });
+  }
+  for (let d = 1; d <= daysInMonth; d++){
+    cells.push({ ymd: ymd(new Date(year, month, d)), inMonth: true, day: d });
+  }
+  while (cells.length % 7 !== 0){
+    const d = new Date(year, month, daysInMonth + (cells.length - lead - daysInMonth) + 1);
+    cells.push({ ymd: ymd(d), inMonth: false, day: d.getDate() });
+  }
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+
+/** Görevleri son tarihe göre indeksler. Tarihsizler ayrı döner — gizlenmez,
+ *  çünkü takvimde görünmeyen görev kaybolmuş görevdir. */
+function tasksByDate(tasks){
+  const map = new Map();
+  const undated = [];
+  for (const task of tasks){
+    if (!task.dueDate){ undated.push(task); continue; }
+    if (!map.has(task.dueDate)) map.set(task.dueDate, []);
+    map.get(task.dueDate).push(task);
+  }
+  // Her günü kendi içinde sırala. (İki elemanlı sortTasks çağrısını
+  // karşılaştırıcı gibi kullanmak çalışırdı ama sıralama kararlılığını
+  // tesadüfe bırakırdı; doğrusu diziyi bir kez sıralamak.)
+  for (const [k, list] of map) map.set(k, sortTasks(list));
+  return { map, undated: sortTasks(undated) };
 }
 /* ------------------------------------------------- doğal dille yakalama ---
  * "yarın rapor yaz !yüksek #iş"  →  { title:"rapor yaz", dueDate:"2026-05-11",
@@ -2542,6 +2669,7 @@ let lastFocused = null;
 const ui = {
   q:"", status:"all", prios:new Set(), tags:new Set(), showCompleted:true, nagHidden:false,
   view:"tasks",          // "tasks" | "notes"
+  taskView:"list",       // "list" | "board" — AYNI veriye iki izdüşüm (Notion yasası)
   nbId:null, pageId:null // seçili defter ve sayfa
 };
 
@@ -2746,6 +2874,17 @@ function formatStamp(iso){
 }
 
 /* ============================== ARAYÜZ ================================== */
+
+/* Liste ↔ pano geçişi bölüm anahtarlarını tümden değiştirir (kova → sütun).
+   Uzlaştırıcıya "hepsini sil, hepsini ekle" dedirtmek yerine durumu bırakıp
+   baştan kurmak hem daha hızlı hem daha az sürprizli. */
+function switchTaskView(v){
+  if (ui.taskView === v) return;
+  ui.taskView = v;
+  const box = document.getElementById("list");
+  if (box){ box.__taskList = null; box.textContent = ""; }
+  render();
+}
 
 function switchView(v){
   if (ui.view === v) return;
@@ -2953,6 +3092,20 @@ function renderSidebar(){
   if (!bar) return;
   bar.textContent = "";
 
+  /* Görünüm seçimi kenar çubuğunun EN ÜSTÜNDE. Things'in kendi yaptığı da bu:
+     kalıcı bir kenar çubuğunda görünüm listesi. Bu ekleme S8'in envanterine
+     ADIYLA yazıldı — sessizce büyüyen arayüz, S8'in tam olarak engellemeye
+     çalıştığı şey. */
+  const viewGroup = el("div", { class:"side-group" }, el("h2", { class:"side-title", text: t("viewLbl") }));
+  const viewList = el("ul", { class:"side-list" });
+  for (const v of ["list", "board"]){
+    viewList.append(el("li", {}, el("button", {
+      class:"side-item", "aria-pressed": String(ui.taskView === v),
+      onclick(){ switchTaskView(v); }
+    }, icon(v === "list" ? "list" : "grid"), el("span", { text: t("view_" + v) }))));
+  }
+  viewGroup.append(viewList);
+
   const statusCounts = {
     all: state.tasks.length,
     active: state.tasks.filter(x => !x.done).length,
@@ -2996,7 +3149,7 @@ function renderSidebar(){
     tagGroup.append(tagList);
   }
 
-  bar.append(statusGroup, prioGroup, tagGroup);
+  bar.append(viewGroup, statusGroup, prioGroup, tagGroup);
 }
 
 /* ------------------------------------------------------------------ liste */
@@ -3100,22 +3253,30 @@ function applyFocusSlot(card, slot){
   if (target) target.focus({ preventScroll:true });
 }
 
-function groupHead(key, count, expanded){
-  const head = el("h2", { class:"group-head" + (key === "overdue" ? " overdue" : "") });
-  if (key === "completed"){
+function groupHead(group, count, expanded){
+  const key = group.key;
+  const label = t(group.labelKey);
+  const head = el("h2", { class:"group-head" + (key === "overdue" ? " overdue" : "")
+                                             + (ui.taskView === "board" ? " col-" + key : "") });
+  // Katlama yalnız liste görünümünde: panoda sütunun kapanması, sütunun
+  // kendisinin kaybolması gibi görünürdü.
+  if (key === "completed" && ui.taskView === "list"){
     head.append(el("button", {
       class:"group-toggle", "aria-expanded": String(expanded), "aria-controls":"g-" + key,
       onclick(){ ui.showCompleted = !ui.showCompleted; renderList(); }
-    }, icon("chev"), el("span", { text: t("b_" + key) }), el("span", { class:"n", text:String(count) })));
+    }, icon("chev"), el("span", { text: label }), el("span", { class:"n", text:String(count) })));
   } else {
-    head.append(el("span", { text: t("b_" + key) }), el("span", { class:"n", text:String(count) }));
+    head.append(el("span", { text: label }), el("span", { class:"n", text:String(count) }));
   }
   return head;
 }
 
-function makeSection(key){
-  const list = el("ul", { class:"tasklist", id:"g-" + key });
-  const section = el("section", { class:"group" }, groupHead(key, 0, true), list);
+function makeSection(group){
+  const list = el("ul", { class:"tasklist", id:"g-" + group.key });
+  /* Sütun/kova ekran okuyucuda adlı olsun: "Yüksek, 3 görev" gibi bir bölge
+     olmadan pano, ekranı görmeyen için yalnız bir kart yığınıdır. */
+  const section = el("section", { class:"group", role:"group",
+    "aria-label": t(group.labelKey) }, groupHead(group, 0, true), list);
   return { section, list, keys: [], nodes: new Map(), sigs: new Map() };
 }
 
@@ -3175,9 +3336,14 @@ function renderList(){
     return;
   }
 
-  const groups = new Map(BUCKETS.map(b => [b, []]));
-  for (const task of visible) groups.get(bucketOf(task, today)).push(task);
-  const active = BUCKETS.filter(k => groups.get(k).length);
+  /* Görünümler aynı `visible` dizisi üzerine izdüşümdür (src/core/projections.js).
+     Pano ayrı bir depo açmaz, ayrı bir süzgeç uygulamaz; arama ve filtreler
+     her ikisinde de aynen geçerlidir. */
+  const board = ui.taskView === "board";
+  const groups = board ? boardGroups(visible) : listGroups(visible, today);
+  const byKey = new Map(groups.map(g => [g.key, g]));
+  const active = groups.map(g => g.key);
+  box.classList.toggle("board", board);
 
   const focusBefore = captureListFocus(box);
 
@@ -3192,7 +3358,7 @@ function renderList(){
       continue;
     }
     let rec = st.sections.get(op.key);
-    if (!rec){ rec = makeSection(op.key); st.sections.set(op.key, rec); }
+    if (!rec){ rec = makeSection(byKey.get(op.key)); st.sections.set(op.key, rec); }
     const beforeRec = op.before ? st.sections.get(op.before) : null;
     box.insertBefore(rec.section, beforeRec ? beforeRec.section : null);
   }
@@ -3200,9 +3366,10 @@ function renderList(){
 
   for (const key of active){
     const rec = st.sections.get(key);
-    const items = sortTasks(groups.get(key));
-    const expanded = key === "completed" ? ui.showCompleted : true;
-    rec.section.replaceChild(groupHead(key, items.length, expanded), rec.section.firstChild);
+    const group = byKey.get(key);
+    const items = group.items;                       // izdüşüm zaten sıraladı
+    const expanded = (key === "completed" && !board) ? ui.showCompleted : true;
+    rec.section.replaceChild(groupHead(group, items.length, expanded), rec.section.firstChild);
     reconcileCards(rec, expanded ? items : []);
   }
 
@@ -6458,6 +6625,11 @@ const isNotes = () => ui.view === "notes";
 [
   { id:"view.tasks", label:() => t("cmdViewTasks"), when:isNotes, run(){ switchView("tasks"); } },
   { id:"view.notes", label:() => t("cmdViewNotes"), when:isTasks, run(){ switchView("notes"); } },
+
+  { id:"taskview.list", label:() => t("cmdViewList"), when:() => isTasks() && ui.taskView !== "list",
+    run(){ switchTaskView("list"); } },
+  { id:"taskview.board", label:() => t("cmdViewBoard"), when:() => isTasks() && ui.taskView !== "board",
+    run(){ switchTaskView("board"); } },
 
   { id:"task.new", label:() => t("cmdNewTask"), keys:"N", when:isTasks,
     run(){ const q = document.getElementById("quick"); if (q) q.focus(); } },

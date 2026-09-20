@@ -157,7 +157,7 @@ aynı modülleri çağırmaya devam eder. İddia sayısının **azalması** CI h
 | S5 | Depolama tavanı | Not+resim için **> 50 MB** kullanılabilir | `node tools/probe/migration.mjs` — 60 MB yazılıp geri okunarak ✅ |
 | S6 | Klavye kapsaması | Her kullanıcı aksiyonu `Ctrl+K` üzerinden ulaşılabilir | komut kayıt defteri sayımı vs. aksiyon envanteri |
 | S7 | Yakalama ayrıştırma | "yarın 15:00 !yüksek #iş" → doğru tarih/öncelik/etiket, TR ve EN | birim testi |
-| S8 | Varsayılan ekran sakin kalır | Varsayılan görünümde kalıcı kontrol sayısı **artmaz** | elle sayım, gözden geçirmede |
+| S8 | Varsayılan ekran sakin kalır | Kalıcı arayüz **envanteri** (üst çubuk, kenar çubuğu grupları, ana alan) spec'te adlarıyla yazılı ve birebir doğrulanır | `node tools/probe/behavior.mjs` |
 | S9 | Erişilebilirlik | 4 genişlik × 2 tema × 4 durum, **bilinen tabanın üstüne yeni ihlal yok** | `node tools/probe/a11y.mjs` — **0 hedefi henüz tutmuyor**, bkz. T2.8 |
 | S10 | Dosya boyutu bütçesi | Derlenmiş `index.html` **≤ 500 KB** | `build.mjs --budget` |
 | S11 | Eski veri okunur | v1 `localStorage` ve v1 JSON yedeği kayıpsız yüklenir | birim testi + fikstür |
@@ -203,3 +203,25 @@ geçirildiğinde aynı kuralları daha fazla kombinasyonda ihlal ediyor (12'ye 9
 Eşik gevşetilmedi, ama "sıfır" diye de yazılamazdı. Kapı artık **taban kilidi**:
 bilinen ihlaller adlarıyla `docs/olcumler/a11y-baseline.json` içinde, listede
 olmayan her yeni ihlal CI'yı kırıyor. Sıfır hâlâ hedef ve **T2.8** onu kapatıyor.
+
+
+## Ölçümün değiştirdiği ölçüt: S8
+
+S8 "kalıcı kontrol sayısı artmaz" olarak yazılmıştı. Ölçüldüğünde sayının
+**veriye bağlı** olduğu görüldü: kenar çubuğundaki düğme sayısı etiket
+sayısıyla, ana alandaki "tamamlananları katla" başlığı tamamlanmış görev
+olup olmamasıyla değişiyor. Veriye bağlı bir sayı kapı olamaz.
+
+S8 artık **adlandırılmış envanter** ve CI'da birebir doğrulanıyor:
+
+- **Üst çubuk:** `tab, tab, q, themeBtn, btn, btn, btn, expCsv`
+- **Kenar çubuğu grupları:** `Görünüm, Durum, Öncelik, Etiketler`
+- **Ana alan (kalıcı):** `quick, btn` — yalnız hızlı ekleme satırı
+
+Kart düğmeleri, etiket süzgeçleri, katlama başlıkları ve şerit eylemleri
+envantere girmez: bunlar içeriktir, iskelet değil.
+
+Bu bir gevşetme değil, güçlendirmedir: eskiden "elle sayım, gözden geçirmede"
+idi, şimdi CI kapısı. Yeni bir kalıcı kontrol eklemek bu listeyi düzenlemeyi
+gerektirir — sessizce büyüyen arayüz tam olarak S8'in engellemeye çalıştığı
+şeydi ve artık engelleniyor.

@@ -199,7 +199,8 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   check("Esc/kapatma sonrası palet kapalı", await ev(`!document.querySelector("dialog.palette[open]")`), true);
 
   // S6: envanter. Bir komut kaldırılırsa CI kırılır.
-  const EXPECTED = ["view.tasks","view.notes","task.new","search.focus","filters.clear",
+  const EXPECTED = ["view.tasks","view.notes","taskview.list","taskview.board",
+    "task.new","search.focus","filters.clear",
     "completed.toggle","notebook.new","page.new","theme.cycle","lang.toggle",
     "export.json","import.json","export.csv","export.notes","print"];
   const registered = await ev(`COMMANDS.map(c => c.id).sort()`);
@@ -306,6 +307,82 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
 
   check("T3.2: günlük yokken oynatma sessizce hiçbir şey yapmaz",
     await ev(`replayJournal().then(r => r === null)`), true);
+
+  // Bu blok state'i değiştirdi; sonraki iddiaların beklediği düzeni geri kur.
+  await ev(`state.tasks = [
+    { id:"a", title:"alfa v3", notes:"", dueDate:"2026-05-10", priority:"low", tags:["iş"], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"b", title:"beta rapor (güncel)", notes:"", dueDate:"2026-05-10", priority:"high", tags:[], subtasks:[], done:false, createdAt:"2026-01-02T00:00:00.000Z", updatedAt:"2026-01-02T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"c", title:"gama İstanbul", notes:"", dueDate:null, priority:"med", tags:[], subtasks:[], done:true, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:"2026-01-03T00:00:00.000Z", sourceNoteId:null },
+  ]; ui.q = ""; renderList();`);
+
+  // ---------------- S8: kalıcı kontrol ENVANTERİ ----------------
+  // S8 önce "sayı artmaz" diye yazılmıştı. Ölçünce görüldü ki kenar çubuğu
+  // sayısı ETİKET SAYISINA göre değişiyor — veriye bağlı bir sayı, kapı
+  // olamaz. Yerine ADLANDIRILMIŞ envanter: her ekleme bu listeyi düzenlemeyi
+  // gerektirir, yani görünür ve gözden geçirilebilir bir eylem olur.
+  await ev(`switchTaskView("list"); ui.q = ""; clearFilters(); true`);
+  const chrome = await ev(`(() => {
+    const TERMS = ["button","input","select","[role=button]"];
+    const inside = sel => {
+      const q = TERMS.map(t => sel + " " + t).join(",");
+      /* KALICI ARAYÜZ ile İÇERİK ayrımı. Dışarıda bırakılanların hepsi
+         veriye bağlı: kart düğmeleri, etiket süzgeçleri, "tamamlananları
+         katla" başlığı, şerit eylemleri. Bunlar veri geldikçe çoğalır;
+         sayılarını sabitlemek kapıyı kırılgan yapardı. S8'in derdi bunlar
+         değil, ekranın KALICI iskeletinin sessizce büyümesi. */
+      return Array.from(document.querySelectorAll(q))
+        .filter(n => !n.closest("#list") && !n.closest(".banner") && n.type !== "file")
+        .map(n => n.id || String(n.className).split(" ")[0] || n.tagName);
+    };
+    return {
+      topbar: inside(".topbar"),
+      sidebarGroups: Array.from(document.querySelectorAll(".sidebar .side-title")).map(n => n.textContent),
+      mainChrome: inside(".main").filter(x => x !== "side-item"),
+    };
+  })()`);
+  check("S8: üst çubuk envanteri", chrome.topbar,
+    ["tab", "tab", "q", "themeBtn", "btn", "btn", "btn", "expCsv"]);
+  check("S8: kenar çubuğu grupları", chrome.sidebarGroups,
+    ["Görünüm", "Durum", "Öncelik", "Etiketler"]);
+  check("S8: ana alanda yalnız hızlı ekleme", chrome.mainChrome, ["quick", "btn"]);
+
+  // ---------------- T3.4: pano görünümü ----------------
+  await ev(`state.tasks = [
+    { id:"h1", title:"yüksek bir", notes:"", dueDate:"2026-05-10", priority:"high", tags:["iş"], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"m1", title:"orta bir", notes:"", dueDate:null, priority:"med", tags:[], subtasks:[], done:false, createdAt:"2026-01-02T00:00:00.000Z", updatedAt:"2026-01-02T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"d1", title:"biten iş", notes:"", dueDate:null, priority:"high", tags:[], subtasks:[], done:true, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:"2026-01-03T00:00:00.000Z", sourceNoteId:null },
+  ]; render(); true`);
+
+  await ev(`switchTaskView("board"); true`);
+  check("pano: dört sütun (üç öncelik + tamamlananlar)",
+    await ev(`Array.from(document.querySelectorAll("#list .group")).map(n => n.querySelector("ul").id)`),
+    ["g-high", "g-med", "g-low", "g-completed"]);
+  check("pano: tamamlanmış görev öncelik sütununda DEĞİL",
+    await ev(`[document.querySelectorAll("#g-high .card").length, document.querySelectorAll("#g-completed .card").length]`),
+    [1, 1]);
+  check("pano: sütunlar ekran okuyucuda adlı",
+    await ev(`Array.from(document.querySelectorAll("#list .group")).map(n => n.getAttribute("aria-label"))`),
+    ["Yüksek", "Orta", "Düşük", "Tamamlananlar"]);
+  check("pano: boş sütun kaybolmaz",
+    await ev(`document.querySelectorAll("#g-low").length`), 1);
+
+  // Notion yasası: aynı veri. Filtre panoda da geçerli.
+  await ev(`ui.q = "yüksek"; renderList();`);
+  check("pano: arama panoda da geçerli",
+    await ev(`document.querySelectorAll("#list .card").length`), 1);
+  await ev(`ui.q = ""; renderList();`);
+
+  // Panoda yapılan değişiklik listede görünür — tek veri kaynağı.
+  await ev(`toggleDone("m1", true); switchTaskView("list"); true`);
+  check("panoda tamamlanan görev listede de tamamlanmış",
+    await ev(`state.tasks.find(t => t.id === "m1").done`), true);
+  await ev(`toggleDone("m1", false); true`);
+
+  // Kart bileşeni paylaşılıyor: aynı DOM, farklı düzen.
+  await ev(`switchTaskView("board"); true`);
+  check("pano ve liste AYNI kart bileşenini kullanır",
+    await ev(`!!document.querySelector("#list.board .card .card-title")`), true);
+  await ev(`switchTaskView("list"); true`);
 
   // Bu blok state'i değiştirdi; sonraki iddiaların beklediği düzeni geri kur.
   await ev(`state.tasks = [

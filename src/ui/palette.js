@@ -130,6 +130,11 @@ const isNotes = () => ui.view === "notes";
   { id:"view.tasks", label:() => t("cmdViewTasks"), when:isNotes, run(){ switchView("tasks"); } },
   { id:"view.notes", label:() => t("cmdViewNotes"), when:isTasks, run(){ switchView("notes"); } },
 
+  { id:"taskview.list", label:() => t("cmdViewList"), when:() => isTasks() && ui.taskView !== "list",
+    run(){ switchTaskView("list"); } },
+  { id:"taskview.board", label:() => t("cmdViewBoard"), when:() => isTasks() && ui.taskView !== "board",
+    run(){ switchTaskView("board"); } },
+
   { id:"task.new", label:() => t("cmdNewTask"), keys:"N", when:isTasks,
     run(){ const q = document.getElementById("quick"); if (q) q.focus(); } },
   { id:"search.focus", label:() => t("cmdSearch"), keys:"/", when:isTasks,

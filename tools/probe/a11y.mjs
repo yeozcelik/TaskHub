@@ -62,8 +62,10 @@ const STATES = [
       q.value = "yarın rapor 15:00 !p1 #iş"; renderCaptureHint(q.value); } catch (e){} return true; })()` },
   { id: "görev-paneli", setup: `(() => { try { openPanel("a"); } catch (e){} return true; })()` },
   { id: "komut-paleti", setup: `(() => { try { closePalette(); openPalette(); } catch (e){} return true; })()` },
+  { id: "pano", setup: `(() => { try { switchTaskView("board"); } catch (e){} return true; })()` },
 ];
 const RESET = `(() => {
+  try { switchTaskView("list"); } catch (e){}
   try { closePalette(); } catch (e){}
   try { closePanel(); } catch (e){}
   try { const q = document.getElementById("quick"); q.value = ""; renderCaptureHint(""); } catch (e){}

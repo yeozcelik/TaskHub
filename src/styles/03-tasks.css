@@ -135,3 +135,43 @@
 .cap-off{opacity:.62; border-style:dashed}
 .cap-off:hover{opacity:1}
 .cap-note{color:var(--muted)}
+
+/* ---------- Pano görünümü ----------
+   Liste ile AYNI DOM'u kullanır: section.group > h2.group-head + ul.tasklist.
+   Değişen yalnız düzen. Uzlaştırıcı, odak korunumu, kart imzası — hepsi
+   olduğu gibi çalışır; iki ayrı çizim yolu tutmak gerekmedi. */
+#list.board{
+  display:flex; gap:14px; align-items:flex-start;
+  overflow-x:auto; padding-bottom:10px;
+  scroll-snap-type:x proximity;
+}
+#list.board .group{
+  flex:0 0 300px; max-width:300px; scroll-snap-align:start;
+  background:var(--surface-2); border:1px solid var(--border);
+  border-radius:var(--r); padding:10px; margin:0;
+}
+#list.board .group-head{
+  margin:0 0 9px; padding:0 2px; position:sticky; top:0;
+  display:flex; align-items:center; gap:7px;
+}
+#list.board .group-head::before{
+  content:""; width:8px; height:8px; border-radius:50%; flex:none;
+  background:var(--border-strong);
+}
+#list.board .col-high::before{background:var(--danger)}
+#list.board .col-med::before{background:var(--warn)}
+#list.board .col-low::before{background:var(--ok)}
+#list.board .col-completed::before{background:var(--muted)}
+#list.board .tasklist{display:flex; flex-direction:column; gap:8px}
+#list.board .card{background:var(--surface)}
+/* Boş sütun kaybolmaz; yerini korur ki sürükleme hedefi belli olsun. */
+#list.board .tasklist:empty{min-height:56px; border:1px dashed var(--border); border-radius:var(--r-sm)}
+
+@media (max-width:720px){
+  #list.board .group{flex-basis:82vw; max-width:82vw}
+}
+@media print{
+  /* Kâğıtta yatay kaydırma yoktur: pano listeye döner. */
+  #list.board{display:block; overflow:visible}
+  #list.board .group{max-width:none; border:0; background:none; padding:0}
+}

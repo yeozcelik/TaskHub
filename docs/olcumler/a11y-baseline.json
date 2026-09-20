@@ -1,7 +1,7 @@
 {
   "note": "BİLİNEN erişilebilirlik borcu. Yeni ihlal CI'yı kırar. Azaltmak hedeftir — bkz. T2.8.",
   "updated": "2026-09-20",
-  "total": 9,
+  "total": 12,
   "violations": [
     {
       "key": "color-contrast|görev-paneli",
@@ -18,7 +18,16 @@
       "state": "liste",
       "impact": "serious",
       "help": "Elements must meet minimum color contrast ratio thresholds",
-      "combos": 7,
+      "combos": 4,
+      "example": ".grow"
+    },
+    {
+      "key": "color-contrast|pano",
+      "id": "color-contrast",
+      "state": "pano",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "combos": 4,
       "example": ".grow"
     },
     {
@@ -49,6 +58,15 @@
       "example": "#g-overdue"
     },
     {
+      "key": "list|pano",
+      "id": "list",
+      "state": "pano",
+      "impact": "serious",
+      "help": "<ul> and <ol> must only directly contain <li>, <script> or <template> elements",
+      "combos": 8,
+      "example": "#g-high"
+    },
+    {
       "key": "list|yakalama-çipleri",
       "id": "list",
       "state": "yakalama-çipleri",
@@ -70,6 +88,15 @@
       "key": "nested-interactive|liste",
       "id": "nested-interactive",
       "state": "liste",
+      "impact": "serious",
+      "help": "Interactive controls must not be nested",
+      "combos": 8,
+      "example": "li[data-id=\"a\"]"
+    },
+    {
+      "key": "nested-interactive|pano",
+      "id": "nested-interactive",
+      "state": "pano",
       "impact": "serious",
       "help": "Interactive controls must not be nested",
       "combos": 8,

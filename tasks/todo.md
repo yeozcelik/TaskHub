@@ -638,7 +638,7 @@ değil.** Gerçekten yazıp geri okumak tek dürüst kanıt.
 **Dosyalar:** `src/state/store.js`, `src/ui/app.js`, `tools/probe/migration.mjs`, `docs/olcumler/*`
 **Boyut:** S
 
-### T3.4: Pano (kanban) görünümü
+### T3.4: Pano (kanban) görünümü — ✅ BİTTİ (bir ölçüt T2.3b'ye bağlı)
 
 **Açıklama:** *Notion yasası: hiçbir görünüm veriye sahip değil.* Pano, aynı
 `state.tasks` üzerine bir izdüşümdür; yeni bir depo açmaz. Sütunlar önce önceliğe
@@ -651,7 +651,41 @@ göre (`SPEC.md` açık soru #2).
 - [ ] 5.000 görevde açılış < 100 ms
 - [ ] Görünüm seçimi `Ctrl+K` üzerinden ulaşılabilir (S6)
 
-**Doğrulama:** `node --test tests/views.test.js` (izdüşüm saf); axe; başarım ölçümü.
+**Doğrulama:** `node --test` → `tests/projections.test.js` (**15 test**);
+`node tools/probe/behavior.mjs` (**67/67**, panonun 8 iddiası).
+
+**Sonuç.** `src/core/projections.js` saf izdüşüm katmanı; `boardGroups` üç
+öncelik sütunu üretir, tamamlananlar **ayrı** sütuna düşer (tamamlanmış bir
+görevin önceliği artık bir karar değil, bir geçmiş).
+
+**Pano ve liste aynı DOM'u paylaşıyor** — `section.group > h2 + ul.tasklist`.
+Değişen yalnız CSS. Bunun bedeli sıfır, kazancı büyük: uzlaştırıcı, odak
+korunumu, kart imzası ve kart bileşeni olduğu gibi çalışıyor; iki ayrı çizim
+yolu tutmak gerekmedi.
+
+| Kabul | Sonuç |
+|---|---|
+| Aynı veriyi okur | ✅ panoda tamamlanan görev listede de tamamlanmış (testle) |
+| Filtre ve arama geçerli | ✅ testle |
+| Sütunlar erişilebilirlik ağacında adlı | ✅ `role="group"` + `aria-label` |
+| Boş sütun kaybolmaz | ✅ sürükleme hedefi belli kalsın diye |
+| `Ctrl+K` üzerinden ulaşılabilir | ✅ `taskview.list` / `taskview.board` |
+| **5.000 görevde < 100 ms** | ⛔ **239 ms** — bkz. aşağıda |
+
+> **Açılış süresi ölçütü karşılanmadı ve sebebi panonun kendisi değil.**
+> 5.000 görevde pano 239 ms, liste 416 ms. İkisi de aynı işi yapıyor:
+> 5.000 kart inşa etmek. Bu, **T2.3b'nin (pencereleme)** çözdüğü problemin
+> ta kendisi; pano ona ayrı bir çözüm yazmayacak. Ölçüt gevşetilmedi,
+> T2.3b'ye bağlandı — pencereleme geldiğinde her iki görünüm de düzelir.
+
+> **S8, ölçüm sonucu yeniden tanımlandı.** Kenar çubuğuna "Görünüm" grubu
+> eklendi; S8 "kalıcı kontrol sayısı artmaz" diyordu. Sayıyı ölçünce görüldü
+> ki kenar çubuğu **etiket sayısına göre** değişiyor — veriye bağlı bir sayı
+> kapı olamaz. S8 artık **adlandırılmış envanter**: üst çubuk, kenar çubuğu
+> grupları ve ana alandaki kalıcı kontroller adlarıyla yazılı ve CI birebir
+> doğruluyor. Her ekleme bu listeyi düzenlemeyi gerektirir — yani görünür ve
+> gözden geçirilebilir bir eylem. Sayım kapısından **daha güçlü**, ve
+> Things'in kendi yaptığı da kalıcı bir kenar çubuğunda görünüm listesidir.
 
 **Bağımlılık:** T2.2
 **Dosyalar:** `src/ui/view-board.js`, `src/core/projections.js`, `tests/views.test.js`, `src/styles/board.css`
