@@ -1,0 +1,60 @@
+<!doctype html><meta charset="utf-8"><title>probe</title>
+<pre id="out">PENDING</pre>
+<script>
+const R = [];
+const add = (k, v) => R.push(k + "\t" + v);
+function done(){ document.getElementById("out").textContent = R.join("\n"); }
+
+// --- synchronous capability probes ---
+add("origin", location.origin);
+add("protocol", location.protocol);
+try { localStorage.setItem("__p","1"); add("localStorage", localStorage.getItem("__p")==="1" ? "OK" : "FAIL-readback"); }
+catch(e){ add("localStorage", "THROW " + e.name); }
+add("indexedDB.present", (typeof indexedDB !== "undefined" && indexedDB) ? "yes" : "no");
+add("structuredClone", typeof structuredClone === "function" ? "yes" : "no");
+add("startViewTransition", typeof document.startViewTransition === "function" ? "yes" : "no");
+add("popoverAPI", typeof HTMLElement.prototype.togglePopover === "function" ? "yes" : "no");
+add("crypto.randomUUID", (self.crypto && typeof crypto.randomUUID === "function") ? "yes" : "no");
+add("ResizeObserver", typeof ResizeObserver === "function" ? "yes" : "no");
+add("IntersectionObserver", typeof IntersectionObserver === "function" ? "yes" : "no");
+add("requestIdleCallback", typeof requestIdleCallback === "function" ? "yes" : "no");
+add("css:has", CSS.supports("selector(:has(a))") ? "yes" : "no");
+add("css:container", CSS.supports("container-type: inline-size") ? "yes" : "no");
+add("css:content-visibility", CSS.supports("content-visibility: auto") ? "yes" : "no");
+add("css:color-mix", CSS.supports("color", "color-mix(in srgb, red, blue)") ? "yes" : "no");
+add("css:text-wrap-balance", CSS.supports("text-wrap: balance") ? "yes" : "no");
+add("Intl.RelativeTimeFormat", typeof Intl.RelativeTimeFormat === "function" ? "yes" : "no");
+add("Intl.Segmenter", typeof Intl.Segmenter === "function" ? "yes" : "no");
+add("ua", navigator.userAgent);
+
+// --- the decisive test: real IndexedDB write+read roundtrip on this origin ---
+let settled = false;
+function finish(verdict){ if (settled) return; settled = true; add("IDB.roundtrip", verdict); estimate(); }
+function estimate(){
+  if (navigator.storage && navigator.storage.estimate){
+    navigator.storage.estimate().then(e => { add("storage.quota", e.quota); add("storage.usage", e.usage); done(); })
+                                .catch(err => { add("storage.estimate", "THROW " + err.name); done(); });
+  } else { add("storage.estimate", "absent"); done(); }
+}
+setTimeout(() => finish("TIMEOUT (no callback in 4s)"), 4000);
+try {
+  const req = indexedDB.open("probe-db", 1);
+  req.onupgradeneeded = () => req.result.createObjectStore("s");
+  req.onerror = () => finish("OPEN-ERROR " + (req.error && req.error.name));
+  req.onblocked = () => finish("OPEN-BLOCKED");
+  req.onsuccess = () => {
+    try {
+      const db = req.result;
+      const tx = db.transaction("s", "readwrite");
+      tx.objectStore("s").put({ hello: "world", blob: new Uint8Array(1024) }, "k");
+      tx.oncomplete = () => {
+        const tx2 = db.transaction("s", "readonly");
+        const g = tx2.objectStore("s").get("k");
+        g.onsuccess = () => finish(g.result && g.result.hello === "world" ? "OK (write+read verified)" : "READBACK-MISMATCH");
+        g.onerror = () => finish("READ-ERROR " + (g.error && g.error.name));
+      };
+      tx.onerror = () => finish("WRITE-ERROR " + (tx.error && tx.error.name));
+    } catch(e){ finish("TX-THROW " + e.name + ": " + e.message); }
+  };
+} catch(e){ finish("OPEN-THROW " + e.name + ": " + e.message); }
+</script>
