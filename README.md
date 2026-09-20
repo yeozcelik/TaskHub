@@ -223,6 +223,24 @@ bulamazdı. `foldTr` ı/İ/I/i harflerini tek havuza indirir, ş/ğ/ç/ö/ü iş
 soyar. Tarih aritmetiği yerel saatledir; `Date.parse("YYYY-MM-DD")` UTC yorumlayıp
 günü kaydırdığı için doğrudan kullanılmaz.
 
+## Ajan skill'leri
+
+Depoda bir de `.claude/` dizini var; uygulamanın çalışmasıyla ilgisi yok. İçinde,
+kod yazan yapay zekâ ajanlarının (Claude Code ve benzerleri) bu depoda çalışırken
+izlediği 25 skill duruyor: [addyosmani/agent-skills][as] paketinin `0.6.10`
+sürümünden değiştirilmeden kopyalandı, MIT lisanslı.
+
+Eklenti olarak referans verilmedi, doğrudan depoya kopyalandı — TaskHub'ın
+"kurulum yok, sunucu yok, internet yok" ilkesi ajan tarafında da geçerli olsun
+diye. Depoyu klonlayan herkeste skill'ler internet ya da eklenti kurulumu
+gerektirmeden hazır gelir.
+
+`index.html`'i çift tıklayıp kullanan biri için hiçbir şey değişmez; dizin
+silinse de uygulama aynı çalışır. Kaynak commit'i, yerleşim gerekçesi ve
+güncelleme adımları [`.claude/README.md`](.claude/README.md) içinde.
+
+[as]: https://github.com/addyosmani/agent-skills
+
 ## Kapsam dışı
 
 Tekrarlayan görevler, çöp kutusu, hatırlatma bildirimleri (sayfa kapalıyken uyarı
