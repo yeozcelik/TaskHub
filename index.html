@@ -9,11 +9,15 @@
 :root{
   --bg:#f4f5f9; --surface:#ffffff; --surface-2:#f0f1f6; --surface-3:#e4e6ef;
   --border:#e1e4ed; --border-strong:#c6ccdb;
-  --text:#14161b; --muted:#636b7c; --faint:#8b93a4;
+  --text:#14161b; --muted:#4f5765; --faint:#616978;
   --accent:#6244e0; --accent-2:#9061f0; --accent-soft:#eeeaff; --on-accent:#ffffff;
   --danger:#c92a2a; --danger-soft:#fdecec;
   --warn:#a86100; --warn-soft:#fff4e0;
   --ok:#0b7a55;
+  /* --muted ve --faint, kullanılan EN KOYU açık zemine (--accent-soft) göre
+     seçildi: ikisi de WCAG AA küçük metin eşiğini (4.5:1) geçer. Daha açık bir
+     gri "incelikli" görünüyordu ama 11-12 piksellik etiketleri okunmaz
+     yapıyordu — ölçüm references/accessibility ile değil axe-core ile yapıldı. */
   /* Tuvalin kâğıdı: yüzeyden biraz farklı olsun ki kutular kâğıdın üstünde dursun. */
   --paper:#fbfbfe; --paper-dot:rgba(98,68,224,.10);
   --r-sm:6px; --r:10px; --r-lg:14px;
@@ -26,7 +30,7 @@
   :root:not([data-theme="light"]){
     --bg:#0c0e13; --surface:#161920; --surface-2:#1c2028; --surface-3:#272c37;
     --border:#282d38; --border-strong:#3b4252;
-    --text:#e7eaef; --muted:#9aa3b2; --faint:#79818f;
+    --text:#e7eaef; --muted:#a8b1c0; --faint:#8d96a5;
     --accent:#9b87ff; --accent-2:#b79bff; --accent-soft:#25234d; --on-accent:#0d0f14;
     --danger:#ff8080; --danger-soft:#3a1e22;
     --warn:#f5c164; --warn-soft:#3a2f18;
@@ -40,7 +44,7 @@
 :root[data-theme="dark"]{
   --bg:#0c0e13; --surface:#161920; --surface-2:#1c2028; --surface-3:#272c37;
   --border:#282d38; --border-strong:#3b4252;
-  --text:#e7eaef; --muted:#9aa3b2; --faint:#79818f;
+  --text:#e7eaef; --muted:#a8b1c0; --faint:#8d96a5;
   --accent:#9b87ff; --accent-2:#b79bff; --accent-soft:#25234d; --on-accent:#0d0f14;
   --danger:#ff8080; --danger-soft:#3a1e22;
   --warn:#f5c164; --warn-soft:#3a2f18;
@@ -345,6 +349,10 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .pg-item{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;padding:9px 11px;border-radius:var(--r-sm);cursor:pointer;color:var(--text);transition:background .12s,border-color .12s}
 .pg-item:hover{background:var(--surface-2)}
 .pg-item[aria-current="true"]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+/* Seçili kart vurgulu bir zemin: üstündeki ikincil metin varsayılan --faint
+   ile eşiğin altında kalıyor, bir kademe koyu/açık tona alınır. */
+.pg-item[aria-current="true"] .pg-prev{color:var(--text)}
+.pg-item[aria-current="true"] .pg-date{color:var(--muted)}
 .pg-item .pg-title{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pg-item .pg-prev{font-size:12.5px;color:var(--muted);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2;overflow:hidden}
 .pg-item .pg-date{font-size:11px;color:var(--faint);margin-top:5px}
@@ -401,11 +409,6 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .toolbar button svg{width:15px;height:15px}
 .toolbar .tb-sep{width:1px;height:17px;background:var(--border-strong);margin:0 4px;opacity:.6}
 .toolbar .tb-txt{font-size:13px;font-weight:700;min-width:26px}
-.tb-hl{width:15px;height:15px;border-radius:4px;border:1px solid var(--border-strong)}
-.tb-hl-none{
-  background:var(--surface);position:relative;overflow:hidden;
-  background-image:linear-gradient(to top left,transparent 45%,var(--danger) 45%,var(--danger) 55%,transparent 55%);
-}
 
 .toolbar #tbAddBox{color:var(--accent);background:var(--accent-soft)}
 .toolbar #tbAddBox:hover{background:color-mix(in srgb, var(--accent) 20%, transparent);color:var(--accent)}
@@ -526,6 +529,12 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .ed-empty{flex:1;display:grid;place-items:center;text-align:center;color:var(--faint);padding:40px}
 .ed-empty svg{width:38px;height:38px;opacity:.5;margin-bottom:12px}
 
+/* Dar ekranda araç çubuğu üç satıra sarıp tuvale kalan yeri yiyordu;
+   tek satır + yatay kaydırma, mobil editörlerin yerleşik kalıbı. */
+@media (max-width:600px){
+  .toolbar{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .toolbar > *{flex:none}
+}
 @media (max-width:900px){
   .topbar{gap:8px;padding-inline:12px}
   .topbar .spacer{display:none}
@@ -776,6 +785,7 @@ const I18N = {
     tbToolbar:"Biçimlendirme araçları",
     tbAddBox:"Yeni not kutusu  (görünen alanın sol üstüne)",
     tbGrid:"Tuval ızgarasını aç/kapat",
+    boxLabel:"Not kutusu {n}",
     boxMove:"Sürükleyerek taşı  (Alt + ok tuşları)",
     boxResize:"Genişliği ayarla",
     boxDelete:"Bu not kutusunu sil",
@@ -885,6 +895,7 @@ const I18N = {
     tbToolbar:"Formatting tools",
     tbAddBox:"New note box  (top-left of the visible area)",
     tbGrid:"Toggle the canvas grid",
+    boxLabel:"Note box {n}",
     boxMove:"Drag to move  (Alt + arrow keys)",
     boxResize:"Adjust the width",
     boxDelete:"Delete this note box",
@@ -1890,8 +1901,12 @@ function buildShell(){
     el("div", { id:"viewHost" }),
     el("div", { class:"toasts", id:"toasts", "aria-live":"polite", "aria-atomic":"false" }),
     buildImportDialog(),
-    el("input", { type:"file", id:"fileInput", accept:".json,application/json", class:"sr-only", onchange: onFileChosen }),
-    el("input", { type:"file", id:"imgInput", accept:"image/*", class:"sr-only", onchange(e){
+    // Gizli dosya girdileri düğmelerden tetiklenir: erişilebilirlik ağacında
+    // adsız durmasınlar, sekme sırasında da yer kaplamasınlar.
+    el("input", { type:"file", id:"fileInput", accept:".json,application/json", class:"sr-only",
+      "aria-label": t("importJson"), tabindex:"-1", onchange: onFileChosen }),
+    el("input", { type:"file", id:"imgInput", accept:"image/*", class:"sr-only",
+      "aria-label": t("tbImage"), tabindex:"-1", onchange(e){
       const f = e.target.files && e.target.files[0];
       e.target.value = "";
       if (f) insertImageFile(f);
@@ -2810,6 +2825,19 @@ function renderEditor(){
   updateToolbarState();
 }
 
+/** Ekran okuyucu için: on kutunun hepsi aynı adı söylerse ayırt edilemezler.
+ *  Numaralandırma DOM sırasına göre değil OKUMA SIRASINA göre yapılır — DOM
+ *  sırası sürüklemede öne alma yüzünden değişir, konum ise kutunun kimliğidir. */
+function relabelBoxes(){
+  const ed = canvasEl(); if (!ed) return;
+  const els = [].slice.call(ed.querySelectorAll(".nbox"));
+  els.sort((a, b) => (a.offsetTop - b.offsetTop) || (a.offsetLeft - b.offsetLeft));
+  for (let i = 0; i < els.length; i++){
+    const body = bodyOf(els[i]);
+    if (body) body.setAttribute("aria-label", t("boxLabel", { n: i + 1 }));
+  }
+}
+
 function renderEdMeta(){
   const host = document.getElementById("edMeta");
   const page = currentPage();
@@ -2821,6 +2849,8 @@ function renderEdMeta(){
     el("span", { text: t("updated") + ": " + formatStamp(page.updatedAt) }),
     el("span", { class:"chip" }, icon("sticky"), String(n))
   );
+  // Kutu sayısı değişen her yol zaten buradan geçiyor; etiketler de burada tazelenir.
+  relabelBoxes();
 }
 
 /* ================================ TUVAL =================================
@@ -2904,7 +2934,7 @@ function buildBoxEl(box){
   body.setAttribute("spellcheck", "false");
   body.setAttribute("role", "textbox");
   body.setAttribute("aria-multiline", "true");
-  body.setAttribute("aria-label", t("editorPh"));
+  body.setAttribute("aria-label", t("boxLabel", { n: "" }).trim());
   body.innerHTML = sanitizeHtml(box.html || "");
   if (!body.innerHTML.trim()) body.innerHTML = "<p><br></p>";
   wrapWideTables(body);

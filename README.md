@@ -57,6 +57,8 @@ gerekmez.
   bırakılır; sağa ve aşağı kaydırdıkça uzar.
 - **Izgara**: araç çubuğunun son düğmesi arkadaki nokta ızgarasını açıp kapatır.
   Tercih kaydedilir.
+- **Dar ekran**: 600 pikselin altında araç çubuğu sarmak yerine tek satırda
+  yatay kayar — üç satıra sarınca tuvale kalan yeri yiyordu.
 - **Nereye tıklarsan tıkla taşmaz**: sağ kenara yakın açılan kutu, görünen alana
   sığacak kadar daraltılır — ilk harften önce yatay kaydırma açılmaz.
 
@@ -207,6 +209,22 @@ Görünüme göre üçüncü bir dışa aktarma düğmesi çıkar:
   sisteminin tercihine uyar.
 - `TR` / `EN` düğmesi arayüz dilini anında değiştirir. Tercihlerin kaydedilir.
 - `Ctrl+P` ile listeyi yazdırabilirsin; çıktıda araç çubukları ve düğmeler çıkmaz.
+
+## Erişilebilirlik
+
+Arayüz, dört genişlikte (320 / 768 / 1024 / 1440) ve iki temada **axe-core** ile
+taranır; WCAG 2.1 A + AA kuralları için sıfır ihlal hedeflenir.
+
+- **Renk tokenları ölçülerek seçildi.** `--muted` ve `--faint`, kullanıldıkları
+  **en koyu açık zemine** (`--accent-soft`) göre 4.5:1'i geçecek biçimde
+  belirlendi. Daha açık griler "incelikli" görünüyordu ama 11-12 piksellik
+  etiketleri okunmaz yapıyordu (eski `--faint` her zeminde 2.6–3.1:1'de kalıyordu).
+- **Her not kutusunun kendi adı var**: "Not kutusu 1", "Not kutusu 2"… Numaralama
+  DOM sırasına göre değil **okuma sırasına** göre yapılır; DOM sırası sürüklemede
+  öne alma yüzünden değişir, konum ise kutunun kimliğidir.
+- Kutu gövdesi ve silme düğmesi klavyeyle odaklanabilir; taşıma için `Alt+ok`.
+- Gizli dosya girdileri erişilebilirlik ağacında adsız durmaz ve sekme sırasında
+  yer kaplamaz.
 
 ## Geliştiriciye not
 
