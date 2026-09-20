@@ -110,7 +110,7 @@ tamamı buna dayanıyor. DOM kuran her şey `src/ui/*` altında.
 | Erişilebilirlik | axe-core koşumu, 4 genişlik × 2 tema | WCAG 2.1 A+AA sıfır ihlal |
 | Başarım | `tests/perf.test.js` + tarayıcı ölçümü | Aşağıdaki bütçeler |
 
-**Mevcut 212 iddia kaybedilmez**; `node --test` altına taşınır ve `?test=1` ekranı
+**Mevcut 222 iddia kaybedilmez**; `node --test` altına taşınır ve `?test=1` ekranı
 aynı modülleri çağırmaya devam eder. İddia sayısının **azalması** CI hatasıdır.
 
 ## Sınırlar
@@ -139,7 +139,7 @@ aynı modülleri çağırmaya devam eder. İddia sayısının **azalması** CI h
 | # | Ölçüt | Eşik | Nasıl ölçülür |
 |---|---|---|---|
 | S1 | Derleme geri dönüşlü | `node tools/build.mjs --stdout` çıktısı `index.html` ile **birebir aynı** | `diff` |
-| S2 | Test sayısı gerilemez | ≥ 212 iddia, tamamı geçer | `node --test` |
+| S2 | Test sayısı gerilemez | ≥ 222 iddia, tamamı geçer | `node --test` |
 | S3 | Büyük listede arama | 5.000 görevde tuş başına çizim **< 16 ms** (p95) | `performance.measure`, CI ölçümü |
 | S4 | Çizimde DOM yıkımı | Arama filtresi değişince **eklenen düğüm sayısı O(değişen)**, O(toplam) değil | MutationObserver sayımı |
 | S5 | Depolama tavanı | Not+resim için **> 50 MB** kullanılabilir | `navigator.storage.estimate()` |

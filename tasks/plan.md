@@ -64,7 +64,7 @@ plan her iki sonuçta da geçerli.
 
 ### Faz 1 — `build` (temel)
 Modüler kaynak, gömücü, Node test koşucusu, CI. Ürün yüzeyi **değişmez**.
-Çıkış kanıtı: `diff` boş (S1) ve 212 iddia `node --test` altında yeşil (S2).
+Çıkış kanıtı: `diff` boş (S1) ve 222 iddia `node --test` altında yeşil (S2).
 
 ### Faz 2 — `render` + `capture` + `command` (algılanan modernlik)
 En görünür sıçrama burada. Artımlı çizim, yazarak tarih girme, `Ctrl+K`.

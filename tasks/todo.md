@@ -18,7 +18,7 @@ komut paletinde.
 
 ## Faz 0 — Spike (hızlı başarısızlık)
 
-### T0.1: `file://` + IndexedDB'yi Firefox ve Safari'de doğrula
+### T0.1: `file://` + IndexedDB'yi Firefox ve Safari'de doğrula — ⛔ ENGELLENDİ
 
 **Açıklama:** Chromium 141'de ölçüldü ve çalışıyor (`docs/olcumler/`). README güncel
 Firefox'u da hedefliyor. Bu boşluk kapatılmadan `store` modülünün birincil yolu
@@ -34,6 +34,13 @@ genişletilir; Safari elle ölçülür.
 
 **Doğrulama:** `node tools/probe/run.mjs --browser <firefox>` çıktısı kayda eklenir.
 
+**Durum:** ⛔ **Engellendi** — bu ortamda Firefox kurulamıyor
+(`npx playwright install firefox` → `Download failure, code=1`; ağ politikası
+Playwright CDN'ini engelliyor, iki deneme). Safari zaten Linux'ta yok.
+**Kapatmak için:** Firefox'u olan bir makinede
+`node tools/probe/run.mjs --browser $(which firefox)`.
+Ayrıntı: `docs/olcumler/2026-09-20-*`.
+
 **Bağımlılık:** Yok — **ilk iş budur.**
 **Dosyalar:** `tools/probe/run.mjs`, `tools/probe/probe.html`, `docs/olcumler/*`, `SPEC.md`
 **Boyut:** S
@@ -45,19 +52,29 @@ genişletilir; Safari elle ölçülür.
 
 ## Faz 1 — `build`: modüler kaynak, tek dosya çıktı
 
-### T1.1: Gömücü betik + `src/` iskeleti, **birebir aynı** çıktı
+### T1.1: Gömücü betik + `src/` iskeleti, **birebir aynı** çıktı — ✅ BİTTİ
 
 **Açıklama:** `index.html`, içeriği değiştirilmeden satır sınırlarından parçalara
 bölünür; `tools/build.mjs` bu parçaları sırayla birleştirip aynı dosyayı üretir.
 Bu görevde **hiçbir kod yeniden yazılmaz** — yalnızca yeri değişir.
 
 **Kabul ölçütleri:**
-- [ ] `node tools/build.mjs --stdout | diff - index.html` **boş çıktı verir**
-- [ ] `build.mjs` yalnız `node:fs` ve `node:path` kullanır; `package.json` yok
-- [ ] `--check` çıktı bayat ise sıfırdan farklı kodla çıkar
-- [ ] `index.html` başında "ÜRETİLMİŞ DOSYA — elle düzenleme" başlığı var
+- [x] `node tools/build.mjs --stdout | diff - index.html` **boş çıktı verdi**
+      — SHA-256 `6679c64b…` her iki tarafta aynı
+- [x] `build.mjs` yalnız `node:fs` ve `node:path` kullanıyor; `package.json` yok
+- [x] `--check` bayat çıktıda kod 1 ile çıkıyor (kasıtlı bayatlatmayla sınandı)
+- [x] `index.html` başında "ÜRETİLMİŞ DOSYA" başlığı var
 
-**Doğrulama:** `diff` boş. Derlenmiş dosya tarayıcıda açılır, `?test=1` 212/212 verir.
+**Sonuç:** `src/` 4 parça (`app.js` 4562, `styles/app.css` 600, `boot/guard.js` 38,
+`index.html.tmpl` 43 satır). Derlenmiş dosya 244.1 KB, bütçenin %48.8'i.
+Tarayıcıda **222/222 iddia geçiyor** (`node tools/probe/verify.mjs`).
+
+> **Sıralama notu.** Başlık, birebir-aynılık kanıtlandıktan **sonra** ayrı bir adım
+> olarak eklendi — başlık eklenmiş bir dosyaya karşı `diff` almak S1'i anlamsız
+> kılardı. Kanıt zinciri: (1) bölünmüş parçalardan üretilen çıktı orijinalle
+> birebir aynı, (2) sonra başlık eklendi, (3) başlık çıkarılınca SHA yine orijinal.
+
+**Doğrulama:** `diff` boş. Derlenmiş dosya tarayıcıda açılır, `?test=1` 222/222 verir.
 
 **Bağımlılık:** Yok
 **Dosyalar:** `tools/build.mjs`, `src/index.html.tmpl`, `src/**` (bölünmüş parçalar), `index.html`
@@ -82,20 +99,20 @@ Node'un yerleşik `DOMParser`'ı yoksa tarayıcı testinde kalır ve bu **yazıl
 - [ ] `grep` ile doğrulanan bu kural CI kontrolü olarak eklendi
 - [ ] T1.1'in `diff` boşluğu **hâlâ geçerli**
 
-**Doğrulama:** `node tools/build.mjs --stdout | diff - index.html` boş; `?test=1` 212/212.
+**Doğrulama:** `node tools/build.mjs --stdout | diff - index.html` boş; `?test=1` 222/222.
 
 **Bağımlılık:** T1.1
 **Dosyalar:** `src/core/*.js` (≈5 dosya), `tools/build.mjs`
 **Boyut:** M
 
-### T1.3: 212 iddiayı `node --test` altına taşı
+### T1.3: 222 iddiayı `node --test` altına taşı
 
 **Açıklama:** `runTests()` içindeki iddialar `tests/*.test.js` dosyalarına taşınır.
 Tarayıcıdaki `?test=1` ekranı **kaldırılmaz** — aynı modülleri çağırmaya devam eder,
 gerçek tarayıcıdaki regresyon ağı olarak kalır.
 
 **Kabul ölçütleri:**
-- [ ] `node --test tests/` ≥ 212 iddia koşar, tamamı geçer
+- [ ] `node --test tests/` ≥ 222 iddia koşar, tamamı geçer
 - [ ] `?test=1` hâlâ çalışır ve aynı sayıyı verir
 - [ ] DOM gerektiren iddialar açıkça işaretli, hangi katmanda koştukları yazılı
 - [ ] İddia sayısını düşüren değişiklik CI'da kırılır
@@ -142,7 +159,7 @@ i18n anahtar eşitliği, boyut bütçesi.
 **Boyut:** S
 
 ### ✅ Kontrol noktası — Faz 1
-- [ ] S1: `diff` boş · S2: ≥212 iddia yeşil · S9: axe 0 ihlal · S10: ≤500 KB
+- [ ] S1: `diff` boş · S2: ≥222 iddia yeşil · S9: axe 0 ihlal · S10: ≤500 KB
 - [ ] Beş CI kapısının **her biri** kasıtlı bozmayla sınandı
 - [ ] Ürün yüzeyi değişmedi — kullanıcı hiçbir fark görmüyor
 - [ ] **İnsan gözden geçirmesi, Faz 2 öncesi**

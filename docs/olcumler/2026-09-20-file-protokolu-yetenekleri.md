@@ -63,9 +63,22 @@ Yeniden üretmek için: `node tools/probe/run.mjs`
 
 ## Doğrulanmamış — ve bu bir boşluk
 
-- **Firefox ölçülmedi.** Bu ortamda Firefox kurulu değil. README güncel Firefox'u
-  hedef olarak sayıyor, dolayısıyla bu **kapatılması zorunlu** bir boşluktur:
-  plandaki görev **T0.1**.
+- **Firefox ölçülemedi — ENGELLENDİ.** Bu ortamda Firefox kurulu değil ve
+  indirilemiyor: `npx playwright install firefox` ağ politikası yüzünden
+  `Download failure, code=1` ile başarısız oluyor (Playwright CDN'ine erişim yok).
+  İki deneme yapıldı, ikisi de aynı sonucu verdi. README güncel Firefox'u hedef
+  olarak sayıyor, dolayısıyla bu **açık bir boşluktur**: plandaki görev **T0.1**,
+  durumu **engellendi**.
+
+  **Kapatmak için gereken:** Firefox kurulu bir makinede
+  `node tools/probe/run.mjs --browser $(which firefox)` çalıştırıp çıktıyı bu
+  belgeye eklemek. Başka hiçbir şey gerekmiyor.
+
+  **Bu neden işi durdurmuyor:** `store` soyutlaması tasarım gereği iki adaptörlü
+  (`store-localstorage.js` + `store-idb.js`). Firefox IndexedDB'yi `file://`
+  üzerinde reddederse localStorage adaptörü o tarayıcıda varsayılan olur; mimari
+  değişmez, yalnızca hangi yolun seçildiği değişir. Faz 1 bu sorudan tamamen
+  bağımsızdır.
 - **Safari ölçülmedi.** Aynı gerekçe.
 - Ölçüm `--headless=new` ile yapıldı; başlıklı (headed) kipte fark beklenmiyor ama
   doğrulanmadı.

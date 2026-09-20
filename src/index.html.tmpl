@@ -1,0 +1,43 @@
+<!doctype html>
+<!-- ============================================================================
+     ÜRETİLMİŞ DOSYA — ELLE DÜZENLEME.
+
+     Bu dosya `node tools/build.mjs` tarafından src/ altındaki parçalardan
+     üretilir. Buraya yazdığın her şey bir sonraki derlemede kaybolur.
+     Kaynak:  src/index.html.tmpl, src/styles/, src/boot/, src/app.js
+     Neden:   docs/adr/0001-moduler-kaynak-tek-dosya-cikti.md
+
+     Kullanıcı için hiçbir şey değişmedi: bu dosya hâlâ kendine yeten tek bir
+     HTML'dir, sıfır bağımlılığı vardır ve file:// üzerinde çalışır.
+     ========================================================================= -->
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskHub</title>
+<style>
+<!--@inline styles/app.css -->
+</style>
+</head>
+<body>
+<noscript>
+  <div class="bootfail">
+    <h1>JavaScript kapalı</h1>
+    <p>TaskHub çalışmak için JavaScript'e ihtiyaç duyar. Tarayıcı ayarlarından etkinleştirip sayfayı yenile.</p>
+    <p lang="en">TaskHub needs JavaScript. Enable it in your browser settings and reload.</p>
+  </div>
+</noscript>
+<div id="root"></div>
+
+<!-- Hata tuzağı: bilinçli olarak ES5, kendisi asla patlamasın diye.
+     Ana betik ayrıştırma anında ölse bile bu blok çalışmış olur ve
+     kullanıcı boş bir sayfa yerine sebebi görür. -->
+<script>
+<!--@inline boot/guard.js -->
+</script>
+
+<script>
+<!--@inline app.js -->
+</script>
+</body>
+</html>
