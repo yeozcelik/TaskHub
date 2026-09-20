@@ -51,7 +51,16 @@ const SEED = `(() => {
     { id:"b", title:"Bugünkü toplantı", notes:"", dueDate:"2026-05-10", priority:"med", tags:[], subtasks:[], done:false, createdAt:"2026-01-02T00:00:00.000Z", updatedAt:"2026-01-02T00:00:00.000Z", completedAt:null, sourceNoteId:null },
     { id:"c", title:"Tamamlanmış iş", notes:"", dueDate:null, priority:"low", tags:["ev"], subtasks:[], done:true, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:"2026-01-03T00:00:00.000Z", sourceNoteId:null },
   ];
-  today = "2026-05-10"; ui.showCompleted = true; ui.q = ""; render();
+  notes.notebooks = [{ id:"nb", name:"Defter", color:"#5b5bd6", pages:[
+    { id:"p1", title:"Toplantı", boxes:[{ id:"b1", x:40, y:40, w:420, html:"<p>bir <b>not</b></p>" }],
+      createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z" },
+    { id:"p2", title:"Günlük", boxes:[{ id:"b2", x:40, y:40, w:420, html:"<p>bak [[Toplantı]]</p>" }],
+      createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z" },
+  ]}];
+  state.tasks.push({ id:"wl", title:"bak [[Toplantı]] notuna", notes:"", dueDate:null,
+    priority:"med", tags:[], subtasks:[], done:false, createdAt:"2026-01-04T00:00:00.000Z",
+    updatedAt:"2026-01-04T00:00:00.000Z", completedAt:null, sourceNoteId:null });
+  today = "2026-05-10"; ui.showCompleted = true; ui.q = ""; ui.view = "tasks"; buildShell();
   return true;
 })()`;
 
@@ -66,8 +75,13 @@ const STATES = [
   { id: "takvim", setup: `(() => { try { switchTaskView("calendar"); } catch (e){} return true; })()` },
   { id: "toplu-secim", setup: `(() => { try { switchTaskView("list");
       applySel(state.tasks.map(t => t.id).slice(0, 2), "add"); } catch (e){} return true; })()` },
+  /* Not görünümü bugüne kadar HİÇ taranmamıştı — geri-bağlantı paneli orada
+     yaşıyor ve kendi işimi doğrulamak için taranması gerekiyor. */
+  { id: "notlar", setup: `(() => { try { ui.view = "notes"; ui.nbId = "nb"; ui.pageId = "p1";
+      buildShell(); } catch (e){} return true; })()` },
 ];
 const RESET = `(() => {
+  try { if (ui.view === "notes"){ ui.view = "tasks"; buildShell(); } } catch (e){}
   try { clearSelection(); } catch (e){}
   try { switchTaskView("list"); } catch (e){}
   try { closePalette(); } catch (e){}

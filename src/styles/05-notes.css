@@ -96,3 +96,28 @@
 .toolbar #tbAddBox{color:var(--accent);background:var(--accent-soft)}
 .toolbar #tbAddBox:hover{background:color-mix(in srgb, var(--accent) 20%, transparent);color:var(--accent)}
 
+
+/* ---------- Geri-bağlantılar ----------
+   Bağlantı yoksa HİÇ ÇİZİLMEZ: boş bir "(0)" başlığı yer kaplar, bilgi vermez. */
+.backlinks{
+  border-top:1px solid var(--border); padding:10px 16px 12px;
+  background:var(--surface-2); max-height:160px; overflow-y:auto;
+}
+.backlinks[hidden]{display:none}
+.bl-title{
+  display:flex;align-items:center;gap:6px;margin:0 0 7px;
+  font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;
+}
+.bl-title svg{width:13px;height:13px}
+.bl-title .n{background:var(--surface-3);border-radius:999px;padding:0 6px;font-size:11px;letter-spacing:0}
+.bl-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.bl-item{
+  display:inline-flex;align-items:center;gap:6px;max-width:260px;
+  background:var(--surface);border:1px solid var(--border);color:var(--text);
+  border-radius:var(--r-sm);padding:4px 9px;font-size:12.5px;cursor:pointer;text-align:left;
+}
+.bl-item:hover{border-color:var(--accent);background:var(--accent-soft)}
+.bl-item svg{width:12px;height:12px;flex:none;opacity:.7}
+/* Yalnız ETİKET kırpılır: icon() de bir <span> döndürüyor ve ona uygulamak
+   ikonu ezerdi. */
+.bl-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

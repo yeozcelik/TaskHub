@@ -656,6 +656,80 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   check("geri alma ÜRETİLEN ÖRNEĞİ de sildi — yarım geri alma yok",
     await ev(`[state.tasks.length, state.tasks[0].done]`), [1, false]);
 
+  // ---------------- T4.3: [[sayfa]] bağlantıları ----------------
+  await ev(`clearSelection(); ui.q = ""; switchTaskView("list"); today = "2026-05-10";
+    notes.notebooks = [{ id:"nbx", name:"Defter", color:"#5b5bd6", pages:[
+      { id:"pgA", title:"Toplantı", boxes:[{ id:"b1", x:40, y:40, w:400, html:"<p>gövde</p>" }],
+        createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z" },
+      { id:"pgB", title:"Günlük", boxes:[{ id:"b2", x:40, y:40, w:400, html:"<p>şuna bak [[Toplantı]]</p>" }],
+        createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z" },
+    ]}];
+    state.tasks = [
+      { id:"w1", title:"bak [[Toplantı]] notuna", notes:"", dueDate:"2026-05-10", priority:"med",
+        tags:[], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z",
+        updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+      { id:"w2", title:"düz görev", notes:"", dueDate:"2026-05-10", priority:"med",
+        tags:[], subtasks:[], done:false, createdAt:"2026-01-02T00:00:00.000Z",
+        updatedAt:"2026-01-02T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    ]; ui.view = "tasks"; buildShell(); true`);
+
+  check("başlıktaki [[bağlantı]] tıklanabilir düğüm oldu",
+    await ev(`(() => { const a = document.querySelector('.card[data-id="w1"] .wikilink');
+      return [!!a, a && a.tagName, a && a.textContent]; })()`), [true, "BUTTON", "Toplantı"]);
+  check("bağlantısız başlıkta düğüm yok",
+    await ev(`!document.querySelector('.card[data-id="w2"] .wikilink')`), true);
+  check("başlığın düz metni korundu",
+    await ev(`document.querySelector('.card[data-id="w1"] .card-title').textContent`), "bak Toplantı notuna");
+
+  // GÜVENLİK: bağlantı adı HTML olarak yorumlanmamalı
+  await ev(`state.tasks[0].title = 'kötü [[<img src=x onerror=alert(1)>]] deneme'; renderList(); true`);
+  check("GÜVENLİK: bağlantı adı metin olarak basılır, öğe yaratmaz",
+    await ev(`(() => { const c = document.querySelector('.card[data-id="w1"] .card-title');
+      return [c.querySelectorAll("img").length, c.querySelector(".wikilink").textContent]; })()`),
+    [0, "<img src=x onerror=alert(1)>"]);
+  await ev(`state.tasks[0].title = "bak [[Toplantı]] notuna"; renderList(); true`);
+
+  // Var olan sayfaya gitme
+  await ev(`document.querySelector('.card[data-id="w1"] .wikilink').click(); true`);
+  check("bağlantı var olan sayfayı açtı",
+    await ev(`[ui.view, ui.nbId, ui.pageId]`), ["notes", "nbx", "pgA"]);
+
+  // ---------------- T4.4: geri-bağlantı paneli ----------------
+  const bl = await ev(`(() => { const h = document.getElementById("edBacklinks");
+    return { hidden: h.hidden, items: Array.from(h.querySelectorAll(".bl-label")).map(n => n.textContent) }; })()`);
+  check("geri-bağlantı paneli görevi ve sayfayı listeliyor",
+    [bl.hidden, bl.items.sort()], [false, ["Günlük", "bak Toplantı notuna"]]);
+
+  // Bağlantısı olmayan sayfada panel hiç çizilmez (S8)
+  await ev(`ui.pageId = "pgB"; renderNotesView(FORCE_EDITOR); true`);
+  check("S8: bağlantı yoksa geri-bağlantı paneli GİZLİ",
+    await ev(`document.getElementById("edBacklinks").hidden`), true);
+
+  // Geri-bağlantıdan göreve dönüş
+  await ev(`ui.pageId = "pgA"; renderNotesView(FORCE_EDITOR);
+    (() => { const b = Array.from(document.querySelectorAll(".bl-item"))
+      .find(n => n.textContent.includes("bak Toplantı")); b.click(); return true; })()`);
+  check("geri-bağlantıdan göreve dönülüyor", await ev(`[ui.view, openTaskId]`), ["tasks", "w1"]);
+  await ev(`closePanel(); true`);
+
+  // Olmayan sayfaya bağlantı: KIRIK değil, DAVET
+  await ev(`state.tasks[0].title = "bak [[Yeni Sayfa]] notuna"; renderList();
+    document.querySelector('.card[data-id="w1"] .wikilink').click(); true`);
+  const created = await ev(`(() => { const nb = notes.notebooks.find(n => n.id === ui.nbId);
+    const p = nb.pages.find(x => x.id === ui.pageId);
+    return [ui.view, p && p.title, nb.pages.length]; })()`);
+  check("olmayan sayfaya bağlantı sayfayı OLUŞTURUR (kırık değil, davet)",
+    created, ["notes", "Yeni Sayfa", 3]);
+
+  // Türkçe harf katlaması uçtan uca
+  await ev(`ui.view = "tasks"; buildShell();
+    state.tasks[0].title = "bak [[toplanti]] notuna"; renderList();
+    document.querySelector('.card[data-id="w1"] .wikilink').click(); true`);
+  check("bağlantı eşleşmesi Türkçe harf katlamalı (yeni sayfa AÇILMADI)",
+    await ev(`[ui.pageId, notes.notebooks[0].pages.length]`), ["pgA", 3]);
+
+  await ev(`ui.view = "tasks"; notes.notebooks = []; buildShell(); true`);
+
   // Bu blok state'i değiştirdi; sonraki iddiaların beklediği düzeni geri kur.
   await ev(`clearSelection(); today = "2026-05-10"; state.tasks = [
     { id:"a", title:"alfa v3", notes:"", dueDate:"2026-05-10", priority:"low", tags:["iş"], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null },

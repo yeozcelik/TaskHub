@@ -920,7 +920,7 @@ kullanıcı silmediği bir görevle baş başa kalır.
 **Dosyalar:** `src/core/task-ops.js`, `src/ui/bulk-bar.js`, `tests/bulk-ops.test.js`
 **Boyut:** M
 
-### T4.3: `[[sayfa]]` bağlantı ayrıştırma (saf çekirdek)
+### T4.3: `[[sayfa]]` bağlantı ayrıştırma (saf çekirdek) — ✅ BİTTİ
 
 **Açıklama:** *Obsidian yasası.* Mevcut `sourceNoteId` alanı üzerine kurulur —
 yeni bir bağlantı deposu açılmaz.
@@ -932,7 +932,32 @@ yeni bir bağlantı deposu açılmaz.
 - [ ] Çıktı süzgeçten geçer — bağlantı yeni bir enjeksiyon yüzeyi açmaz
 - [ ] `f(f(x)) === f(x)`
 
-**Doğrulama:** `node --test tests/links.test.js`; süzgeç testleri genişletilir.
+**Doğrulama:** `node --test` → `tests/links.test.js` (**16 test**);
+`node tools/probe/behavior.mjs` (bağlantıların 8 iddiası).
+
+**Sonuç.** `src/core/links.js` **HTML ÜRETMEZ**. Yalnız metin aralıkları ve
+adlar döner; tıklanabilir öğeyi arayüz `document.createElement` ile kurar,
+bağlantı adı `textContent` olarak yazılır. Böylece yeni sözdizimi mevcut izin
+listesi süzgecine **hiç uğramaz** — süzgeci genişletmek gerekmedi, çünkü
+genişletilecek bir yüzey doğmadı.
+
+Tarayıcıda kanıtlandı: `[[<img src=x onerror=alert(1)>]]` başlığı **sıfır
+`<img>`** üretiyor, metin olarak basılıyor.
+
+| Kabul | Sonuç |
+|---|---|
+| Görev başlığında ve not kutusunda tanınır | ✅ başlıkta tıklanabilir, notta indekslenir (aşağıdaki sınır) |
+| Türkçe harf katlamalı | ✅ `[[toplanti]]` → `Toplantı` sayfasını açar, yenisini yaratmaz |
+| Olmayan sayfa **kırık değil, davet** | ✅ tıklayınca sayfayı oluşturup açar |
+| Süzgeci atlamaz | ✅ HTML üretilmiyor; atlanacak bir süzgeç yok |
+| `f(f(x)) === f(x)` | ✅ testle |
+
+> **Kapsam sınırı, kayıtlı ve gerekçeli.** Not kutularının HTML'i **yeniden
+> yazılmaz**. Tuvalin geri alma yığını `#editor`in `innerHTML` anlık
+> görüntülerine dayanıyor; oraya öğe enjekte etmek hem geri almayı sessizce
+> bozar hem de süzgeçten geçmemiş içerik üretir. Notlardaki bağlantılar bu
+> yüzden **tanınır ve indekslenir** (geri-bağlantı paneli gösterir) ama kutu
+> içinde tıklanabilir değildir. Plan kararı 3'ün doğrudan sonucu.
 
 **Bağımlılık:** T3.2
 **Dosyalar:** `src/core/links.js`, `src/core/sanitize.js`, `tests/links.test.js`
@@ -941,24 +966,49 @@ yeni bir bağlantı deposu açılmaz.
 > **Güvenlik.** Yeni bir ayrıştırılmış sözdizimi yeni bir saldırı yüzeyidir.
 > Mevcut izin listesi süzgeci bu yoldan **atlanamaz**; test bunu iddia eder.
 
-### T4.4: Geri-bağlantı paneli
+### T4.4: Geri-bağlantı paneli — ✅ BİTTİ
 
 **Kabul ölçütleri:**
 - [ ] Bir sayfa açıkken ona bağlanan görev ve sayfalar listelenir
 - [ ] 5.000 görev + 500 sayfada hesaplama < 50 ms
 - [ ] Bağlantı yoksa panel **yer kaplamaz** (S8)
 
-**Doğrulama:** `node --test tests/backlinks.test.js`; başarım ölçümü; axe.
+**Doğrulama:** `node --test` (indeks + başarım); `behavior.mjs` (panelin 4 iddiası).
+
+**Sonuç.** Açık sayfaya bağlanan görevler ve sayfalar listeleniyor; tıklayınca
+göreve ya da sayfaya gidiliyor.
+
+| Kabul | Sonuç |
+|---|---|
+| Bağlanan görev ve sayfalar listelenir | ✅ ikisi de, tek panelde |
+| 5.000 görev + 500 sayfa < 50 ms | ✅ ölçüldü, CI'da kapı |
+| Bağlantı yoksa **yer kaplamaz** (S8) | ✅ `hidden` — boş bir "(0)" başlığı bilgi vermez |
+
+> **Not görünümü bugüne kadar HİÇ a11y taramasından geçmemişti.** Panel orada
+> yaşadığı için taramaya eklendi. Çıkan tek yeni ihlal `.grow` — yine uyarı
+> şeridinin devralınan kontrastı, panel değil. Dahası not görünümünde `list`
+> ve `nested-interactive` **hiç çıkmıyor**: orada görev kartı yok. Bu, T2.8'in
+> kök nedeninin gerçekten kart olduğunun üçüncü bağımsız kanıtı.
 
 **Bağımlılık:** T4.3
 **Dosyalar:** `src/ui/backlinks.js`, `src/core/links.js`, `tests/backlinks.test.js`
 **Boyut:** S
 
 ### ✅ Kontrol noktası — Faz 4
-- [ ] Toplu işlemler tek adımda geri alınıyor
-- [ ] Bağlantı sözdizimi süzgeci atlamıyor — **güvenlik testi yeşil**
-- [ ] S8 hâlâ geçerli · S9 axe 0 ihlal
+- [x] Toplu işlemler **tek adımda** geri alınıyor — sıra ve üretilen tekrar
+      örnekleri dahil
+- [x] Bağlantı sözdizimi süzgeci **atlamıyor**: HTML üretilmiyor, atlanacak
+      süzgeç yok. `[[<img onerror>]]` → 0 öğe, metin olarak basılıyor
+- [x] **S8** envanter kapısı: toplu çubuk ve geri-bağlantı paneli seçim/bağlantı
+      yokken **hiç çizilmiyor**
+- [x] **S6** envanteri yedi yeni toplu komutu yakaladı
+- [ ] **S9** 0 ihlal → **AÇIK**, T2.8 (taban 17, kusur sayısı yine sabit)
+- [ ] **S3b** ve pano açılış süresi → **AÇIK**, T2.3b
 - [ ] **İnsan gözden geçirmesi, Faz 5 öncesi**
+
+> Faz 4'ün dört görevi bitti. a11y kapısı bu fazda **benim yazdığım bir hatayı**
+> yakaladı (`aria-selected`, `role="button"` üzerinde geçersiz) — ve az kalsın
+> tabana alıyordum. Ders kayıtta: *taban güncellemesi refleks olmamalı.*
 
 ---
 

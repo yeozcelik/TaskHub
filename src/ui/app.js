@@ -729,6 +729,45 @@ function renderSidebar(){
 }
 
 /* ------------------------------------------------------------------ liste */
+/* Başlıktaki [[bağlantı]]ları tıklanabilir düğümlere çevirir.
+ *
+ * GÜVENLİK: hiçbir yerde HTML birleştirilmez. Parçalar `document.createTextNode`
+ * ve `el()` ile kurulur; bağlantı adı `textContent` olarak yazılır. Yeni bir
+ * ayrıştırılmış sözdizimi yeni bir saldırı yüzeyi olabilirdi — bu yol onu
+ * mevcut izin listesi süzgecine hiç uğratmadan kapatıyor. */
+function titleNodes(title){
+  const parts = splitByLinks(title);
+  if (parts.length <= 1) return [document.createTextNode(title)];
+  return parts.map(p => p.type === "text"
+    ? document.createTextNode(p.text)
+    : el("button", {
+        class:"wikilink", title: t("wikiOpen", { p: p.text }), "aria-label": t("wikiOpen", { p: p.text }),
+        onclick(e){ e.stopPropagation(); openWikiLink(p.text); }
+      }, p.text));
+}
+
+/* Bağlantıya tıklamak sayfayı açar. Sayfa YOKSA kırık bağlantı göstermek
+   yerine onu OLUŞTURUR: yazılmamış bir sayfaya bağlantı bir hata değil,
+   bir davettir (Obsidian'ın da yaptığı budur). */
+function openWikiLink(name){
+  const hit = findPageByName(notes.notebooks, name);
+  if (hit){
+    ui.view = "notes"; ui.nbId = hit.notebookId; ui.pageId = hit.page.id;
+    closePanel(); buildShell();
+    return;
+  }
+  ensureNotebook();
+  const nbId = ui.nbId || (notes.notebooks[0] && notes.notebooks[0].id);
+  const page = addPage(nbId);
+  if (!page){ toast(t("notesQuotaFail")); return; }
+  page.title = String(name).slice(0, 300);
+  stampNote(notes.notebooks.find(n => n.id === nbId), page);
+  scheduleSaveNotes();
+  ui.view = "notes"; ui.nbId = nbId; ui.pageId = page.id;
+  closePanel(); buildShell();
+  toast(t("wikiCreated", { p: page.title }), null, 5000);
+}
+
 function taskCard(task){
   const cls = ["card"];
   if (task.done) cls.push("is-done");
@@ -794,7 +833,7 @@ function taskCard(task){
     el("span", { class:"prio-bar " + (task.done ? "" : task.priority), "aria-hidden":"true" }),
     cb,
     el("div", { class:"card-body" },
-      el("div", { class:"card-title", text: task.title || "—" }),
+      el("div", { class:"card-title" }, ...titleNodes(task.title || "—")),
       meta.childNodes.length ? meta : null
     ),
     el("button", { class:"btn btn-ghost btn-icon card-del", title: t("deleteTask"), "aria-label": t("deleteTask"),
@@ -1832,6 +1871,7 @@ function renderEditor(){
         onclick(){ deletePage(ui.nbId, page.id); } }, icon("trash"))
     ),
     el("div", { class:"ed-meta", id:"edMeta" }),
+    el("aside", { class:"backlinks", id:"edBacklinks", hidden:true, "aria-label": t("backlinks") }),
     buildToolbar(),
     wrap
   );
@@ -1877,6 +1917,50 @@ function renderEdMeta(){
   );
   // Kutu sayısı değişen her yol zaten buradan geçiyor; etiketler de burada tazelenir.
   relabelBoxes();
+  renderBacklinks();
+}
+
+/* ------------------------------------------------- geri-bağlantı paneli ---
+ * Açık sayfaya bağlanan görevler ve sayfalar. BAĞLANTI YOKSA HİÇ ÇİZİLMEZ:
+ * boş bir "Geri bağlantılar (0)" başlığı yer kaplar ve hiçbir şey söylemez. */
+function renderBacklinks(){
+  const host = document.getElementById("edBacklinks");
+  const page = currentPage();
+  if (!host) return;
+  host.textContent = "";
+  host.hidden = true;
+  if (!page || !page.title.trim()) return;
+
+  const index = buildLinkIndex(state.tasks, notes.notebooks, pagePlain);
+  const back = backlinksFor(index, page.title);
+  const items = [
+    ...back.tasks.map(x => ({ kind: "task", id: x.id, label: noteTextOfTitle(x.title) })),
+    ...back.pages.filter(x => x.page.id !== page.id)
+        .map(x => ({ kind: "page", nbId: x.notebookId, id: x.page.id, label: pageTitleOf(x.page) })),
+  ];
+  if (!items.length) return;
+
+  host.hidden = false;
+  host.append(el("h3", { class:"bl-title" },
+    icon("link"), el("span", { text: t("backlinks") }),
+    el("span", { class:"n", text: String(items.length) })));
+  const list = el("ul", { class:"bl-list" });
+  for (const it of items){
+    list.append(el("li", {}, el("button", {
+      class:"bl-item",
+      onclick(){
+        if (it.kind === "task"){ ui.view = "tasks"; buildShell(); openPanel(it.id); }
+        else { ui.nbId = it.nbId; ui.pageId = it.id; renderNotesView(FORCE_EDITOR); }
+      }
+    }, icon(it.kind === "task" ? "check" : "page"), el("span", { class:"bl-label", text: it.label }))));
+  }
+  host.append(list);
+}
+
+/* Görev başlığını geri-bağlantı listesinde düz metin göster: [[…]] işaretleri
+   listede gürültü, çünkü hangi sayfaya bağlandığı zaten belli. */
+function noteTextOfTitle(title){
+  return splitByLinks(title).map(p => p.text).join("").replace(/\s+/g, " ").trim();
 }
 
 /* ================================ TUVAL =================================

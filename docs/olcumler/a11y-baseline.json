@@ -1,7 +1,7 @@
 {
   "note": "BİLİNEN erişilebilirlik borcu. Yeni ihlal CI'yı kırar. Azaltmak hedeftir — bkz. T2.8.",
   "updated": "2026-09-20",
-  "total": 16,
+  "total": 17,
   "violations": [
     {
       "key": "color-contrast|görev-paneli",
@@ -18,7 +18,16 @@
       "state": "liste",
       "impact": "serious",
       "help": "Elements must meet minimum color contrast ratio thresholds",
-      "combos": 5,
+      "combos": 4,
+      "example": ".grow"
+    },
+    {
+      "key": "color-contrast|notlar",
+      "id": "color-contrast",
+      "state": "notlar",
+      "impact": "serious",
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "combos": 4,
       "example": ".grow"
     },
     {

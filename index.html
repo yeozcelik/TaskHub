@@ -406,6 +406,14 @@ textarea.input{resize:vertical; min-height:78px; line-height:1.55}
 .bulkbar .bulk-sep{width:1px;height:20px;background:var(--border);flex:none}
 .bulk-tag{max-width:150px;padding:5px 9px;font-size:13px}
 @media (max-width:900px){ .bulkbar{flex-wrap:wrap} .bulk-tag{max-width:120px} }
+
+/* [[sayfa]] bağlantısı — kart başlığında */
+.wikilink{
+  background:none;border:0;padding:0 1px;margin:0;cursor:pointer;
+  color:var(--accent);font:inherit;text-decoration:underline;
+  text-decoration-style:dotted;text-underline-offset:2px;
+}
+.wikilink:hover{text-decoration-style:solid;background:var(--accent-soft);border-radius:3px}
 /* ---------- Toast ---------- */
 .toasts{position:fixed;left:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px}
 .toast{
@@ -606,6 +614,31 @@ dialog.palette{
 .toolbar #tbAddBox{color:var(--accent);background:var(--accent-soft)}
 .toolbar #tbAddBox:hover{background:color-mix(in srgb, var(--accent) 20%, transparent);color:var(--accent)}
 
+
+/* ---------- Geri-bağlantılar ----------
+   Bağlantı yoksa HİÇ ÇİZİLMEZ: boş bir "(0)" başlığı yer kaplar, bilgi vermez. */
+.backlinks{
+  border-top:1px solid var(--border); padding:10px 16px 12px;
+  background:var(--surface-2); max-height:160px; overflow-y:auto;
+}
+.backlinks[hidden]{display:none}
+.bl-title{
+  display:flex;align-items:center;gap:6px;margin:0 0 7px;
+  font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;
+}
+.bl-title svg{width:13px;height:13px}
+.bl-title .n{background:var(--surface-3);border-radius:999px;padding:0 6px;font-size:11px;letter-spacing:0}
+.bl-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.bl-item{
+  display:inline-flex;align-items:center;gap:6px;max-width:260px;
+  background:var(--surface);border:1px solid var(--border);color:var(--text);
+  border-radius:var(--r-sm);padding:4px 9px;font-size:12.5px;cursor:pointer;text-align:left;
+}
+.bl-item:hover{border-color:var(--accent);background:var(--accent-soft)}
+.bl-item svg{width:12px;height:12px;flex:none;opacity:.7}
+/* Yalnız ETİKET kırpılır: icon() de bir <span> döndürüyor ve ona uygulamak
+   ikonu ezerdi. */
+.bl-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* ---------- Tuval: istediğin yere not ----------
    OneNote modeli. Sayfa artık tek bir belge değil; koordinatı olan not
    kutularının durduğu bir yüzey. Boş yere tıkla, kutu orada açılsın. */
@@ -932,6 +965,7 @@ const I18N = {
     viewLbl:"Görünüm", view_list:"Liste", view_board:"Pano", view_calendar:"Takvim",
     cmdViewList:"Görünüm: Liste", cmdViewBoard:"Görünüm: Pano", cmdViewCalendar:"Görünüm: Takvim",
     calPrev:"Önceki ay", calNext:"Sonraki ay", calToday:"Bugün", calNTasks:"{n} görev",
+    backlinks:"Buraya bağlananlar", wikiOpen:"{p} sayfasını aç", wikiCreated:"{p} sayfası oluşturuldu",
     selN:"{n} görev seçili", selSelected:"seçili", selClear:"Seçimi temizle", bulkLbl:"Toplu işlemler",
     bulkDoneAct:"Tamamla", bulkUndoneAct:"Geri aç", bulkPrioTo:"Önceliği {p} yap",
     bulkDueToday:"Son tarihi bugün yap", bulkDueClear:"Tarihi sil",
@@ -1073,6 +1107,7 @@ const I18N = {
     viewLbl:"View", view_list:"List", view_board:"Board", view_calendar:"Calendar",
     cmdViewList:"View: List", cmdViewBoard:"View: Board", cmdViewCalendar:"View: Calendar",
     calPrev:"Previous month", calNext:"Next month", calToday:"Today", calNTasks:"{n} tasks",
+    backlinks:"Linked here", wikiOpen:"Open page {p}", wikiCreated:"Page {p} created",
     selN:"{n} tasks selected", selSelected:"selected", selClear:"Clear selection", bulkLbl:"Bulk actions",
     bulkDoneAct:"Complete", bulkUndoneAct:"Reopen", bulkPrioTo:"Set priority to {p}",
     bulkDueToday:"Set due date to today", bulkDueClear:"Clear due date",
@@ -1965,6 +2000,112 @@ function stepKey(keys, from, delta){
   if (i < 0) return keys.length ? keys[delta > 0 ? 0 : keys.length - 1] : null;
   const j = i + delta;
   return (j < 0 || j >= keys.length) ? from : keys[j];
+}
+/* ---------------------------------------------------------- bağlantılar ---
+ * `[[Sayfa adı]]` — görevleri ve not sayfalarını birbirine bağlar.
+ * Obsidian yasası (CAPABILITY-MAP.md): şeyler birbirine bağlanır.
+ *
+ * GÜVENLİK SINIRI — bilinçli ve dar:
+ * Bu dosya HTML ÜRETMEZ. Yalnız metin içindeki aralıkları ve adları bulur;
+ * tıklanabilir öğeyi arayüz `document.createElement` ile kurar, `innerHTML`
+ * ile değil. Yeni bir ayrıştırılmış sözdizimi yeni bir saldırı yüzeyidir;
+ * o yüzden bu sözdizimi mevcut izin listesi süzgecine hiç DOKUNMAZ.
+ *
+ * KAPSAM SINIRI — kayıtlı ve gerekçeli:
+ * Not kutularının HTML'i YENİDEN YAZILMAZ. Tuvalin geri alma yığını
+ * `#editor`in `innerHTML` anlık görüntülerine dayanıyor (README, "Geri almanın
+ * kökü kutu değil, tuvaldir"); oraya öğe enjekte etmek hem geri almayı sessizce
+ * bozar hem de süzgeçten geçmemiş içerik üretir. Notlardaki bağlantılar bu
+ * yüzden TANINIR ve indekslenir (geri-bağlantı paneli onları gösterir) ama
+ * kutunun içinde tıklanabilir hâle getirilmez.                              */
+
+/* İç içe köşeli parantez ve satır sonu kabul edilmez: "[[a]] ve [[b]]" iki
+   ayrı bağlantıdır, "[[a [[b]]" hiçbiri. */
+const WIKI_RE = /\[\[([^\[\]\n]{1,120})\]\]/g;
+
+/** Eşleştirme anahtarı. Türkçe harf katlamalı: "[[İstanbul]]" ile
+ *  "[[istanbul]]" aynı sayfayı gösterir. Boşluklar sadeleşir. */
+function linkKey(name){
+  return foldTr(String(name == null ? "" : name)).replace(/\s+/g, " ").trim();
+}
+
+/** Metindeki bağlantılar, konumlarıyla. Arayüz metni bu aralıklara göre böler. */
+function extractLinks(text){
+  const src = typeof text === "string" ? text : "";
+  const out = [];
+  for (const m of src.matchAll(WIKI_RE)){
+    const name = m[1].trim();
+    if (!name) continue;
+    out.push({ raw: m[0], name, key: linkKey(name), start: m.index, end: m.index + m[0].length });
+  }
+  return out;
+}
+
+/** Metni bağlantı ve düz parça dizisine böler. Arayüz her parçayı ayrı bir
+ *  DOM düğümü olarak kurar; hiçbir yerde HTML birleştirmesi yoktur. */
+function splitByLinks(text){
+  const src = typeof text === "string" ? text : "";
+  const links = extractLinks(src);
+  const parts = [];
+  let at = 0;
+  for (const l of links){
+    if (l.start > at) parts.push({ type: "text", text: src.slice(at, l.start) });
+    parts.push({ type: "link", text: l.name, key: l.key });
+    at = l.end;
+  }
+  if (at < src.length) parts.push({ type: "text", text: src.slice(at) });
+  return parts;
+}
+
+/**
+ * Geri-bağlantı indeksi. `pageText(page)` sayfanın düz metnini döndürmeli
+ * (arayüz `pagePlain`i verir; bu dosya DOM bilmez).
+ * @returns Map<key, { tasks: [...], pages: [...] }>
+ */
+function buildLinkIndex(tasks, notebooks, pageText){
+  const index = new Map();
+  const bucket = key => {
+    if (!index.has(key)) index.set(key, { tasks: [], pages: [] });
+    return index.get(key);
+  };
+  for (const task of (tasks || [])){
+    const seen = new Set();
+    for (const l of extractLinks(task.title)){
+      if (seen.has(l.key)) continue;           // aynı görev bir sayfayı bir kez sayar
+      seen.add(l.key);
+      bucket(l.key).tasks.push(task);
+    }
+  }
+  for (const nb of (notebooks || [])){
+    for (const page of (nb.pages || [])){
+      const text = pageText ? pageText(page) : "";
+      const seen = new Set();
+      for (const l of extractLinks(page.title + " " + text)){
+        if (seen.has(l.key)) continue;
+        seen.add(l.key);
+        bucket(l.key).pages.push({ notebookId: nb.id, page });
+      }
+    }
+  }
+  return index;
+}
+
+/** Bir sayfaya gelen bağlantılar. Sayfa yoksa da çalışır (henüz yaratılmamış
+ *  sayfaya bağlantı KIRIK DEĞİL, bir davettir). */
+function backlinksFor(index, pageTitle){
+  return index.get(linkKey(pageTitle)) || { tasks: [], pages: [] };
+}
+
+/** Adla eşleşen sayfayı bulur. Türkçe harf katlamalı. */
+function findPageByName(notebooks, name){
+  const key = linkKey(name);
+  if (!key) return null;
+  for (const nb of (notebooks || [])){
+    for (const page of (nb.pages || [])){
+      if (linkKey(page.title) === key) return { notebookId: nb.id, page };
+    }
+  }
+  return null;
 }
 /* ------------------------------------------------------------- tekrar ---
  * RRULE'un KÜÇÜK ve AÇIKÇA SINIRLI bir alt kümesi: günlük / haftalık / aylık,
@@ -3777,6 +3918,45 @@ function renderSidebar(){
 }
 
 /* ------------------------------------------------------------------ liste */
+/* Başlıktaki [[bağlantı]]ları tıklanabilir düğümlere çevirir.
+ *
+ * GÜVENLİK: hiçbir yerde HTML birleştirilmez. Parçalar `document.createTextNode`
+ * ve `el()` ile kurulur; bağlantı adı `textContent` olarak yazılır. Yeni bir
+ * ayrıştırılmış sözdizimi yeni bir saldırı yüzeyi olabilirdi — bu yol onu
+ * mevcut izin listesi süzgecine hiç uğratmadan kapatıyor. */
+function titleNodes(title){
+  const parts = splitByLinks(title);
+  if (parts.length <= 1) return [document.createTextNode(title)];
+  return parts.map(p => p.type === "text"
+    ? document.createTextNode(p.text)
+    : el("button", {
+        class:"wikilink", title: t("wikiOpen", { p: p.text }), "aria-label": t("wikiOpen", { p: p.text }),
+        onclick(e){ e.stopPropagation(); openWikiLink(p.text); }
+      }, p.text));
+}
+
+/* Bağlantıya tıklamak sayfayı açar. Sayfa YOKSA kırık bağlantı göstermek
+   yerine onu OLUŞTURUR: yazılmamış bir sayfaya bağlantı bir hata değil,
+   bir davettir (Obsidian'ın da yaptığı budur). */
+function openWikiLink(name){
+  const hit = findPageByName(notes.notebooks, name);
+  if (hit){
+    ui.view = "notes"; ui.nbId = hit.notebookId; ui.pageId = hit.page.id;
+    closePanel(); buildShell();
+    return;
+  }
+  ensureNotebook();
+  const nbId = ui.nbId || (notes.notebooks[0] && notes.notebooks[0].id);
+  const page = addPage(nbId);
+  if (!page){ toast(t("notesQuotaFail")); return; }
+  page.title = String(name).slice(0, 300);
+  stampNote(notes.notebooks.find(n => n.id === nbId), page);
+  scheduleSaveNotes();
+  ui.view = "notes"; ui.nbId = nbId; ui.pageId = page.id;
+  closePanel(); buildShell();
+  toast(t("wikiCreated", { p: page.title }), null, 5000);
+}
+
 function taskCard(task){
   const cls = ["card"];
   if (task.done) cls.push("is-done");
@@ -3842,7 +4022,7 @@ function taskCard(task){
     el("span", { class:"prio-bar " + (task.done ? "" : task.priority), "aria-hidden":"true" }),
     cb,
     el("div", { class:"card-body" },
-      el("div", { class:"card-title", text: task.title || "—" }),
+      el("div", { class:"card-title" }, ...titleNodes(task.title || "—")),
       meta.childNodes.length ? meta : null
     ),
     el("button", { class:"btn btn-ghost btn-icon card-del", title: t("deleteTask"), "aria-label": t("deleteTask"),
@@ -4880,6 +5060,7 @@ function renderEditor(){
         onclick(){ deletePage(ui.nbId, page.id); } }, icon("trash"))
     ),
     el("div", { class:"ed-meta", id:"edMeta" }),
+    el("aside", { class:"backlinks", id:"edBacklinks", hidden:true, "aria-label": t("backlinks") }),
     buildToolbar(),
     wrap
   );
@@ -4925,6 +5106,50 @@ function renderEdMeta(){
   );
   // Kutu sayısı değişen her yol zaten buradan geçiyor; etiketler de burada tazelenir.
   relabelBoxes();
+  renderBacklinks();
+}
+
+/* ------------------------------------------------- geri-bağlantı paneli ---
+ * Açık sayfaya bağlanan görevler ve sayfalar. BAĞLANTI YOKSA HİÇ ÇİZİLMEZ:
+ * boş bir "Geri bağlantılar (0)" başlığı yer kaplar ve hiçbir şey söylemez. */
+function renderBacklinks(){
+  const host = document.getElementById("edBacklinks");
+  const page = currentPage();
+  if (!host) return;
+  host.textContent = "";
+  host.hidden = true;
+  if (!page || !page.title.trim()) return;
+
+  const index = buildLinkIndex(state.tasks, notes.notebooks, pagePlain);
+  const back = backlinksFor(index, page.title);
+  const items = [
+    ...back.tasks.map(x => ({ kind: "task", id: x.id, label: noteTextOfTitle(x.title) })),
+    ...back.pages.filter(x => x.page.id !== page.id)
+        .map(x => ({ kind: "page", nbId: x.notebookId, id: x.page.id, label: pageTitleOf(x.page) })),
+  ];
+  if (!items.length) return;
+
+  host.hidden = false;
+  host.append(el("h3", { class:"bl-title" },
+    icon("link"), el("span", { text: t("backlinks") }),
+    el("span", { class:"n", text: String(items.length) })));
+  const list = el("ul", { class:"bl-list" });
+  for (const it of items){
+    list.append(el("li", {}, el("button", {
+      class:"bl-item",
+      onclick(){
+        if (it.kind === "task"){ ui.view = "tasks"; buildShell(); openPanel(it.id); }
+        else { ui.nbId = it.nbId; ui.pageId = it.id; renderNotesView(FORCE_EDITOR); }
+      }
+    }, icon(it.kind === "task" ? "check" : "page"), el("span", { class:"bl-label", text: it.label }))));
+  }
+  host.append(list);
+}
+
+/* Görev başlığını geri-bağlantı listesinde düz metin göster: [[…]] işaretleri
+   listede gürültü, çünkü hangi sayfaya bağlandığı zaten belli. */
+function noteTextOfTitle(title){
+  return splitByLinks(title).map(p => p.text).join("").replace(/\s+/g, " ").trim();
 }
 
 /* ================================ TUVAL =================================

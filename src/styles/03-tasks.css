@@ -259,3 +259,11 @@
 .bulkbar .bulk-sep{width:1px;height:20px;background:var(--border);flex:none}
 .bulk-tag{max-width:150px;padding:5px 9px;font-size:13px}
 @media (max-width:900px){ .bulkbar{flex-wrap:wrap} .bulk-tag{max-width:120px} }
+
+/* [[sayfa]] bağlantısı — kart başlığında */
+.wikilink{
+  background:none;border:0;padding:0 1px;margin:0;cursor:pointer;
+  color:var(--accent);font:inherit;text-decoration:underline;
+  text-decoration-style:dotted;text-underline-offset:2px;
+}
+.wikilink:hover{text-decoration-style:solid;background:var(--accent-soft);border-radius:3px}
