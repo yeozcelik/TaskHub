@@ -55,14 +55,93 @@ function toast(msg, action, ms){
 function stamp(task){ task.updatedAt = new Date().toISOString(); }
 const getTask = id => state.tasks.find(x => x.id === id) || null;
 
-function addTask(title){
+/* `fields` verilmezse davranış eskisiyle birebir aynıdır — nottan görev yapma
+   yolu (taskifySelection) düz metin gönderir ve ayrıştırılmamalıdır: not
+   içindeki "yarın" kelimesi bir son tarih emri değildir. */
+function addTask(title, fields){
   const now = new Date().toISOString();
+  const f = fields || {};
   const task = {
-    id: uid(), title: title.trim(), notes:"", dueDate:null, priority:"med",
-    tags:[], subtasks:[], done:false, createdAt:now, updatedAt:now, completedAt:null
+    id: uid(), title: title.trim(), notes:"",
+    dueDate: f.dueDate || null,
+    priority: ["low","med","high"].includes(f.priority) ? f.priority : "med",
+    tags: Array.isArray(f.tags) ? f.tags.slice(0, 30) : [],
+    subtasks:[], done:false, createdAt:now, updatedAt:now, completedAt:null
   };
   state.tasks.push(task);
   scheduleSave(); render();
+  return task;
+}
+
+/* ------------------------------------------------------- yakalama önizleme
+ * Todoist yasası: yeni form yok. Yazdığın satırdan okunanlar kutunun ALTINDA
+ * çip olarak görünür; yanlışsa çipe basıp reddedersin, metin yerinde kalır.
+ *
+ * Things vetosu (S8): hiçbir şey tanınmazsa bu alan GİZLİDİR. Varsayılan
+ * ekranda kalıcı yeni bir kontrol belirmiyor — yalnız yazarken beliriyor. */
+const captureIgnored = new Set();
+
+function readCapture(raw){
+  return parseCapture(raw, { today, lang: state.settings.lang, ignore: [...captureIgnored] });
+}
+
+function captureChip(m){
+  const label = m.kind === "date" ? t("capDate") : m.kind === "priority" ? t("capPriority") : t("capTag");
+  const shown = m.kind === "date" ? formatDue(m.value).text || m.value
+              : m.kind === "priority" ? t(m.value) : "#" + m.value;
+  return el("button", {
+    type:"button", class:"cap-chip cap-" + m.kind,
+    title: t("capRemove") + ": " + m.text,
+    "aria-label": label + ": " + shown + " — " + t("capRemove"),
+    onclick(){
+      captureIgnored.add(m.text);
+      renderCaptureHint(document.getElementById("quick").value);
+      document.getElementById("quick").focus();
+    }
+  }, el("span", { class:"cap-k", text: label }), el("span", { text: shown }), icon("x"));
+}
+
+function captureRestoreChip(text){
+  return el("button", {
+    type:"button", class:"cap-chip cap-off",
+    "aria-label": text + " — " + t("capRestore"),
+    onclick(){
+      captureIgnored.delete(text);
+      renderCaptureHint(document.getElementById("quick").value);
+      document.getElementById("quick").focus();
+    }
+  }, el("span", { text }), el("span", { class:"cap-k", text: t("capRestore") }));
+}
+
+function renderCaptureHint(raw){
+  const host = document.getElementById("captureHint");
+  if (!host) return;
+  const r = readCapture(raw || "");
+  const applied = r.matches.filter(m => m.applied);
+  const ignoredHere = [...captureIgnored].filter(x => (raw || "").includes(x));
+
+  if (!applied.length && !ignoredHere.length && !r.unsupported.length){
+    host.hidden = true; host.textContent = ""; return;
+  }
+  host.textContent = "";
+  host.hidden = false;
+  host.append(el("span", { class:"cap-lead", text: t("capRead") + ":" }));
+  for (const m of applied) host.append(captureChip(m));
+  for (const x of ignoredHere) host.append(captureRestoreChip(x));
+  for (const u of r.unsupported){
+    host.append(el("span", { class:"cap-note", text: u.text + " — " + t("capTimeUnsupported") }));
+  }
+  // Yok sayılan ikinci tarih/öncelik de görünür olsun: sessizce kaybolmaz.
+  for (const m of r.matches.filter(x => !x.applied)){
+    host.append(el("span", { class:"cap-note", text: m.text + " — " + t("capIgnored") }));
+  }
+}
+
+function submitQuickAdd(raw){
+  const r = readCapture(raw);
+  const task = addTask(r.title || raw, { dueDate: r.dueDate, priority: r.priority, tags: r.tags });
+  captureIgnored.clear();
+  if (!matches(task)) toast(t("filterOn"), { label: t("clearFilters"), run: clearFilters });
   return task;
 }
 
@@ -234,17 +313,22 @@ function mountView(){
 
   const quick = el("input", {
     id:"quick", class:"input", autocomplete:"off", "aria-label": t("add"), placeholder: t("quickAddPh"),
+    oninput(e){ renderCaptureHint(e.target.value); },
     onkeydown(e){
       if (e.key === "Enter" && e.target.value.trim()){
-        const task = addTask(e.target.value);
+        submitQuickAdd(e.target.value);
         e.target.value = "";
-        if (!matches(task)) toast(t("filterOn"), { label: t("clearFilters"), run: clearFilters });
+        renderCaptureHint("");
       }
-      if (e.key === "Escape") e.target.blur();
+      if (e.key === "Escape"){
+        // Önce çipleri temizle, sonra kutudan çık: iki kademeli Esc.
+        if (captureIgnored.size || e.target.value){ captureIgnored.clear(); e.target.value = ""; renderCaptureHint(""); }
+        else e.target.blur();
+      }
     }
   });
   const quickBtn = el("button", { class:"btn btn-primary", onclick(){
-    if (quick.value.trim()){ addTask(quick.value); quick.value = ""; quick.focus(); }
+    if (quick.value.trim()){ submitQuickAdd(quick.value); quick.value = ""; renderCaptureHint(""); quick.focus(); }
   }}, icon("plus"), t("add"));
 
   host.append(
@@ -253,6 +337,7 @@ function mountView(){
       el("main", { class:"main" },
         el("div", { id:"banners" }),
         el("div", { class:"quickadd" }, quick, quickBtn),
+        el("div", { class:"capture", id:"captureHint", hidden:true, "aria-live":"polite" }),
         el("div", { id:"list" })
       )
     ),

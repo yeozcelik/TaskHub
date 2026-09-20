@@ -83,6 +83,55 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   await ev(`document.getElementById("q").focus(); state.tasks[0].title = "alfa v3"; renderList();`);
   check("odak arama kutusundayken ÇALINMAZ", await ev(`document.activeElement.id`), "q");
 
+  // ---------------- T2.5: hızlı ekleme + doğal dil yakalama ----------------
+  await ev(`today = "2026-05-10"; ui.q = ""; renderList();`);
+  const hintHidden = `document.getElementById("captureHint").hidden`;
+
+  // S8 (Things vetosu): hiçbir şey tanınmazsa yeni kontrol GÖRÜNMEZ.
+  await ev(`renderCaptureHint("sadece düz bir görev");`);
+  check("S8: tanınan yoksa önizleme gizli", await ev(hintHidden), true);
+
+  await ev(`renderCaptureHint("yarın rapor yaz !p1 #iş");`);
+  check("tanınınca önizleme belirir", await ev(hintHidden), false);
+  check("üç çip çizildi",
+    await ev(`document.querySelectorAll("#captureHint .cap-chip").length`), 3);
+  check("çiplerin türleri doğru",
+    await ev(`Array.from(document.querySelectorAll("#captureHint .cap-chip")).map(n => n.className.split(" ")[1])`),
+    ["cap-date", "cap-priority", "cap-tag"]);
+
+  // Enter: görev yapılandırılmış hâlde düşer.
+  await ev(`state.tasks = []; submitQuickAdd("yarın rapor yaz !p1 #iş"); true;`);
+  check("görev ayrıştırılmış alanlarla oluştu",
+    await ev(`(() => { const x = state.tasks[0]; return [x.title, x.dueDate, x.priority, x.tags.join()]; })()`),
+    ["rapor yaz", "2026-05-11", "high", "iş"]);
+
+  // Çip reddi: alan uygulanmaz, metin YERİNDE kalır.
+  await ev(`captureIgnored.clear(); document.getElementById("quick").value = "yarın rapor !p1"; renderCaptureHint("yarın rapor !p1");`);
+  await ev(`document.querySelector("#captureHint .cap-date").click();`);
+  check("reddedilen tarih için geri-al çipi çıktı",
+    await ev(`!!document.querySelector("#captureHint .cap-off")`), true);
+  await ev(`state.tasks = []; submitQuickAdd("yarın rapor !p1"); true;`);
+  check("reddedilen tarih uygulanmadı, metin başlıkta kaldı",
+    await ev(`(() => { const x = state.tasks[0]; return [x.title, x.dueDate, x.priority]; })()`),
+    ["yarın rapor", null, "high"]);
+
+  // Sessiz kayıp yok: saat notu görünür.
+  await ev(`captureIgnored.clear(); renderCaptureHint("yarın 15:00 toplantı");`);
+  check("saat için açıklama notu gösterildi",
+    await ev(`Array.from(document.querySelectorAll("#captureHint .cap-note")).some(n => n.textContent.includes("15:00"))`), true);
+
+  // Nottan görev yapma yolu ayrıştırılmamalı: not metnindeki "yarın" emir değildir.
+  await ev(`state.tasks = []; addTask("yarın toplantı notu"); true;`);
+  check("addTask düz metinle ayrıştırma yapmaz",
+    await ev(`(() => { const x = state.tasks[0]; return [x.title, x.dueDate]; })()`),
+    ["yarın toplantı notu", null]);
+
+  await ev(`captureIgnored.clear(); state.tasks = [
+    { id:"a", title:"alfa v3", notes:"", dueDate:"2026-05-10", priority:"low", tags:["iş"], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"b", title:"beta rapor (güncel)", notes:"", dueDate:"2026-05-10", priority:"high", tags:[], subtasks:[], done:false, createdAt:"2026-01-02T00:00:00.000Z", updatedAt:"2026-01-02T00:00:00.000Z", completedAt:null, sourceNoteId:null },
+    { id:"c", title:"gama İstanbul", notes:"", dueDate:null, priority:"med", tags:[], subtasks:[], done:true, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:"2026-01-03T00:00:00.000Z", sourceNoteId:null },
+  ]; renderList();`);
+
   // Boş durum ve geri dönüş: durum sıfırlanıp tekrar kurulabilmeli.
   await ev(`ui.q = "hicbirseyeuymaz"; renderList();`);
   check("eşleşme yoksa boş durum", await ev(`!!document.querySelector("#list .empty")`), true);

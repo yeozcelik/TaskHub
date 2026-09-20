@@ -327,7 +327,7 @@ genişletilir; axe taraması.
 **Dosyalar:** `src/ui/app.js`, `src/core/window.js`, `tests/window.test.js`, `tools/probe/perf.mjs`
 **Boyut:** M
 
-### T2.4: Doğal dil yakalama ayrıştırıcısı (saf çekirdek)
+### T2.4: Doğal dil yakalama ayrıştırıcısı (saf çekirdek) — ✅ BİTTİ
 
 **Açıklama:** *Todoist yasası.* "yarın 15:00 !yüksek #iş toplantıya hazırlan" tek
 satırdan tarih, saat, öncelik ve etiketi ayırır. Türkçe **ve** İngilizce.
@@ -341,13 +341,34 @@ Saf fonksiyon, TDD ile — kırmızı/yeşil/düzenle.
 - [ ] Tarih aritmetiği yerel saatle (mevcut `parseYmd` sözleşmesi korunur)
 - [ ] `f(f(x))` başlık üzerinde kararlı (ikinci geçiş bir şey koparmaz)
 
-**Doğrulama:** `node --test tests/parse-capture.test.js`, ≥40 vaka, TR ve EN.
+**Doğrulama:** `node --test` → `tests/parse-capture.test.js`, **26 test / 150+ iddia**, TR ve EN.
+
+**Sonuç.** `src/core/parse-capture.js`. İki söz verdi, ikisi de testle kilitli:
+
+- **TAHMİN YOK.** `bugünkü gazete` tarih değildir, `3 martı` ay adı değildir,
+  `31 şubat` takvimde yoktur — üçü de dokunulmadan bırakılır. `today`
+  verilmezse hiçbir tarih üretilmez.
+- **SESSİZ KAYIP YOK.** Saat (`15:00`) tanınır ama **uygulanmaz**: görev
+  modelinde saat alanı yok ve alan eklemek şema değişikliğidir (SPEC.md
+  "önce sor"). Sessizce silinmek yerine başlıkta kalır ve `unsupported`
+  içinde gerekçesiyle raporlanır.
+
+Türkçe ASCII yazımı da tanınır (`yarin`, `carsamba`) — `foldTr` doğrudan
+kullanılamadı, çünkü katlama dizenin uzunluğunu değiştirip kırpma konumlarını
+kaydırıyor; onun yerine desenler harf sınıflarıyla kuruldu.
+
+> **İki hata, tek kök neden.** İlk sürüm "önce eşleşen kural kazanır" diyordu.
+> Bu iki farklı şekilde yanlıştı: `day after tomorrow` içindeki `tomorrow`
+> yakalanıp yarın atanıyordu, ve `yarın bugün rapor`da metinde sonra gelen
+> `bugün` seçiliyordu. Kural sırasını elle ayarlamak ikisini de "düzeltirdi"
+> ve her yeni kuralda tuzağı yeniden kurardı. Ölçüt metne çevrildi:
+> **metinde önce gelen kazanır, eşitlikte en uzun olan.**
 
 **Bağımlılık:** T1.3
 **Dosyalar:** `src/core/parse-capture.js`, `tests/parse-capture.test.js`
 **Boyut:** M
 
-### T2.5: Ayrıştırıcıyı hızlı ekleme kutusuna bağla
+### T2.5: Ayrıştırıcıyı hızlı ekleme kutusuna bağla — ✅ BİTTİ
 
 **Açıklama:** Yazarken tanınan parçalar kutunun altında çip olarak gösterilir;
 Enter'a basınca görev yapılandırılmış hâlde düşer. **Yeni form açılmaz** (Todoist yasası).
@@ -358,7 +379,21 @@ Enter'a basınca görev yapılandırılmış hâlde düşer. **Yeni form açılm
 - [ ] Ayrıştırıcı hiçbir şey tanımazsa arayüz **bugünkü hâliyle aynı** görünür
 - [ ] Varsayılan ekrana kalıcı kontrol eklenmedi (S8)
 
-**Doğrulama:** Elle sınama TR+EN; axe taraması; S8 elle sayım.
+**Doğrulama:** `node tools/probe/behavior.mjs` — **21/21**, T2.5 için 9 iddia.
+
+**Sonuç.** Kutunun altında çipler: tarih, öncelik, etiket. Çipe basmak
+eşleşmeyi reddeder; ayrıştırıcıya eklenen `ignore` seçeneği sayesinde metin
+**özgün konumunda** kalır (reddedileni sonradan başlığa iliştirmek konumu
+kaybettirirdi). Yok sayılan ikinci tarih ve desteklenmeyen saat de ayrı birer
+not olarak görünür.
+
+- **S8 kanıtlandı:** hiçbir şey tanınmazsa alan `hidden`. Varsayılan ekranda
+  kalıcı yeni kontrol yok — yalnız yazarken beliriyor.
+- `aria-live="polite"`; her çipin ne yaptığını söyleyen `aria-label`'ı var.
+- `Esc` iki kademeli: önce çipleri ve metni temizler, sonra kutudan çıkar.
+- **`addTask` düz metinle ayrıştırma yapmaz.** Nottan görev yapma yolu
+  (`taskifySelection`) not metni gönderir; oradaki "yarın" bir son tarih emri
+  değildir. Ayrıştırma yalnız hızlı ekleme yolunda. Testle kilitli.
 
 **Bağımlılık:** T2.4
 **Dosyalar:** `src/ui/quick-add.js`, `src/styles/tasks.css`, `src/core/i18n.js`

@@ -2,7 +2,11 @@
 const I18N = {
   tr:{
     appName:"TaskHub", search:"Ara", searchPh:"Görevlerde ara…  ( / )",
-    quickAddPh:"Yeni görev yaz ve Enter'a bas…", add:"Ekle",
+    quickAddPh:"Yeni görev yaz ve Enter'a bas…  (\"yarın rapor !p1 #iş\")", add:"Ekle",
+    capDate:"Son tarih", capPriority:"Öncelik", capTag:"Etiket",
+    capRemove:"Kaldır", capRestore:"Geri al", capIgnored:"yok sayıldı",
+    capTimeUnsupported:"Saat henüz desteklenmiyor; başlıkta bırakıldı.",
+    capRead:"Yazdığından okunanlar",
     theme:"Tema", themeAuto:"Tema: sistem", themeLight:"Tema: açık", themeDark:"Tema: koyu",
     lang:"Dil", exportJson:"JSON yedeği indir", importJson:"JSON'dan geri yükle", exportCsv:"CSV indir (Excel)",
     status:"Durum", all:"Tümü", active:"Açık", done:"Tamamlanan",
@@ -112,7 +116,11 @@ const I18N = {
   },
   en:{
     appName:"TaskHub", search:"Search", searchPh:"Search tasks…  ( / )",
-    quickAddPh:"Type a new task and press Enter…", add:"Add",
+    quickAddPh:"Type a new task and press Enter…  (\"tomorrow report !p1 #work\")", add:"Add",
+    capDate:"Due", capPriority:"Priority", capTag:"Tag",
+    capRemove:"Remove", capRestore:"Restore", capIgnored:"ignored",
+    capTimeUnsupported:"Time isn't supported yet; left in the title.",
+    capRead:"Read from what you typed",
     theme:"Theme", themeAuto:"Theme: system", themeLight:"Theme: light", themeDark:"Theme: dark",
     lang:"Language", exportJson:"Download JSON backup", importJson:"Restore from JSON", exportCsv:"Download CSV (Excel)",
     status:"Status", all:"All", active:"Open", done:"Completed",

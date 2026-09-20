@@ -109,3 +109,29 @@
 .done-toggle{display:flex;align-items:center;gap:9px;margin-top:9px;cursor:pointer;font-size:14px;color:var(--muted);width:fit-content}
 .done-toggle input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
 
+
+/* ---------- Yakalama önizlemesi ----------
+   Kutunun altında, yalnız bir şey tanındığında görünür. Varsayılan ekranda
+   kalıcı bir kontrol DEĞİLDİR (Things vetosu, SPEC.md S8). */
+.capture{
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+  margin:-12px 0 18px; font-size:12.5px;
+}
+.capture[hidden]{display:none}
+.cap-lead{color:var(--muted); margin-right:2px}
+.cap-chip{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 7px; border-radius:999px; cursor:pointer;
+  border:1px solid var(--border-strong); background:var(--surface); color:var(--text);
+  font-size:12.5px; line-height:1.4;
+}
+.cap-chip:hover{background:var(--surface-2); border-color:var(--accent)}
+.cap-chip svg{width:11px;height:11px;flex:none;opacity:.6}
+.cap-chip:hover svg{opacity:1}
+.cap-k{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em}
+.cap-date{border-color:color-mix(in srgb,var(--accent) 45%,var(--border-strong))}
+.cap-priority{border-color:color-mix(in srgb,var(--warn) 45%,var(--border-strong))}
+.cap-tag{border-color:color-mix(in srgb,var(--ok) 45%,var(--border-strong))}
+.cap-off{opacity:.62; border-style:dashed}
+.cap-off:hover{opacity:1}
+.cap-note{color:var(--muted)}
