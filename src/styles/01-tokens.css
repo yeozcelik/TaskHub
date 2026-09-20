@@ -5,7 +5,12 @@
   --text:#14161b; --muted:#4f5765; --faint:#616978;
   --accent:#6244e0; --accent-2:#9061f0; --accent-soft:#eeeaff; --on-accent:#ffffff;
   --danger:#c92a2a; --danger-soft:#fdecec;
-  --warn:#a86100; --warn-soft:#fff4e0;
+  /* #a86100 ÖLÇÜLDÜ: --warn-soft (#fff4e0) üstünde 4,404:1 — AA eşiği 4,5'in
+     kıl payı altında. Token'lar --accent-soft'a göre seçilmiş, --warn-soft
+     gözden kaçmış. #9f5c00 ölçülen değerler: warn-soft 4,811 · beyaz 5,243 ·
+     yüzey 5,069. Koyu temada sorun YOK (ölçüldü: 7,936:1), o yüzden yalnız
+     açık tema değişti. */
+  --warn:#9f5c00; --warn-soft:#fff4e0;
   --ok:#0b7a55;
   /* --muted ve --faint, kullanılan EN KOYU açık zemine (--accent-soft) göre
      seçildi: ikisi de WCAG AA küçük metin eşiğini (4.5:1) geçer. Daha açık bir

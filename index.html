@@ -23,7 +23,12 @@
   --text:#14161b; --muted:#4f5765; --faint:#616978;
   --accent:#6244e0; --accent-2:#9061f0; --accent-soft:#eeeaff; --on-accent:#ffffff;
   --danger:#c92a2a; --danger-soft:#fdecec;
-  --warn:#a86100; --warn-soft:#fff4e0;
+  /* #a86100 ÖLÇÜLDÜ: --warn-soft (#fff4e0) üstünde 4,404:1 — AA eşiği 4,5'in
+     kıl payı altında. Token'lar --accent-soft'a göre seçilmiş, --warn-soft
+     gözden kaçmış. #9f5c00 ölçülen değerler: warn-soft 4,811 · beyaz 5,243 ·
+     yüzey 5,069. Koyu temada sorun YOK (ölçüldü: 7,936:1), o yüzden yalnız
+     açık tema değişti. */
+  --warn:#9f5c00; --warn-soft:#fff4e0;
   --ok:#0b7a55;
   /* --muted ve --faint, kullanılan EN KOYU açık zemine (--accent-soft) göre
      seçildi: ikisi de WCAG AA küçük metin eşiğini (4.5:1) geçer. Daha açık bir
@@ -414,6 +419,27 @@ textarea.input{resize:vertical; min-height:78px; line-height:1.55}
   text-decoration-style:dotted;text-underline-offset:2px;
 }
 .wikilink:hover{text-decoration-style:solid;background:var(--accent-soft);border-radius:3px}
+
+/* ---------- Kart yapısı (T2.8) ----------
+   <li> artık düz liste öğesi; ayrıntıyı açan eylem kendi düğmesinde.
+   Görsel olarak hiçbir şey değişmiyor — düğme satırın gövdesini kaplıyor. */
+.card-open{
+  display:block;width:100%;text-align:left;
+  background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;
+}
+.card-open:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.card-title{pointer-events:none}          /* tıklama düğmeye gitsin */
+/* Bağlantı çipi artık üstbilgi satırında, etiketlerin yanında */
+.card-meta .wikilink{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:1px 7px;border-radius:999px;
+  border:1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background:var(--surface);color:var(--accent);
+  font-size:11.5px;text-decoration:none;cursor:pointer;
+}
+.card-meta .wikilink:hover{background:var(--accent-soft)}
+.card-meta .wikilink svg{width:11px;height:11px;opacity:.8;flex:none}
+.wl-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
 /* ---------- Toast ---------- */
 .toasts{position:fixed;left:18px;bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px}
 .toast{
@@ -965,6 +991,7 @@ const I18N = {
     viewLbl:"Görünüm", view_list:"Liste", view_board:"Pano", view_calendar:"Takvim",
     cmdViewList:"Görünüm: Liste", cmdViewBoard:"Görünüm: Pano", cmdViewCalendar:"Görünüm: Takvim",
     calPrev:"Önceki ay", calNext:"Sonraki ay", calToday:"Bugün", calNTasks:"{n} görev",
+    markDone:"{s} — tamamlandı olarak işaretle", deleteTaskNamed:"{s} — sil",
     backlinks:"Buraya bağlananlar", wikiOpen:"{p} sayfasını aç", wikiCreated:"{p} sayfası oluşturuldu",
     selN:"{n} görev seçili", selSelected:"seçili", selClear:"Seçimi temizle", bulkLbl:"Toplu işlemler",
     bulkDoneAct:"Tamamla", bulkUndoneAct:"Geri aç", bulkPrioTo:"Önceliği {p} yap",
@@ -1107,6 +1134,7 @@ const I18N = {
     viewLbl:"View", view_list:"List", view_board:"Board", view_calendar:"Calendar",
     cmdViewList:"View: List", cmdViewBoard:"View: Board", cmdViewCalendar:"View: Calendar",
     calPrev:"Previous month", calNext:"Next month", calToday:"Today", calNTasks:"{n} tasks",
+    markDone:"{s} — mark as done", deleteTaskNamed:"{s} — delete",
     backlinks:"Linked here", wikiOpen:"Open page {p}", wikiCreated:"Page {p} created",
     selN:"{n} tasks selected", selSelected:"selected", selClear:"Clear selection", bulkLbl:"Bulk actions",
     bulkDoneAct:"Complete", bulkUndoneAct:"Reopen", bulkPrioTo:"Set priority to {p}",
@@ -3316,7 +3344,7 @@ function selArrow(fromId, delta, extend){
     renderList();
     announceSelection();
   }
-  const node = document.querySelector('#list .card[data-id="' + CSS.escape(next) + '"]');
+  const node = document.querySelector('#list .card[data-id="' + CSS.escape(next) + '"] .card-open');
   if (node) node.focus({ preventScroll:false });
 }
 
@@ -3966,7 +3994,7 @@ function taskCard(task){
 
   const cb = el("input", {
     type:"checkbox", class:"check", checked: task.done,
-    "aria-label": task.title || t("titleLbl"),
+    "aria-label": t("markDone", { s: task.title || t("titleLbl") }),
     onclick(e){ e.stopPropagation(); },
     onchange(e){ toggleDone(task.id, e.target.checked); }
   });
@@ -3992,40 +4020,61 @@ function taskCard(task){
       el("span", { text: doneN + "/" + task.subtasks.length })
     ));
   }
+  /* [[sayfa]] bağlantıları artık BAŞLIĞIN İÇİNDE değil, üstbilgi satırında.
+     Sebep yapısal: başlık bir <button> oldu ve düğmenin içine düğme konamaz
+     (nested-interactive). Bağlantılar etiketlerin yanına çip olarak düşünce
+     hem kural sağlanıyor hem de keşfedilebilirlikleri artıyor. */
+  for (const l of extractLinks(task.title)){
+    meta.append(el("button", {
+      class:"wikilink", title: t("wikiOpen", { p: l.name }), "aria-label": t("wikiOpen", { p: l.name }),
+      onclick(e){ e.stopPropagation(); openWikiLink(l.name); }
+    }, icon("link"), el("span", { class:"wl-label", text: l.name })));
+  }
   for (const tg of task.tags) meta.append(el("span", { class:"chip", text:"#" + tg }));
 
-  const card = el("li", { class: cls.join(" "), tabindex:"0", role:"button",
-    /* `aria-selected` BURADA GEÇERSİZDİR: `role="button"` onu kabul etmez
-       (axe: aria-allowed-attr). İlk sürümde eklenmiş ve a11y kapısı yakalamıştı.
-       Seçim durumu bunun yerine erişilebilir ADIN parçası olarak veriliyor —
-       her zaman geçerli, her ekran okuyucuda okunur. Canlı bölge de (#selLive)
-       seçim sayısını ayrıca duyurur.
-       Not: doğru uzun vadeli çözüm kartın rolünü düzeltmek, yani T2.8. */
-    "data-id": task.id,
+  /* KARTIN ERİŞİLEBİLİR GİRİŞİ: başlık düğmesi.
+   *
+   * Eskiden <li role="button" tabindex="0"> idi ve bu İKİ kuralı birden
+   * ihlal ediyordu (T2.8): role="button" bir <li>'yi liste öğesi olmaktan
+   * çıkarır (axe `list`), ve içinde onay kutusu + sil düğmesi barındıran bir
+   * şey düğme olamaz (axe `nested-interactive`).
+   *
+   * Artık <li> düz bir liste öğesi; ayrıntıyı açan eylemin kendi düğmesi var.
+   * Satırın tamamı fare için yine tıklanabilir ama bu bir KOLAYLIK; klavye ve
+   * ekran okuyucu gerçek denetimleri kullanır. */
+  const openBtn = el("button", {
+    class:"card-open", "data-slot":"open",
     "aria-label": task.title + (picked ? " — " + t("selSelected") : ""),
     onclick(e){
-      if (e.shiftKey){ e.preventDefault(); selRangeTo(task.id); return; }
-      if (e.ctrlKey || e.metaKey){ e.preventDefault(); selToggle(task.id); return; }
-      // Düz tıklama seçimi sıfırlar ve paneli açar — seçim yokken davranış aynı.
-      if (ui.sel.size) clearSelection();
-      openPanel(task.id, card);
+      if (e.shiftKey || e.ctrlKey || e.metaKey) return;   // satır işleyicisi hallediyor
+      e.stopPropagation();
+      openPanel(task.id, openBtn);
     },
     onkeydown(e){
-      if (e.key === "Enter"){ e.preventDefault(); openPanel(task.id, card); return; }
-      if (e.key === " "){ e.preventDefault(); selToggle(task.id); return; }   // Linear: boşluk seçer
+      /* Boşluk düğmeyi etkinleştirir (yerel davranış); seçim için Linear'ın
+         kısayolu `x` kullanılıyor — yerel anlamla kavga edilmiyor. */
+      if (e.key === "x" || e.key === "X"){ e.preventDefault(); selToggle(task.id); return; }
       if (e.key === "ArrowDown" || e.key === "ArrowUp"){
         e.preventDefault();
         selArrow(task.id, e.key === "ArrowDown" ? 1 : -1, e.shiftKey);
       }
     }
+  }, el("span", { class:"card-title", text: noteTextOfTitle(task.title) || "—" }));
+
+  const card = el("li", { class: cls.join(" "), "data-id": task.id,
+    onclick(e){
+      if (e.shiftKey){ e.preventDefault(); selRangeTo(task.id); return; }
+      if (e.ctrlKey || e.metaKey){ e.preventDefault(); selToggle(task.id); return; }
+      if (e.target.closest("button, input, a")) return;   // kendi işleyicisi var
+      if (ui.sel.size) clearSelection();
+      openPanel(task.id, openBtn);
+    }
   },
     el("span", { class:"prio-bar " + (task.done ? "" : task.priority), "aria-hidden":"true" }),
     cb,
-    el("div", { class:"card-body" },
-      el("div", { class:"card-title" }, ...titleNodes(task.title || "—")),
-      meta.childNodes.length ? meta : null
-    ),
-    el("button", { class:"btn btn-ghost btn-icon card-del", title: t("deleteTask"), "aria-label": t("deleteTask"),
+    el("div", { class:"card-body" }, openBtn, meta.childNodes.length ? meta : null),
+    el("button", { class:"btn btn-ghost btn-icon card-del", "data-slot":"del",
+      title: t("deleteTask"), "aria-label": t("deleteTaskNamed", { s: task.title }),
       onclick(e){ e.stopPropagation(); deleteTask(task.id); } }, icon("trash"))
   );
   return card;
@@ -4060,8 +4109,10 @@ function captureListFocus(box){
   if (!a || !box.contains(a)) return null;
   const card = a.closest && a.closest(".card");
   if (!card) return null;
+  /* Yuva artık `data-slot`tan okunuyor: kart odaklanabilir değil (T2.8),
+     odak her zaman kartın İÇİNDEKİ bir denetimde. */
   const slot = a.classList && a.classList.contains("check") ? "check"
-             : a.classList && a.classList.contains("card-del") ? "del" : "card";
+             : (a.getAttribute && a.getAttribute("data-slot")) || "open";
   return { id: card.getAttribute("data-id"), slot };
 }
 
@@ -4081,7 +4132,7 @@ function applyFocusSlot(card, slot){
   if (!slot) return;
   const target = slot === "check" ? card.querySelector(".check")
                : slot === "del"   ? card.querySelector(".card-del")
-               : card;
+               : card.querySelector(".card-open");
   if (target) target.focus({ preventScroll:true });
 }
 

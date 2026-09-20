@@ -152,7 +152,9 @@ if (process.argv.includes("--update-baseline")){
     impact: v.impact, help: v.help, combos: v.where.length, example: v.target[0] || "" }))
     .sort((a, b) => a.key.localeCompare(b.key));
   writeFileSync(BASELINE, JSON.stringify({
-    note: "BİLİNEN erişilebilirlik borcu. Yeni ihlal CI'yı kırar. Azaltmak hedeftir — bkz. T2.8.",
+    note: out.length
+      ? "BİLİNEN erişilebilirlik borcu. Yeni ihlal CI'yı kırar. Hedef: bu liste BOŞ kalmalı."
+      : "Borç yok. Bu liste BOŞ olmalı; dolmaya başlarsa bir gerileme var demektir.",
     updated: new Date().toISOString().slice(0, 10), total: out.length, violations: out,
   }, null, 2) + "\n");
   console.log(`a11y: taban güncellendi — ${out.length} bilinen ihlal`);

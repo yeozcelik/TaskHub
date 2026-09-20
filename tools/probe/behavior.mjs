@@ -24,7 +24,8 @@ const SEED = `(() => {
   return true;
 })()`;
 
-const ids = 'Array.from(document.querySelectorAll("#list .card")).map(n => n.getAttribute("aria-label"))';
+/* Erişilebilir ad artık .card-open üzerinde: <li> düz liste öğesi (T2.8). */
+const ids = 'Array.from(document.querySelectorAll("#list .card .card-open")).map(n => n.getAttribute("aria-label"))';
 
 const checks = [];
 const check = (name, actual, expected) => checks.push({ name, actual, expected,
@@ -38,7 +39,7 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
 
   // Grup içi sıra sortTasks ile aynı olmalı: aynı tarih → öncelik (high önce).
   check("grup içi sıra: yüksek öncelik önde",
-    await ev(`Array.from(document.querySelectorAll("#g-today .card")).map(n => n.getAttribute("aria-label"))`),
+    await ev(`Array.from(document.querySelectorAll("#g-today .card .card-open")).map(n => n.getAttribute("aria-label"))`),
     ["alfa rapor", "beta rapor"]);
 
   // Türkçe harf katlamalı arama listede de geçerli.
@@ -47,8 +48,16 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
 
   // --- ASIL SINAMA: odak korunumu ---
   await ev(`ui.q = ""; renderList();`);
-  await ev(`document.querySelector('#list .card[aria-label="beta rapor"]').focus();`);
+  await ev(`document.querySelector('#list .card-open[aria-label="beta rapor"]').focus();`);
   check("odak karta yerleşti", await ev(`document.activeElement.getAttribute("aria-label")`), "beta rapor");
+  check("T2.8: odaklanan öğe başlık DÜĞMESİ, <li> değil",
+    await ev(`[document.activeElement.tagName, document.activeElement.className]`), ["BUTTON", "card-open"]);
+
+  // Klavye gerilemedi: Enter paneli açar (düğmenin yerel davranışı).
+  await ev(`(() => { document.activeElement.dispatchEvent(new MouseEvent("click", { bubbles:true, cancelable:true }));
+    return true; })()`);
+  check("T2.8: Enter/tıklama paneli açıyor", await ev(`openTaskId`), "b");
+  await ev(`closePanel(); document.querySelector('#list .card-open[aria-label="beta rapor"]').focus(); true`);
 
   // Kartın İÇERİĞİ değişsin (imza değişir → kart yeniden kurulur).
   await ev(`state.tasks.find(t => t.id === "b").title = "beta rapor (güncel)"; renderList();`);
@@ -56,16 +65,16 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
     await ev(`document.activeElement.getAttribute("aria-label")`), "beta rapor (güncel)");
 
   // Onay kutusuna odaklanıp içerik değiştir: yuva da korunmalı.
-  await ev(`document.querySelector('#list .card[aria-label="alfa rapor"] .check').focus();`);
+  await ev(`document.querySelector('#list .card-open[aria-label="alfa rapor"]').closest(".card").querySelector(".check").focus();`);
   await ev(`state.tasks.find(t => t.id === "a").title = "alfa rapor v2"; renderList();`);
   check("odak YUVASI korundu (onay kutusu)",
     await ev(`document.activeElement.className`), "check");
 
   // Sıralama değişince (taşıma yolu) odak kaybolmamalı.
-  await ev(`document.querySelector('#list .card[aria-label="beta rapor (güncel)"]').focus();`);
+  await ev(`document.querySelector('#list .card-open[aria-label="beta rapor (güncel)"]').focus();`);
   await ev(`state.tasks.find(t => t.id === "b").priority = "high"; state.tasks.find(t => t.id === "a").priority = "low"; renderList();`);
   check("taşımadan sonra sıra değişti",
-    await ev(`Array.from(document.querySelectorAll("#g-today .card")).map(n => n.getAttribute("aria-label"))`),
+    await ev(`Array.from(document.querySelectorAll("#g-today .card .card-open")).map(n => n.getAttribute("aria-label"))`),
     ["beta rapor (güncel)", "alfa rapor v2"]);
   check("taşımadan sonra odak hâlâ aynı kartta",
     await ev(`document.activeElement.getAttribute("aria-label")`), "beta rapor (güncel)");
@@ -73,7 +82,7 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   // Kova değişimi: tamamlanan görev "completed" grubuna düşmeli.
   await ev(`state.tasks.find(t => t.id === "c").done = true; renderList();`);
   check("tamamlanan görev completed kovasına taşındı",
-    await ev(`Array.from(document.querySelectorAll("#g-completed .card")).map(n => n.getAttribute("aria-label"))`),
+    await ev(`Array.from(document.querySelectorAll("#g-completed .card .card-open")).map(n => n.getAttribute("aria-label"))`),
     ["gama İstanbul"]);
 
   // Odak listeden BAŞKA bir yere gittiyse geri çalınmamalı. Bu, düzeltmenin
@@ -450,7 +459,7 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   // Kart bileşeni paylaşılıyor: aynı DOM, farklı düzen.
   await ev(`switchTaskView("board"); true`);
   check("pano ve liste AYNI kart bileşenini kullanır",
-    await ev(`!!document.querySelector("#list.board .card .card-title")`), true);
+    await ev(`!!document.querySelector("#list.board .card .card-open .card-title")`), true);
   await ev(`switchTaskView("list"); true`);
 
   // Bu blok state'i değiştirdi; sonraki iddiaların beklediği düzeni geri kur.
@@ -576,8 +585,9 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   check("seçim çubuğu belirdi", await ev(`!!document.querySelector(".bulkbar")`), true);
   check("seçili kart işaretli ve ADINDA seçili yazıyor",
     await ev(`(() => { const c = document.querySelector('.card[data-id="s2"]');
-      return [c.classList.contains("picked"), c.getAttribute("aria-label").includes("seçili"),
-              c.hasAttribute("aria-selected")]; })()`), [true, true, false]);
+      const b = c.querySelector(".card-open");
+      return [c.classList.contains("picked"), b.getAttribute("aria-label").includes("seçili"),
+              b.hasAttribute("aria-selected")]; })()`), [true, true, false]);
   check("seçim ekran okuyucuya duyuruldu",
     await ev(`document.getElementById("selLive").textContent.includes("1")`), true);
 
@@ -593,13 +603,15 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   await ev(`closePanel(); true`);
 
   // Klavye
-  await ev(`(() => { const c = document.querySelector('.card[data-id="s2"]'); c.focus();
-    c.dispatchEvent(new KeyboardEvent("keydown", { key:" ", bubbles:true, cancelable:true })); return true; })()`);
-  check("boşluk tuşu seçer", await ev(`[...ui.sel]`), ["s2"]);
-  await ev(`(() => { const c = document.querySelector('.card[data-id="s2"]'); c.focus();
+  // Boşluk artık düğmeyi ETKİNLEŞTİRİR (yerel davranış); seçim `x` ile.
+  await ev(`(() => { const c = document.querySelector('.card[data-id="s2"] .card-open'); c.focus();
+    c.dispatchEvent(new KeyboardEvent("keydown", { key:"x", bubbles:true, cancelable:true })); return true; })()`);
+  check("`x` tuşu seçer", await ev(`[...ui.sel]`), ["s2"]);
+  await ev(`(() => { const c = document.querySelector('.card[data-id="s2"] .card-open'); c.focus();
     c.dispatchEvent(new KeyboardEvent("keydown", { key:"ArrowDown", shiftKey:true, bubbles:true, cancelable:true })); return true; })()`);
   check("Shift+ok seçimi genişletir", await ev(`[...ui.sel].sort()`), ["s2", "s3"]);
-  check("odak sonraki karta taşındı", await ev(`document.activeElement.getAttribute("data-id")`), "s3");
+  check("odak sonraki karta taşındı",
+    await ev(`document.activeElement.closest(".card").getAttribute("data-id")`), "s3");
 
   await ev(`document.documentElement.dispatchEvent(new KeyboardEvent("keydown", { key:"Escape", bubbles:true, cancelable:true })); true`);
   check("Esc seçimi temizler", await ev(`[ui.sel.size, !!document.querySelector(".bulkbar")]`), [0, false]);
@@ -674,23 +686,33 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
     ]; ui.view = "tasks"; buildShell(); true`);
 
   check("başlıktaki [[bağlantı]] tıklanabilir düğüm oldu",
-    await ev(`(() => { const a = document.querySelector('.card[data-id="w1"] .wikilink');
-      return [!!a, a && a.tagName, a && a.textContent]; })()`), [true, "BUTTON", "Toplantı"]);
+    await ev(`(() => { const a = document.querySelector('.card[data-id="w1"] .card-meta .wikilink');
+      return [!!a, a && a.tagName, a && a.querySelector(".wl-label").textContent]; })()`),
+    [true, "BUTTON", "Toplantı"]);
   check("bağlantısız başlıkta düğüm yok",
-    await ev(`!document.querySelector('.card[data-id="w2"] .wikilink')`), true);
-  check("başlığın düz metni korundu",
+    await ev(`!document.querySelector('.card[data-id="w2"] .card-meta .wikilink')`), true);
+  check("başlık düz metin, bağlantı işaretleri temiz",
     await ev(`document.querySelector('.card[data-id="w1"] .card-title').textContent`), "bak Toplantı notuna");
+  check("bağlantı üstbilgi satırında, başlığın İÇİNDE değil",
+    await ev(`[!!document.querySelector('.card[data-id="w1"] .card-meta .wikilink'),
+               !!document.querySelector('.card[data-id="w1"] .card-title .wikilink')]`), [true, false]);
+  check("T2.8: düğme içinde düğme YOK",
+    await ev(`!document.querySelector('#list button button')`), true);
+  check("T2.8: <li> düz liste öğesi — role ve tabindex yok",
+    await ev(`(() => { const c = document.querySelector('.card[data-id="w1"]');
+      return [c.hasAttribute("role"), c.hasAttribute("tabindex")]; })()`), [false, false]);
 
   // GÜVENLİK: bağlantı adı HTML olarak yorumlanmamalı
   await ev(`state.tasks[0].title = 'kötü [[<img src=x onerror=alert(1)>]] deneme'; renderList(); true`);
   check("GÜVENLİK: bağlantı adı metin olarak basılır, öğe yaratmaz",
-    await ev(`(() => { const c = document.querySelector('.card[data-id="w1"] .card-title');
-      return [c.querySelectorAll("img").length, c.querySelector(".wikilink").textContent]; })()`),
+    await ev(`(() => { const c = document.querySelector('.card[data-id="w1"]');
+      return [c.querySelectorAll("img").length,
+              c.querySelector(".card-meta .wikilink .wl-label").textContent]; })()`),
     [0, "<img src=x onerror=alert(1)>"]);
   await ev(`state.tasks[0].title = "bak [[Toplantı]] notuna"; renderList(); true`);
 
   // Var olan sayfaya gitme
-  await ev(`document.querySelector('.card[data-id="w1"] .wikilink').click(); true`);
+  await ev(`document.querySelector('.card[data-id="w1"] .card-meta .wikilink').click(); true`);
   check("bağlantı var olan sayfayı açtı",
     await ev(`[ui.view, ui.nbId, ui.pageId]`), ["notes", "nbx", "pgA"]);
 
@@ -714,7 +736,7 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
 
   // Olmayan sayfaya bağlantı: KIRIK değil, DAVET
   await ev(`state.tasks[0].title = "bak [[Yeni Sayfa]] notuna"; renderList();
-    document.querySelector('.card[data-id="w1"] .wikilink').click(); true`);
+    document.querySelector('.card[data-id="w1"] .card-meta .wikilink').click(); true`);
   const created = await ev(`(() => { const nb = notes.notebooks.find(n => n.id === ui.nbId);
     const p = nb.pages.find(x => x.id === ui.pageId);
     return [ui.view, p && p.title, nb.pages.length]; })()`);
@@ -724,7 +746,7 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   // Türkçe harf katlaması uçtan uca
   await ev(`ui.view = "tasks"; buildShell();
     state.tasks[0].title = "bak [[toplanti]] notuna"; renderList();
-    document.querySelector('.card[data-id="w1"] .wikilink').click(); true`);
+    document.querySelector('.card[data-id="w1"] .card-meta .wikilink').click(); true`);
   check("bağlantı eşleşmesi Türkçe harf katlamalı (yeni sayfa AÇILMADI)",
     await ev(`[ui.pageId, notes.notebooks[0].pages.length]`), ["pgA", 3]);
 

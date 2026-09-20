@@ -158,7 +158,7 @@ aynı modülleri çağırmaya devam eder. İddia sayısının **azalması** CI h
 | S6 | Klavye kapsaması | Her kullanıcı aksiyonu `Ctrl+K` üzerinden ulaşılabilir | komut kayıt defteri sayımı vs. aksiyon envanteri |
 | S7 | Yakalama ayrıştırma | "yarın 15:00 !yüksek #iş" → doğru tarih/öncelik/etiket, TR ve EN | birim testi |
 | S8 | Varsayılan ekran sakin kalır | Kalıcı arayüz **envanteri** (üst çubuk, kenar çubuğu grupları, ana alan) spec'te adlarıyla yazılı ve birebir doğrulanır | `node tools/probe/behavior.mjs` |
-| S9 | Erişilebilirlik | 4 genişlik × 2 tema × 4 durum, **bilinen tabanın üstüne yeni ihlal yok** | `node tools/probe/a11y.mjs` — **0 hedefi henüz tutmuyor**, bkz. T2.8 |
+| S9 | Erişilebilirlik | 4 genişlik × 2 tema × **8 durum**, WCAG 2.1 A+AA **0 ihlal** | `node tools/probe/a11y.mjs` — **karşılandı** |
 | S10 | Dosya boyutu bütçesi | Derlenmiş `index.html` **≤ 500 KB** | `build.mjs --budget` |
 | S11 | Eski veri okunur | v1 `localStorage` ve v1 JSON yedeği kayıpsız yüklenir | birim testi + fikstür |
 
@@ -191,7 +191,14 @@ kayda geçirir: küçük delta bir *uzlaştırma* problemi (çözüldü), toplu 
 *inşa hacmi* problemi (pencereleme gerekir, T2.3b).
 
 
-## Ölçümün değiştirdiği ölçüt: S9
+## S9 kapandı (T2.8)
+
+Aşağıdaki bölüm, S9'un neden geçici olarak taban kilidine çevrildiğini anlatıyor
+ve tarihsel kayıt olarak duruyor. **T2.8 ile borç kapandı:** 64 taramada
+(4 genişlik × 2 tema × 8 durum) WCAG 2.1 A+AA ihlali **sıfır**, taban dosyası
+boş. Kapı artık "yeni ihlal yok" değil, **"hiç ihlal yok"** diyor.
+
+## Ölçümün değiştirdiği ölçüt: S9 (tarihsel)
 
 S9 "0 ihlal" olarak yazılmıştı — README'nin hedefinden devralınarak, ölçülmeden.
 Ölçüldüğünde (`docs/olcumler/2026-09-20-erisilebilirlik.md`) tutmadığı görüldü:

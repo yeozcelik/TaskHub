@@ -462,7 +462,7 @@ göstermek yerine listelememek, aranan komutu bulmayı kolaylaştırır.
 **Dosyalar:** `src/ui/palette.js`, `src/i18n/strings.js`, `tools/probe/behavior.mjs`
 **Boyut:** M
 
-### T2.8: Devralınan erişilebilirlik borcunu kapat — 🆕 ÖLÇÜMDEN DOĞDU
+### T2.8: Devralınan erişilebilirlik borcunu kapat — ✅ BİTTİ (17 → 0)
 
 **Açıklama:** S9 "0 ihlal" diyordu; ölçüldüğünde tutmadığı görüldü
 (`docs/olcumler/2026-09-20-erisilebilirlik.md`). Üç ihlalin **üçü de
@@ -470,21 +470,45 @@ devralınmıştır** — değiştirilmemiş özgün dosya aynı kuralları daha 
 kombinasyonda ihlal ediyor (12'ye 9). Kapı şimdilik taban kilidi; bu görev
 tabanı sıfıra indirir.
 
+**Sonuç.** 17 taban kaydı → **0**. 64 taramada WCAG 2.1 A+AA ihlali yok.
+Ayrıntı: `docs/olcumler/2026-09-20-erisilebilirlik.md`.
+
+> **Koyu tema sorunu YOKMUŞ.** Ölçüt "kaynağı bulunacak, varsayılmayacak"
+> diyordu; bulundu: **yok.** Yedi kontrast kaydının hepsi `combos: 4` — 4
+> genişlik × **tek tema**. Daha önce "320px/dark" ifadesini bu kurala yanlış
+> atfetmişim; o satır `list` kuralına aitti. Kriterin cevabı bir düzeltme
+> değil, bir **yokluk kanıtı**.
+
 **Kabul ölçütleri:**
-- [ ] **`nested-interactive` + `list`** (tek kök neden): kart `<li>`'sindeki
+- [x] **`nested-interactive` + `list`** (tek kök neden): kart `<li>`'sindeki
       `role="button"` kaldırılır. İçinde onay kutusu ve sil düğmesi olan bir
       öğe düğme olamaz; `<li>` liste öğesi kalmalı ve kartın kendisi
       tıklanabilirliğini `role` uydurmadan sürdürmeli.
       **Klavye davranışı gerilemeyecek:** `Tab`, `Enter`/`Space` ile paneli
       açma ve odak korunumu aynen çalışmalı (`behavior.mjs` kilitliyor).
-- [ ] **`color-contrast` açık tema:** `--warn` `#a86100` → `#9f5c00`.
+- [x] **`color-contrast` açık tema:** `--warn` `#a86100` → `#9f5c00`.
       Ölçüldü: 4,404 → **4,811** (`#fff4e0` üstünde), beyazda 5,243,
       yüzeyde 4,813. Hepsi AA eşiğinin üstünde.
-- [ ] **`color-contrast` koyu tema:** kaynağı **bulunacak**, varsayılmayacak.
+- [x] **`color-contrast` koyu tema:** ölçüldü — **böyle bir ihlal yok**.
       `--warn`/`--warn-soft` çifti koyu temada 7,936:1 ile zaten temiz,
       yani ihlal başka bir öğeden geliyor.
-- [ ] `node tools/probe/a11y.mjs` **0 ihlal** verir; taban dosyası boşalır
-- [ ] SPEC.md S9 tekrar "0 ihlal" olarak yazılır
+- [x] `node tools/probe/a11y.mjs` **0 ihlal** verir; taban dosyası boş
+- [x] SPEC.md S9 tekrar "0 ihlal" olarak yazıldı
+
+> **Yan etki, kayıtlı:** başlık artık bir düğme, düğmenin içine düğme konamaz.
+> `[[bağlantı]]`lar başlıktan **üstbilgi satırına** taşındı, etiketlerin yanına
+> çip olarak. Kural sağlandı, keşfedilebilirlik arttı.
+>
+> **Seçim kısayolu boşluktan `x`'e geçti.** Boşluk bir düğmeyi etkinleştirir;
+> yerel anlamla kavga etmek yanlış olurdu. Linear'ın kısayolu da `x`.
+>
+> **Kendi kendimi bir kez kurtardım:** ilk yamada `taskCard`'ı değiştirirken
+> aradaki yedi yardımcı fonksiyonu (`cardSig`, `captureListFocus`,
+> `applyFocusSlot`, `restoreListFocus`, `groupHead`, `makeSection`,
+> `reconcileCards`) sildim. Testler hemen patladı, `git checkout` ile geri
+> alındı ve yama yalnız `taskCard` gövdesini hedefleyecek şekilde yeniden
+> yazıldı. Geniş aralıklı metin değiştirme, aralığın içinde ne olduğunu
+> saymadan yapılmamalı.
 
 **Doğrulama:** `node tools/probe/a11y.mjs` · `node tools/probe/behavior.mjs`
 · `node tools/probe/verify.mjs`

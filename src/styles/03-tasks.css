@@ -267,3 +267,24 @@
   text-decoration-style:dotted;text-underline-offset:2px;
 }
 .wikilink:hover{text-decoration-style:solid;background:var(--accent-soft);border-radius:3px}
+
+/* ---------- Kart yapısı (T2.8) ----------
+   <li> artık düz liste öğesi; ayrıntıyı açan eylem kendi düğmesinde.
+   Görsel olarak hiçbir şey değişmiyor — düğme satırın gövdesini kaplıyor. */
+.card-open{
+  display:block;width:100%;text-align:left;
+  background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;
+}
+.card-open:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.card-title{pointer-events:none}          /* tıklama düğmeye gitsin */
+/* Bağlantı çipi artık üstbilgi satırında, etiketlerin yanında */
+.card-meta .wikilink{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:1px 7px;border-radius:999px;
+  border:1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background:var(--surface);color:var(--accent);
+  font-size:11.5px;text-decoration:none;cursor:pointer;
+}
+.card-meta .wikilink:hover{background:var(--accent-soft)}
+.card-meta .wikilink svg{width:11px;height:11px;opacity:.8;flex:none}
+.wl-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}

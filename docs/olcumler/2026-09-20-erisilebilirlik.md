@@ -112,3 +112,59 @@ vadeli çözüm yine T2.8: kartın rolünü düzeltmek.
 
 Taban 13 → **16**: üç devralınan ihlal, yeni bir durumda tekrar sayılıyor.
 Kusur sayısı yine değişmedi.
+
+
+## KAPANDI (T2.8): 17 kayıt → 0
+
+| | Önce | Sonra |
+|---|---|---|
+| Taban kaydı | 17 | **0** |
+| Tarama | 4 genişlik × 2 tema × 8 durum = 64 | aynı |
+| WCAG 2.1 A+AA ihlali | 17 kural×durum | **sıfır** |
+
+### Koyu tema sorunu YOKMUŞ — ölçüm öyle diyor
+
+Plan "koyu temadaki kontrast ihlalinin **kaynağı bulunacak, varsayılmayacak**"
+diyordu. Bulundu: **yok.** Yedi `color-contrast` kaydının hepsi `combos: 4`,
+yani 4 genişlik × **tek tema**. Daha önce "320px/light, 320px/dark" ifadesini
+bu kurala atfetmiştim; o satır `list` kuralına aitti. Doğrudan ölçüm de
+doğruladı: koyu temada sıfır kontrast ihlali.
+
+Kriterin cevabı bir düzeltme değil, bir **yokluk kanıtı** oldu.
+
+### Düzeltme 1: `--warn` (7 kayıt)
+
+`#a86100` → `#9f5c00`. Ölçülen: `--warn-soft` üstünde 4,404 → **4,811**;
+beyazda 5,243; yüzeyde 4,813; kenar çubuğunda 4,649. Hepsi AA eşiğinin üstünde.
+Koyu tema dokunulmadı (zaten 7,936:1).
+
+### Düzeltme 2: kart yapısı (10 kayıt, tek kök neden)
+
+Kart `<li role="button" tabindex="0">` idi. Bu **tek nitelik** iki kuralı
+birden ihlal ediyordu:
+
+- `role="button"` bir `<li>`'yi liste öğesi olmaktan çıkarır → `<ul>` "li
+  olmayan içerik taşıyor" (`list`)
+- İçinde onay kutusu ve sil düğmesi olan bir şey düğme olamaz
+  (`nested-interactive`)
+
+**Yeni yapı:** `<li>` düz liste öğesi; ayrıntıyı açan eylemin kendi düğmesi
+var (`.card-open`). Kart başına üç doğal sekme durağı: onay kutusu, başlık
+düğmesi, sil düğmesi. Satırın tamamı fare için yine tıklanabilir ama bu bir
+kolaylık — klavye ve ekran okuyucu gerçek denetimleri kullanır.
+
+**Yan etki: `[[bağlantı]]`lar başlıktan üstbilgi satırına taşındı.** Başlık
+artık bir düğme ve düğmenin içine düğme konamaz. Bağlantılar etiketlerin
+yanına çip olarak düştü — kural sağlandı, keşfedilebilirlik arttı.
+
+**Klavye gerilemedi ve bu testle kilitli:** odak korunumu (güncelleme, taşıma,
+yuva), ok tuşlarıyla gezinme, `Shift+ok` ile genişletme, odağın çalınmaması,
+`Enter`/tıklama ile panel açma. Seçim kısayolu boşluktan **`x`**'e geçti:
+boşluk bir düğmeyi etkinleştirir ve yerel anlamla kavga etmek yanlış olurdu.
+
+### Borcun yayılması durdu
+
+Faz 3 ve 4 boyunca taban 9 → 12 → 13 → 16 → 17 diye büyümüştü; **kusur sayısı
+hiç artmadan.** Her yeni görünüm aynı kök nedeni yeniden saydırıyordu. Tek
+düzeltme hepsini birden kapattı — erteledikçe kazancın büyüdüğü tahmini
+doğrulandı.
