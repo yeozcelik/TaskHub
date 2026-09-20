@@ -352,6 +352,38 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .meter.warn .bar > i{background:var(--warn)} .meter.warn .lbl{color:var(--warn)}
 .meter.full .bar > i{background:var(--danger)} .meter.full .lbl{color:var(--danger)}
 
+
+/* ---------- Komut paleti ----------
+   Diyalog tembel kurulur; varsayılan DOM'a hiçbir şey eklenmez (S8). */
+dialog.palette{
+  max-width:min(600px,94vw); width:600px; padding:0; margin-top:12vh;
+  border-radius:var(--r-lg); overflow:hidden;
+}
+.pal-head{padding:12px 12px 10px; border-bottom:1px solid var(--border)}
+.pal-head .input{font-size:15px}
+.pal-list{list-style:none; margin:0; padding:6px; max-height:46vh; overflow-y:auto}
+.pal-item{
+  display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--r-sm);
+  cursor:pointer; color:var(--text);
+}
+.pal-item.on{background:var(--accent-soft)}
+.pal-item.on .pal-label{font-weight:600}
+.pal-label{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pal-hint{color:var(--muted); font-size:12.5px; flex:none}
+.pal-keys{
+  font:inherit; font-size:11.5px; color:var(--muted); flex:none;
+  background:var(--surface-2); border:1px solid var(--border-strong); border-bottom-width:2px;
+  border-radius:5px; padding:1px 6px;
+}
+.pal-empty{padding:16px 12px; color:var(--muted); text-align:center}
+.pal-foot{
+  padding:8px 12px; border-top:1px solid var(--border); background:var(--surface-2);
+  color:var(--muted); font-size:12px;
+}
+@media (max-width:600px){
+  dialog.palette{width:96vw; margin-top:6vh}
+  .pal-keys{display:none}
+}
 /* ---------- Notlar düzeni ---------- */
 .notes-shell{display:flex;flex-direction:column;height:calc(100vh - 53px)}
 .notes-shell > #banners:not(:empty){padding:12px 18px 0}
@@ -763,6 +795,13 @@ const I18N = {
     capRemove:"Kaldır", capRestore:"Geri al", capIgnored:"yok sayıldı",
     capTimeUnsupported:"Saat henüz desteklenmiyor; başlıkta bırakıldı.",
     capRead:"Yazdığından okunanlar",
+    palette:"Komut paleti", palettePh:"Komut ara…  (Ctrl+K)",
+    paletteEmpty:"Eşleşen komut yok", paletteHint:"↑↓ gez · Enter çalıştır · Esc kapat",
+    cmdViewTasks:"Görünüm: Görevler", cmdViewNotes:"Görünüm: Notlar",
+    cmdNewTask:"Yeni görev", cmdSearch:"Görevlerde ara",
+    cmdToggleCompleted:"Tamamlananları göster / gizle",
+    cmdNewNotebook:"Yeni defter", cmdNewPage:"Yeni sayfa",
+    cmdTheme:"Temayı değiştir", cmdLang:"Dili değiştir (TR / EN)", cmdPrint:"Yazdır",
     theme:"Tema", themeAuto:"Tema: sistem", themeLight:"Tema: açık", themeDark:"Tema: koyu",
     lang:"Dil", exportJson:"JSON yedeği indir", importJson:"JSON'dan geri yükle", exportCsv:"CSV indir (Excel)",
     status:"Durum", all:"Tümü", active:"Açık", done:"Tamamlanan",
@@ -877,6 +916,13 @@ const I18N = {
     capRemove:"Remove", capRestore:"Restore", capIgnored:"ignored",
     capTimeUnsupported:"Time isn't supported yet; left in the title.",
     capRead:"Read from what you typed",
+    palette:"Command palette", palettePh:"Search commands…  (Ctrl+K)",
+    paletteEmpty:"No matching command", paletteHint:"↑↓ navigate · Enter run · Esc close",
+    cmdViewTasks:"View: Tasks", cmdViewNotes:"View: Notes",
+    cmdNewTask:"New task", cmdSearch:"Search tasks",
+    cmdToggleCompleted:"Show / hide completed",
+    cmdNewNotebook:"New notebook", cmdNewPage:"New page",
+    cmdTheme:"Switch theme", cmdLang:"Switch language (TR / EN)", cmdPrint:"Print",
     theme:"Theme", themeAuto:"Theme: system", themeLight:"Theme: light", themeDark:"Theme: dark",
     lang:"Language", exportJson:"Download JSON backup", importJson:"Restore from JSON", exportCsv:"Download CSV (Excel)",
     status:"Status", all:"All", active:"Open", done:"Completed",
@@ -1855,6 +1901,77 @@ function parseCapture(text, opts){
   title = title.replace(/\s+/g, " ").trim();
 
   return { title, dueDate, priority, tags, matches, unsupported };
+}
+/* --------------------------------------------------------- komut kaydı ---
+ * Linear yasası (CAPABILITY-MAP.md): klavyeden çağrılamayan yetenek bitmiş
+ * sayılmaz. Her aksiyon buraya kaydolur; palet tek kapıdır.
+ *
+ * Kayıt defteri VERİDİR. Yeni bir komut eklemek palet arayüzüne dokunmayı
+ * gerektirmez — `registerCommand` çağırmak yeter. Palet listeyi çizer,
+ * bilmediği hiçbir şey yoktur.
+ *
+ * Eşleme Türkçe harf katlamalıdır (`foldTr`): "gorunum" yazan biri
+ * "Görünüm"ü bulmalı, "istanbul" yazan "İstanbul"u.                        */
+
+const COMMANDS = [];
+
+/**
+ * @param {{id:string, label:()=>string, hint?:()=>string,
+ *          run:()=>void, when?:()=>boolean, keys?:string}} cmd
+ */
+function registerCommand(cmd){
+  if (!cmd || !cmd.id || typeof cmd.run !== "function") return null;
+  const i = COMMANDS.findIndex(c => c.id === cmd.id);
+  if (i >= 0) COMMANDS[i] = cmd; else COMMANDS.push(cmd);   // yeniden kayıt üst üste yazar
+  return cmd;
+}
+
+/** O an geçerli komutlar. `when` bağlama duyarlılık içindir (görevler/notlar). */
+function availableCommands(){
+  return COMMANDS.filter(c => !c.when || c.when());
+}
+
+/* Altdizi eşlemesi + puanlama. Saf: girdi etiket ve sorgu, çıktı sayı ya da
+   null (hiç eşleşmedi). Puan mutlak bir anlam taşımaz, yalnız sıralamak için.
+
+   Tercihler, en güçlüden zayıfa:
+     bitişik harfler > etiketin EN BAŞINDAN eşleşme > kelime başı > kısa etiket
+
+   "En baştan" niye "kelime başı"ndan güçlü: "yenile" yazan kullanıcı için
+   "Yenileme aracı", "Sayfayı yenile"den daha iyi bir adaydır — komut
+   paletlerinin (VS Code, Sublime) yerleşik davranışı da budur. Bir testte bu
+   sıra tersine yazılmıştı; kod değil test düzeltildi.                       */
+function scoreMatch(label, query){
+  const hay = foldTr(label);
+  const needle = foldTr(query).replace(/\s+/g, "");
+  if (!needle) return 0;
+  if (!hay) return null;
+
+  let score = 0, from = 0, prev = -2, run = 0;
+  for (const ch of needle){
+    const at = hay.indexOf(ch, from);
+    if (at === -1) return null;
+    if (at === prev + 1){ run++; score += 8 + run * 2; }              // bitişiklik ödülü
+    else { run = 0; score += 1; }
+    if (at === 0) score += 12;                                        // en baştan
+    else if (/[\s\-_/(),.]/.test(hay.charAt(at - 1))) score += 8;     // kelime başı
+    score -= Math.min(6, at - prev - 1) * 0.5;                        // aradaki boşluk cezası
+    prev = at; from = at + 1;
+  }
+  return score - hay.length * 0.05;                                   // eşitlikte kısa olan
+}
+
+/** Eşleşenleri puana göre sıralı döndürür. Eşit puanda KAYIT SIRASI korunur —
+ *  rastgele görünen sıra kullanıcıyı da testi de yanıltır. */
+function matchCommands(items, query){
+  const scored = [];
+  for (let i = 0; i < items.length; i++){
+    const label = typeof items[i].label === "function" ? items[i].label() : items[i].label;
+    const s = scoreMatch(String(label == null ? "" : label), String(query == null ? "" : query));
+    if (s !== null) scored.push({ item: items[i], s, i });
+  }
+  scored.sort((a, b) => b.s - a.s || a.i - b.i);
+  return scored.map(x => x.item);
 }
 /* ------------------------------------------------------------- depolama */
 const STORAGE_KEY = "taskhub";
@@ -5322,6 +5439,7 @@ function isTyping(e){
 document.addEventListener("keydown", e => {
   if (e.key === "Escape"){
     if (importDlgOpen()) return;
+    if (typeof paletteOpen === "function" && paletteOpen()) return;   // palet kendi kapanır
     if (menuEl){ e.preventDefault(); closeMenu(); return; }
     if (imgPopover){ e.preventDefault(); closeImgPopover(); return; }
     if (openTaskId) { e.preventDefault(); closePanel(); }
@@ -5815,6 +5933,162 @@ if (params.get("clipdebug") === "1"){
   buildShell();
   scheduleMidnight();
 }
+/* ============================ KOMUT PALETİ ==============================
+ * Ctrl/Cmd+K. Linear yasası: klavyeden çağrılamayan yetenek bitmiş sayılmaz.
+ *
+ * Palet, kayıt defterini (src/core/commands.js) çizer ve başka hiçbir şey
+ * bilmez. Yeni bir komut eklemek buraya dokunmayı gerektirmez.
+ *
+ * Erişilebilirlik ucuza geliyor çünkü <dialog>.showModal() kullanılıyor:
+ * odak tuzağı, arka planın etkisizleşmesi (inert), aria-modal ve Esc — hepsi
+ * tarayıcıdan. Elle yazılan her odak tuzağı bir hata kaynağıdır.
+ *
+ * Diyalog TEMBEL kurulur: Things vetosu (S8) gereği varsayılan DOM'a hiçbir
+ * şey eklenmiyor; palet ilk çağrıldığında doğuyor.                          */
+
+let paletteEl = null, paletteInput = null, paletteList = null;
+let paletteItems = [], paletteIndex = 0;
+
+const paletteOpen = () => !!(paletteEl && paletteEl.hasAttribute("open"));
+
+function buildPalette(){
+  paletteInput = el("input", {
+    class:"input", id:"palQ", autocomplete:"off", spellcheck:"false",
+    role:"combobox", "aria-expanded":"true", "aria-controls":"palList",
+    "aria-autocomplete":"list", "aria-label": t("palette"), placeholder: t("palettePh"),
+    oninput(){ renderPaletteList(); },
+    onkeydown(e){
+      if (e.key === "ArrowDown"){ e.preventDefault(); movePalette(1); }
+      else if (e.key === "ArrowUp"){ e.preventDefault(); movePalette(-1); }
+      else if (e.key === "Home"){ e.preventDefault(); setPaletteIndex(0); }
+      else if (e.key === "End"){ e.preventDefault(); setPaletteIndex(paletteItems.length - 1); }
+      else if (e.key === "Enter"){ e.preventDefault(); runPaletteItem(paletteIndex); }
+    }
+  });
+  paletteList = el("ul", { class:"pal-list", id:"palList", role:"listbox", "aria-label": t("palette") });
+  paletteEl = el("dialog", { class:"palette", id:"palette", "aria-label": t("palette"),
+    oncancel(e){ e.preventDefault(); closePalette(); },
+    onclick(e){ if (e.target === paletteEl) closePalette(); }     // dışına tıklama
+  }, el("div", { class:"pal-head" }, paletteInput), paletteList,
+     el("div", { class:"pal-foot", text: t("paletteHint") }));
+  document.body.appendChild(paletteEl);
+}
+
+function openPalette(){
+  if (!paletteEl) buildPalette();
+  paletteInput.value = "";
+  renderPaletteList();
+  if (typeof paletteEl.showModal === "function") paletteEl.showModal();
+  else { paletteEl.setAttribute("open", ""); paletteEl.classList.add("dlg-fallback"); }
+  paletteInput.focus();
+}
+
+function closePalette(){
+  if (!paletteEl) return;
+  if (typeof paletteEl.close === "function" && paletteEl.hasAttribute("open")) paletteEl.close();
+  paletteEl.removeAttribute("open");
+  paletteEl.classList.remove("dlg-fallback");
+}
+
+function setPaletteIndex(i){
+  if (!paletteItems.length){ paletteIndex = 0; return; }
+  paletteIndex = Math.max(0, Math.min(paletteItems.length - 1, i));
+  const opts = paletteList.children;
+  for (let k = 0; k < opts.length; k++){
+    const on = k === paletteIndex;
+    opts[k].classList.toggle("on", on);
+    opts[k].setAttribute("aria-selected", String(on));
+  }
+  const cur = opts[paletteIndex];
+  if (cur){
+    paletteInput.setAttribute("aria-activedescendant", cur.id);
+    if (cur.scrollIntoView) cur.scrollIntoView({ block:"nearest" });
+  }
+}
+
+function movePalette(d){
+  if (!paletteItems.length) return;
+  // Uçlarda sarar: uzun listede sona gitmek için yukarı basmak hızlıdır.
+  setPaletteIndex((paletteIndex + d + paletteItems.length) % paletteItems.length);
+}
+
+function renderPaletteList(){
+  const q = paletteInput ? paletteInput.value : "";
+  paletteItems = matchCommands(availableCommands(), q);
+  paletteList.textContent = "";
+  if (!paletteItems.length){
+    paletteList.append(el("li", { class:"pal-empty", text: t("paletteEmpty") }));
+    paletteInput.removeAttribute("aria-activedescendant");
+    return;
+  }
+  paletteItems.forEach((cmd, i) => {
+    paletteList.append(el("li", {
+      class:"pal-item", id:"palOpt" + i, role:"option", "aria-selected":"false",
+      onmousemove(){ setPaletteIndex(i); },
+      onclick(){ runPaletteItem(i); }
+    },
+      el("span", { class:"pal-label", text: cmd.label() }),
+      cmd.keys ? el("kbd", { class:"pal-keys", text: cmd.keys }) : null,
+      cmd.hint ? el("span", { class:"pal-hint", text: cmd.hint() }) : null
+    ));
+  });
+  setPaletteIndex(0);
+}
+
+function runPaletteItem(i){
+  const cmd = paletteItems[i];
+  if (!cmd) return;
+  closePalette();
+  // Kapanma odağı geri verirken komut da odakla oynayabilir; komut sonra
+  // çalışsın ki son sözü o söylesin.
+  setTimeout(() => { try { cmd.run(); } catch (err){ console.error(err); } }, 0);
+}
+
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "k" || e.key === "K")){
+    e.preventDefault();
+    paletteOpen() ? closePalette() : openPalette();
+  }
+});
+
+/* -------------------------------------------------- T2.7: komut kayıtları
+ * Bugüne kadar yalnız düğmeyle ulaşılan her aksiyon buraya girer. Düğmelerin
+ * hiçbiri kaldırılmadı: palet bir EK yoldur, ikame değil.
+ *
+ * `when` bağlama duyarlılık içindir — notlar görünümündeyken "CSV indir"
+ * listelenmez. Listelenmeyen komut, kullanıcının aradığı komutu bulmasını
+ * kolaylaştırır; gri bir satır göstermek yalnız gürültüdür.                */
+const isTasks = () => ui.view !== "notes";
+const isNotes = () => ui.view === "notes";
+
+[
+  { id:"view.tasks", label:() => t("cmdViewTasks"), when:isNotes, run(){ switchView("tasks"); } },
+  { id:"view.notes", label:() => t("cmdViewNotes"), when:isTasks, run(){ switchView("notes"); } },
+
+  { id:"task.new", label:() => t("cmdNewTask"), keys:"N", when:isTasks,
+    run(){ const q = document.getElementById("quick"); if (q) q.focus(); } },
+  { id:"search.focus", label:() => t("cmdSearch"), keys:"/", when:isTasks,
+    run(){ const q = document.getElementById("q"); if (q){ q.focus(); q.select(); } } },
+  { id:"filters.clear", label:() => t("clearFilters"), when:() => isTasks() && filtersActive(),
+    run(){ clearFilters(); } },
+  { id:"completed.toggle", label:() => t("cmdToggleCompleted"), when:isTasks,
+    run(){ ui.showCompleted = !ui.showCompleted; renderList(); } },
+
+  { id:"notebook.new", label:() => t("cmdNewNotebook"), when:isNotes,
+    run(){ addNotebook(); renamingNbId = ui.nbId; renderNotesView(); } },
+  { id:"page.new", label:() => t("cmdNewPage"), keys:"N", when:isNotes,
+    run(){ if (addPage(ui.nbId)){ renderNotesView(); focusPageTitle(); } } },
+
+  { id:"theme.cycle", label:() => t("cmdTheme"), hint:() => themeTitle(), run(){ cycleTheme(); } },
+  { id:"lang.toggle", label:() => t("cmdLang"), run(){ toggleLang(); } },
+
+  { id:"export.json", label:() => t("exportJson"), run(){ exportJson(); } },
+  { id:"import.json", label:() => t("importJson"), run(){ pickImport(); } },
+  { id:"export.csv", label:() => t("exportCsv"), when:isTasks, run(){ exportCsv(); } },
+  { id:"export.notes", label:() => t("exportNotesHtml"), when:isNotes, run(){ exportNotesHtml(); } },
+
+  { id:"print", label:() => t("cmdPrint"), keys:"Ctrl+P", run(){ window.print(); } },
+].forEach(registerCommand);
 </script>
 </body>
 </html>

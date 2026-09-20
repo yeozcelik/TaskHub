@@ -93,7 +93,11 @@ async function runPage(url, { browser, waitFor = "true", timeoutMs = 20000 } = {
     }
     if (!ready) throw new Error(`Koşul ${timeoutMs}ms içinde sağlanmadı: ${waitFor}`);
 
-    const out = await fn(evaluate);
+    /* CDP'ye ham erişim: a11y koşumu görünüm boyutunu değiştirmek için
+       Emulation.setDeviceMetricsOverride'a ihtiyaç duyuyor. */
+    const cdp = (method, params) => send(method, params, sessionId);
+
+    const out = await fn(evaluate, cdp);
     ws.close();
     return out;
   } finally { cleanup(); }

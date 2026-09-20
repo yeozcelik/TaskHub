@@ -158,7 +158,7 @@ aynı modülleri çağırmaya devam eder. İddia sayısının **azalması** CI h
 | S6 | Klavye kapsaması | Her kullanıcı aksiyonu `Ctrl+K` üzerinden ulaşılabilir | komut kayıt defteri sayımı vs. aksiyon envanteri |
 | S7 | Yakalama ayrıştırma | "yarın 15:00 !yüksek #iş" → doğru tarih/öncelik/etiket, TR ve EN | birim testi |
 | S8 | Varsayılan ekran sakin kalır | Varsayılan görünümde kalıcı kontrol sayısı **artmaz** | elle sayım, gözden geçirmede |
-| S9 | Erişilebilirlik | 4 genişlik × 2 tema, **0 ihlal** | axe-core |
+| S9 | Erişilebilirlik | 4 genişlik × 2 tema × 4 durum, **bilinen tabanın üstüne yeni ihlal yok** | `node tools/probe/a11y.mjs` — **0 hedefi henüz tutmuyor**, bkz. T2.8 |
 | S10 | Dosya boyutu bütçesi | Derlenmiş `index.html` **≤ 500 KB** | `build.mjs --budget` |
 | S11 | Eski veri okunur | v1 `localStorage` ve v1 JSON yedeği kayıpsız yüklenir | birim testi + fikstür |
 
@@ -189,3 +189,17 @@ edilmedi, sayısı da yumuşatılmadı. Açık bir kapı olarak duruyor ve her k
 güncel değeri basılıyor. Ayrım, ölçümün ortaya çıkardığı fiziksel gerçeği
 kayda geçirir: küçük delta bir *uzlaştırma* problemi (çözüldü), toplu geçiş bir
 *inşa hacmi* problemi (pencereleme gerekir, T2.3b).
+
+
+## Ölçümün değiştirdiği ölçüt: S9
+
+S9 "0 ihlal" olarak yazılmıştı — README'nin hedefinden devralınarak, ölçülmeden.
+Ölçüldüğünde (`docs/olcumler/2026-09-20-erisilebilirlik.md`) tutmadığı görüldü:
+axe-core 4.13 ile WCAG 2.1 A+AA taramasında üç kural ihlal ediliyor.
+
+**Bu ihlaller devralınmıştır.** Değiştirilmemiş özgün `index.html` aynı koşumdan
+geçirildiğinde aynı kuralları daha fazla kombinasyonda ihlal ediyor (12'ye 9).
+
+Eşik gevşetilmedi, ama "sıfır" diye de yazılamazdı. Kapı artık **taban kilidi**:
+bilinen ihlaller adlarıyla `docs/olcumler/a11y-baseline.json` içinde, listede
+olmayan her yeni ihlal CI'yı kırıyor. Sıfır hâlâ hedef ve **T2.8** onu kapatıyor.

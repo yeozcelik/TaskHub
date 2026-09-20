@@ -3234,6 +3234,7 @@ function isTyping(e){
 document.addEventListener("keydown", e => {
   if (e.key === "Escape"){
     if (importDlgOpen()) return;
+    if (typeof paletteOpen === "function" && paletteOpen()) return;   // palet kendi kapanır
     if (menuEl){ e.preventDefault(); closeMenu(); return; }
     if (imgPopover){ e.preventDefault(); closeImgPopover(); return; }
     if (openTaskId) { e.preventDefault(); closePanel(); }

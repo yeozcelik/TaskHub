@@ -68,3 +68,35 @@ dialog.dlg-fallback{position:fixed;top:50%;left:50%;transform:translate(-50%,-50
 .meter.warn .bar > i{background:var(--warn)} .meter.warn .lbl{color:var(--warn)}
 .meter.full .bar > i{background:var(--danger)} .meter.full .lbl{color:var(--danger)}
 
+
+/* ---------- Komut paleti ----------
+   Diyalog tembel kurulur; varsayılan DOM'a hiçbir şey eklenmez (S8). */
+dialog.palette{
+  max-width:min(600px,94vw); width:600px; padding:0; margin-top:12vh;
+  border-radius:var(--r-lg); overflow:hidden;
+}
+.pal-head{padding:12px 12px 10px; border-bottom:1px solid var(--border)}
+.pal-head .input{font-size:15px}
+.pal-list{list-style:none; margin:0; padding:6px; max-height:46vh; overflow-y:auto}
+.pal-item{
+  display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--r-sm);
+  cursor:pointer; color:var(--text);
+}
+.pal-item.on{background:var(--accent-soft)}
+.pal-item.on .pal-label{font-weight:600}
+.pal-label{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pal-hint{color:var(--muted); font-size:12.5px; flex:none}
+.pal-keys{
+  font:inherit; font-size:11.5px; color:var(--muted); flex:none;
+  background:var(--surface-2); border:1px solid var(--border-strong); border-bottom-width:2px;
+  border-radius:5px; padding:1px 6px;
+}
+.pal-empty{padding:16px 12px; color:var(--muted); text-align:center}
+.pal-foot{
+  padding:8px 12px; border-top:1px solid var(--border); background:var(--surface-2);
+  color:var(--muted); font-size:12px;
+}
+@media (max-width:600px){
+  dialog.palette{width:96vw; margin-top:6vh}
+  .pal-keys{display:none}
+}

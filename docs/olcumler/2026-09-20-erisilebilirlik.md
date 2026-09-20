@@ -1,0 +1,74 @@
+# Ölçüm: erişilebilirlik (S9)
+
+**Tarih:** 2026-09-20 · **Koşum:** `node tools/probe/a11y.mjs`
+**Yapılandırma:** axe-core 4.13.0, WCAG 2.1 A + AA, Chromium 141, `file://`
+**Kapsam:** 4 genişlik (320/768/1024/1440) × 2 tema × 4 arayüz durumu = **32 tarama**
+
+## Bulgu
+
+SPEC.md S9 ve README "sıfır ihlal" diyor. **Ölçüldü: tutmuyor.**
+
+| Sürüm | Farklı ihlal (kural × durum) | Tarama bulgusu |
+|---|---|---|
+| Değiştirilmemiş özgün `index.html` | **12** | 84 |
+| Bu daldaki güncel `index.html` | **9** | 61 |
+
+**Üç ihlalin üçü de bu oturumda eklenen koddan gelmiyor.** Özgün dosya aynı
+koşumdan geçirildiğinde aynı kuralları, daha fazla kombinasyonda ihlal ediyor.
+(Fark, özgün sürümde komut paleti durumunun listeye düşmesinden kaynaklanıyor —
+aynı ihlaller bir kez daha sayılıyor.)
+
+Bu bir suçlama değil, bir **taban** tespiti. Muhtemel sebep: axe-core sürümü.
+`nested-interactive` kuralı axe 4.4 ile geldi; README'deki tarama daha eski bir
+sürümle yapılmış olabilir. Kural yeni olsa da ihlal gerçektir.
+
+## İhlaller ve kök nedenleri
+
+### 1 + 2. `list` ve `nested-interactive` — **tek kök neden**
+
+Görev kartı `<li class="card" role="button">`. Bu tek nitelik iki kuralı birden
+ihlal ediyor:
+
+- `role="button"` `<li>`'yi **liste öğesi olmaktan çıkarır**, dolayısıyla
+  `<ul class="tasklist">` "li olmayan içerik taşıyor" sayılır (`list`).
+- Kartın içinde onay kutusu ve sil düğmesi var; bir düğmenin içinde düğme
+  olamaz (`nested-interactive`).
+
+DOM incelemesi doğruladı: `<ul>`lerin çocukları gerçekten yalnız `LI`. Sorun
+yapıda değil, **rolde**.
+
+### 3. `color-contrast` — ölçülen 4,404:1
+
+Uyarı şeridi: `--warn` `#a86100` üzerine `--warn-soft` `#fff4e0`.
+
+| Renk | `#fff4e0` üstünde | `#ffffff` | `#f4f5f9` |
+|---|---|---|---|
+| `#a86100` (mevcut) | **4,404** ❌ | 4,800 | 4,406 |
+| `#9f5c00` | **4,811** ✅ | 5,243 | 4,813 |
+| `#9a5900` | 5,067 ✅ | 5,522 | 5,069 |
+
+AA eşiği 4,5:1. Mevcut değer **kıl payı** altında kalıyor — README'nin
+"tokenlar ölçülerek seçildi" anlatısıyla tutarlı: ölçüm `--accent-soft`e göre
+yapılmış, `--warn-soft` gözden kaçmış.
+
+Koyu temada `--warn` `#f5c164` / `#3a2f18` → **7,936:1**, sorunsuz. Yani koyu
+temadaki kontrast bulgusu **başka bir öğeden** geliyor ve T2.8 onu bulmalı —
+varsayılmamalı.
+
+## Kapı nasıl kuruldu
+
+Eşik "sıfır" diye yalan söylemiyor, ama hiçbir şey yapmıyor da değil:
+
+- Bilinen ihlaller `docs/olcumler/a11y-baseline.json` içinde **adlarıyla** durur.
+- Listede olmayan her yeni ihlal **CI'yı kırar**. Kasıtlı bozmayla sınandı:
+  `alt`sız bir `<img>` eklendiğinde `image-alt` yakalandı ve çıkış kodu 1 oldu.
+- Bilinen bir ihlal **kaybolursa** koşum bunu bildirir ve tabanı güncellemeyi
+  söyler; sessizce düzelen bir şey fark edilmeden geçmesin.
+
+**Taban bir hedef değil, bir borçtur.** Kapatan görev: **T2.8**.
+
+## axe-core repoya girmiyor
+
+580 KB'lık dosya sürüm geçmişine yapışmasın ve gönderilen artefaktın sıfır
+bağımlılık sözleşmesi bozulmasın diye axe-core koşum anında `npm pack` ile
+alınır ve `$TMPDIR/taskhub-axe` altında önbelleğe konur.

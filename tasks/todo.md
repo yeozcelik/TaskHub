@@ -399,7 +399,7 @@ not olarak görünür.
 **Dosyalar:** `src/ui/quick-add.js`, `src/styles/tasks.css`, `src/core/i18n.js`
 **Boyut:** M
 
-### T2.6: Komut kayıt defteri + `Ctrl/Cmd+K` paleti
+### T2.6: Komut kayıt defteri + `Ctrl/Cmd+K` paleti — ✅ BİTTİ
 
 **Açıklama:** *Linear yasası.* Merkezî komut kayıt defteri ve onu açan palet.
 Eşleme Türkçe harf katlamalı (mevcut `foldTr` yeniden kullanılır — "istanbul"
@@ -413,14 +413,28 @@ Eşleme Türkçe harf katlamalı (mevcut `foldTr` yeniden kullanılır — "ista
 - [ ] Yazma alanındayken (`isTyping`) kısayol çakışmaz
 - [ ] Kayıt defteri **veri**: yeni komut eklemek arayüz koduna dokunmayı gerektirmez
 
-**Doğrulama:** `node --test tests/commands.test.js` (kayıt defteri + eşleme saf);
-elle klavye sınaması; axe.
+**Doğrulama:** `node --test` → `tests/commands.test.js` (**12 test**);
+`node tools/probe/behavior.mjs` (**39/39**, paletin 16 iddiası klavyeyle).
+
+**Sonuç.** `src/core/commands.js` (saf kayıt + eşleme) ve `src/ui/palette.js`.
+
+Erişilebilirlik ucuza geldi çünkü `<dialog>.showModal()` kullanıldı: odak
+tuzağı, arka planın etkisizleşmesi, `aria-modal` ve `Esc` tarayıcıdan geliyor.
+Elle yazılan her odak tuzağı bir hata kaynağıdır. `role="combobox"` +
+`role="listbox"`/`option` + `aria-activedescendant` tarayıcıda doğrulandı.
+
+Palet **tembel** kurulur: varsayılan DOM'a hiçbir şey eklenmez (S8).
+
+> **Bir çelişki, kod lehine çözüldü.** Test, "kelime başı eşleşmesi baştan
+> eşleşmeye üstün" diye yazılmıştı; kod tersini yapıyordu (+12 vs +8).
+> Komut paletlerinin (VS Code, Sublime) yerleşik davranışı baştan eşleşmedir,
+> o yüzden **test ve yorum düzeltildi, kod değil.**
 
 **Bağımlılık:** T2.2
 **Dosyalar:** `src/core/commands.js`, `src/ui/palette.js`, `tests/commands.test.js`, `src/styles/palette.css`
 **Boyut:** M
 
-### T2.7: Mevcut aksiyonları komut olarak kaydet
+### T2.7: Mevcut aksiyonları komut olarak kaydet — ✅ BİTTİ
 
 **Açıklama:** Bugün yalnız düğmeyle ulaşılan her aksiyon (tema, dil, dışa aktarma,
 içe aktarma, filtre temizleme, görünüm değiştirme, defter/sayfa işlemleri) kayıt
@@ -431,18 +445,71 @@ defterine girer.
 - [ ] Her komutun iki dilde adı var
 - [ ] Hiçbir düğüm kaldırılmadı — palet bir **ek yol**, bir ikame değil
 
-**Doğrulama:** `node --test tests/command-coverage.test.js`.
+**Doğrulama:** `behavior.mjs` içindeki envanter iddiası — **15 komut**, biri
+eksilirse CI kırılır.
+
+**Sonuç.** 15 komut: iki görünüm geçişi, yeni görev, arama, filtre temizleme,
+tamamlananları katlama, yeni defter, yeni sayfa, tema, dil, JSON dışa/içe
+aktarma, CSV, notları HTML'e dökme, yazdırma.
+
+`when` bağlama duyarlıdır ve testle kilitlidir: notlar görünümünde CSV
+listelenmez, görevler görünümünde not dışa aktarma listelenmez. Gri bir satır
+göstermek yerine listelememek, aranan komutu bulmayı kolaylaştırır.
+
+**Hiçbir düğüm kaldırılmadı** — palet bir ek yoldur, ikame değil.
 
 **Bağımlılık:** T2.6
-**Dosyalar:** `src/core/commands.js`, `src/ui/*.js`, `tests/command-coverage.test.js`
+**Dosyalar:** `src/ui/palette.js`, `src/i18n/strings.js`, `tools/probe/behavior.mjs`
+**Boyut:** M
+
+### T2.8: Devralınan erişilebilirlik borcunu kapat — 🆕 ÖLÇÜMDEN DOĞDU
+
+**Açıklama:** S9 "0 ihlal" diyordu; ölçüldüğünde tutmadığı görüldü
+(`docs/olcumler/2026-09-20-erisilebilirlik.md`). Üç ihlalin **üçü de
+devralınmıştır** — değiştirilmemiş özgün dosya aynı kuralları daha fazla
+kombinasyonda ihlal ediyor (12'ye 9). Kapı şimdilik taban kilidi; bu görev
+tabanı sıfıra indirir.
+
+**Kabul ölçütleri:**
+- [ ] **`nested-interactive` + `list`** (tek kök neden): kart `<li>`'sindeki
+      `role="button"` kaldırılır. İçinde onay kutusu ve sil düğmesi olan bir
+      öğe düğme olamaz; `<li>` liste öğesi kalmalı ve kartın kendisi
+      tıklanabilirliğini `role` uydurmadan sürdürmeli.
+      **Klavye davranışı gerilemeyecek:** `Tab`, `Enter`/`Space` ile paneli
+      açma ve odak korunumu aynen çalışmalı (`behavior.mjs` kilitliyor).
+- [ ] **`color-contrast` açık tema:** `--warn` `#a86100` → `#9f5c00`.
+      Ölçüldü: 4,404 → **4,811** (`#fff4e0` üstünde), beyazda 5,243,
+      yüzeyde 4,813. Hepsi AA eşiğinin üstünde.
+- [ ] **`color-contrast` koyu tema:** kaynağı **bulunacak**, varsayılmayacak.
+      `--warn`/`--warn-soft` çifti koyu temada 7,936:1 ile zaten temiz,
+      yani ihlal başka bir öğeden geliyor.
+- [ ] `node tools/probe/a11y.mjs` **0 ihlal** verir; taban dosyası boşalır
+- [ ] SPEC.md S9 tekrar "0 ihlal" olarak yazılır
+
+**Doğrulama:** `node tools/probe/a11y.mjs` · `node tools/probe/behavior.mjs`
+· `node tools/probe/verify.mjs`
+
+**Bağımlılık:** T2.2 (kart yapısı)
+**Dosyalar:** `src/ui/app.js`, `src/styles/01-tokens.css`, `docs/olcumler/a11y-baseline.json`, `SPEC.md`
 **Boyut:** M
 
 ### ✅ Kontrol noktası — Faz 2
-- [ ] S3 (<16 ms) · S4 (O(değişen)) · S6 (klavye kapsaması) · S7 (ayrıştırma) karşılandı
-- [ ] S8: varsayılan ekranda kalıcı kontrol sayısı **artmadı** — sayıldı ve yazıldı
-- [ ] S9 axe 0 ihlal · S2 iddia sayısı gerilemedi
-- [ ] Odak davranışı elle sınandı: liste, panel, palet
+- [x] **S3a** küçük delta p95 ~6 ms < 16 ms · **S4** medyanda 335× az düğüm
+- [x] **S6** klavye kapsaması: 15 komut, envanter testle kilitli
+- [x] **S7** ayrıştırma: TR+EN, 26 test
+- [x] **S8** varsayılan ekranda kalıcı kontrol **artmadı** — tarayıcıda iddia edildi
+      (yakalama alanı ve palet ikisi de gizli/tembel)
+- [x] **S2** iddia sayısı gerilemedi: 222 tarayıcı + 75 Node + 39 davranış
+- [x] Odak davranışı **elle değil testle** kilitlendi: taşıma, güncelleme,
+      yuva korunumu ve "odağı çalma" guard'ı
+- [ ] **S3b** toplu geçiş < 16 ms → **AÇIK**, T2.3b (pencereleme)
+- [ ] **S9** 0 ihlal → **AÇIK**, T2.8 (devralınan borç; yeni ihlal geçmiyor)
 - [ ] **İnsan gözden geçirmesi, Faz 3 öncesi**
+
+> Faz 2'nin yedi görevi bitti. İki ölçüt açık kaldı ve ikisi de **ölçümle**
+> açıldı, gevşetilerek değil: S3b fark algoritmasıyla çözülemeyecek bir inşa
+> hacmi problemi, S9 ise bu daldan önce de var olan bir borç. İkisi de kendi
+> görevine bağlandı ve her koşumda güncel sayıları basılıyor.
 
 ---
 

@@ -132,6 +132,81 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
     { id:"c", title:"gama İstanbul", notes:"", dueDate:null, priority:"med", tags:[], subtasks:[], done:true, createdAt:"2026-01-03T00:00:00.000Z", updatedAt:"2026-01-03T00:00:00.000Z", completedAt:"2026-01-03T00:00:00.000Z", sourceNoteId:null },
   ]; renderList();`);
 
+  // ------------------- T2.6 / T2.7: komut paleti -------------------
+  const key = (t, k, mods) => `document.${t}.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ key:${JSON.stringify(k)}, bubbles:true, cancelable:true }, ${JSON.stringify(mods || {})})))`;
+
+  await ev(`switchView("tasks"); document.getElementById("quick").focus();`);
+  check("palet başlangıçta DOM'da yok (S8: tembel kurulum)",
+    await ev(`!document.getElementById("palette")`), true);
+
+  await ev(key("documentElement", "k", { ctrlKey: true }));
+  check("Ctrl+K paleti açar", await ev(`!!document.querySelector("dialog.palette[open]")`), true);
+  check("odak palet girdisinde", await ev(`document.activeElement.id`), "palQ");
+  check("erişilebilirlik rolleri yerinde",
+    await ev(`(() => { const i = document.getElementById("palQ"), l = document.getElementById("palList");
+      return [i.getAttribute("role"), l.getAttribute("role"), l.firstChild.getAttribute("role"),
+              document.getElementById("palette").hasAttribute("open")]; })()`),
+    ["combobox", "listbox", "option", true]);
+
+  check("ilk seçenek seçili ve duyuruluyor",
+    await ev(`[document.querySelector(".pal-item.on").getAttribute("aria-selected"),
+               document.getElementById("palQ").getAttribute("aria-activedescendant")]`),
+    ["true", "palOpt0"]);
+
+  // Türkçe harf katlamalı süzme.
+  await ev(`document.getElementById("palQ").value = "gorunum"; renderPaletteList();`);
+  check("ASCII yazımı Türkçe komutu bulur",
+    await ev(`document.querySelectorAll(".pal-item").length >= 1 &&
+              document.querySelector(".pal-item .pal-label").textContent.includes("Görünüm")`), true);
+
+  await ev(`document.getElementById("palQ").value = "zzzzz"; renderPaletteList();`);
+  check("eşleşme yoksa boş mesaj", await ev(`!!document.querySelector(".pal-empty")`), true);
+
+  // Ok tuşlarıyla gezinme.
+  await ev(`document.getElementById("palQ").value = ""; renderPaletteList();`);
+  await ev(key("getElementById('palQ')", "ArrowDown"));
+  check("ArrowDown seçimi ilerletir", await ev(`document.getElementById("palQ").getAttribute("aria-activedescendant")`), "palOpt1");
+  await ev(key("getElementById('palQ')", "ArrowUp"));
+  await ev(key("getElementById('palQ')", "ArrowUp"));
+  check("ArrowUp uçta sarar",
+    await ev(`document.getElementById("palQ").getAttribute("aria-activedescendant") === "palOpt" + (document.querySelectorAll(".pal-item").length - 1)`), true);
+
+  // Enter komutu çalıştırır.
+  await ev(`document.getElementById("palQ").value = "gorunum notlar"; renderPaletteList();`);
+  await ev(key("getElementById('palQ')", "Enter"));
+  await ev(`new Promise(r => setTimeout(r, 30))`);
+  check("Enter komutu çalıştırdı (notlar görünümüne geçildi)", await ev(`ui.view`), "notes");
+  check("çalıştırınca palet kapandı", await ev(`!document.querySelector("dialog.palette[open]")`), true);
+
+  // Bağlam duyarlılığı: notlar görünümünde CSV yok, notlar dışa aktarma var.
+  const listed = `(() => { const q = document.getElementById("palQ"); q.value = ""; renderPaletteList();
+    return paletteItems.map(c => c.id); })()`;
+  await ev(key("documentElement", "k", { ctrlKey: true }));
+  const inNotes = await ev(listed);
+  check("notlar görünümünde CSV komutu listelenmez", inNotes.includes("export.csv"), false);
+  check("notlar görünümünde not dışa aktarma listelenir", inNotes.includes("export.notes"), true);
+  check("notlar görünümünde yeni sayfa listelenir", inNotes.includes("page.new"), true);
+
+  await ev(`closePalette(); switchView("tasks");`);
+  await ev(key("documentElement", "k", { ctrlKey: true }));
+  const inTasks = await ev(listed);
+  check("görevler görünümünde CSV listelenir", inTasks.includes("export.csv"), true);
+  check("görevler görünümünde not dışa aktarma listelenmez", inTasks.includes("export.notes"), false);
+
+  // Esc kapatır ve paneli kapatmaya kaymaz.
+  await ev(key("documentElement", "k", { ctrlKey: true }));
+  await ev(`closePalette();`);
+  check("Esc/kapatma sonrası palet kapalı", await ev(`!document.querySelector("dialog.palette[open]")`), true);
+
+  // S6: envanter. Bir komut kaldırılırsa CI kırılır.
+  const EXPECTED = ["view.tasks","view.notes","task.new","search.focus","filters.clear",
+    "completed.toggle","notebook.new","page.new","theme.cycle","lang.toggle",
+    "export.json","import.json","export.csv","export.notes","print"];
+  const registered = await ev(`COMMANDS.map(c => c.id).sort()`);
+  check("S6: kayıtlı komut envanteri eksiksiz", registered, EXPECTED.slice().sort());
+
+  await ev(`switchView("tasks");`);
+
   // Boş durum ve geri dönüş: durum sıfırlanıp tekrar kurulabilmeli.
   await ev(`ui.q = "hicbirseyeuymaz"; renderList();`);
   check("eşleşme yoksa boş durum", await ev(`!!document.querySelector("#list .empty")`), true);
