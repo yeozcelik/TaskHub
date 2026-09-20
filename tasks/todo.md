@@ -305,26 +305,63 @@ parametresini doğrudan veriyor: 16 ms'lik kareye **≈97 kart** sığar.
 **Dosyalar:** `tools/probe/perf.mjs`, `tools/probe/chrome.mjs`, `.github/workflows/ci.yml`, `docs/olcumler/*`, `SPEC.md`
 **Boyut:** S
 
-### T2.3b: Liste pencereleme (sanallaştırma) — 🆕 ÖLÇÜMDEN DOĞDU
+### T2.3b: Büyük listede kare bütçesi — ✅ BİTTİ (pencereleme DEĞİL, parçalı çizim)
 
-**Açıklama:** 5.000 kartı aynı anda DOM'a koymak yanlış tasarım. Yalnız görünür
-alana yakın kartlar çizilir; kaydırdıkça pencere kayar. Linear ve Todoist'in
-yaptığı da budur. Pencere boyutu tahmin değil **ölçümden** geliyor: 0,164 ms/kart
-→ 16 ms'lik kareye ≈97 kart.
+**Açıklama:** Görev "liste pencereleme" olarak yazılmıştı. Ölçüm bu tasarımı
+reddetti; kapanışı parçalı (aşamalı) çizim sağladı. Gerekçe aşağıda, sayılar
+`docs/olcumler/2026-09-20-cizim-butcesi.md` ekinde.
 
 **Kabul ölçütleri:**
-- [ ] S3b karşılanır: **her** çizim < 16 ms (5.000 görevde, filtre temizleme dahil)
-- [ ] Kaydırma sırasında kare düşmez; `IntersectionObserver` kullanılır (ölçüldü: `file://` üzerinde mevcut)
-- [ ] Klavyeyle gezinme penceresiz gibi çalışır: `Tab` ve ok tuşları henüz çizilmemiş karta ulaşabilir
-- [ ] `Ctrl+F` / tarayıcı içi arama sınırlaması **açıkça belgelenir** (çizilmemiş kart bulunamaz — dürüst sınır)
-- [ ] Ekran okuyucu için toplam sayı duyurulur (`aria-setsize` / `aria-posinset`)
-- [ ] Yazdırma yolu pencerelenmez: `Ctrl+P` tüm görevleri basmalı
+- [x] S3b karşılanır: 5.000 görevde **hiçbir kare** 16 ms'yi aşmaz →
+      **10,2-13,7 ms** (12 koşum; öncesi 30,50 ms). Bloklayan çizim de
+      parçalar da (7,0-7,8 ms) bütçenin altında.
+- [x] ~~`IntersectionObserver` ile pencereleme~~ → **REDDEDİLDİ, ölçümle.**
+      `content-visibility: auto` kaydırmayı kötüleştirdi (p50 16,9 → 32,7 ms);
+      gerçek pencereleme ise aşağıdaki dört ölçütü birden ihlal ederdi.
+      Kaydırma zaten vsync sınırında ölçülmüştü (p50 16,6 ms — iş sınırı değil).
+- [x] Klavyeyle gezinme kısıtlanmaz: ok tuşu **henüz çizilmemiş karta ulaşır**
+      (kuyruk o anda tamamen boşaltılır). `behavior.mjs` iddiası ile kilitli.
+- [x] `Ctrl+F` sınırlaması belgelendi — ve parçalı çizimde **kalıcı değil**:
+      her kart eninde sonunda DOM'a girer (5.000 görevde ~0,3 sn). Pencerelemede
+      kalıcı olurdu; fark budur.
+- [x] Ekran okuyucu toplam sayıyı duyar — **grup başlığındaki sayı ile**.
+      `aria-posinset` **bilinçli olarak eklenmedi**: her kartın kimliğini
+      konumuna bağlar, böylece araya tek bir ekleme sonraki bütün kartların
+      özniteliğini tazeletir. Bu, S4'ün ölçülen 335× kazancını yok ederdi.
+      Grup başlığı eşzamanlı çiziliyor ve sayısı her zaman doğru.
+- [x] Yazdırma yolu yarım kalmaz: `beforeprint` kuyruğu sonuna kadar boşaltır —
+      **test edildi**, 3.000 görevle (`behavior.mjs`).
 
-**Doğrulama:** `node tools/probe/perf.mjs` (S3b kapısı aktif edilir); `behavior.mjs`
-genişletilir; axe taraması.
+**Ne yapıldı (ölçüm sırasıyla):**
+1. Kart inşası zaman bütçeli kuyruğa alındı (kare başına ~9 ms).
+2. **Silme de kuyruğa alındı.** Ölçüm silmeyi en büyük tek bloklama kalemi
+   olarak gösterdi: 1.000 kart = 22,6 ms. Ucuzlatılamadığı kanıtlandı
+   (`textContent=""` 13 µs/kart, `replaceWith` 56,3 ms, `display:none`
+   sonraki düzende 50,9 ms) — yalnız bölünebilir.
+3. Ölçülmemiş bir varsayıma dayanan "toplu boşaltma" sezgisi **kaldırıldı**.
+4. Veri hattı hatırlatıldı: `daysBetween` ve `ts` önbellekli, arama sorgusu
+   çizim başına bir kez derleniyor, `diffChildren` tipli dizilerle.
+5. **Sessiz bir sıralama hatası bulundu ve düzeltildi** (yerleştirme artık
+   soldan sağa, önceki kardeşe çengelli). Yan faydası: liste **üstten** doluyor;
+   önceki hâlinde ekranda görünen üst kısım en son geliyordu.
+6. Kalan dalgalanma (12,6-15,9 ms) **çöp toplama** çıktı. Kendi hipotezim
+   (kuyruk kapanışları) ölçümle çürüdü — 3.000 kapanış yalnız 0,30 ms.
+   Gerçek kaynaklar `cardSig` (2,60 ms) ve `sortTasks`'ın süs nesneleriydi
+   (2,60 ms); ikisi de ayırmasız yeniden yazıldı. `sortTasks`'ın eski yazımı
+   testte referans olarak duruyor: 400 rastgele girdide çıktılar birebir.
+
+**Doğrulama:** `node tools/probe/perf.mjs` (S3b kapısı **zorunlu**);
+`behavior.mjs` 147/147 (T2.3b için 5 yeni iddia); sıralama iddiası kasten
+bozularak sınandı.
+
+**SINIR (dürüst):** S3b 5.000 görevde karşılanıyor; **8.000 sınırın tam
+üstünde (16,0-16,4 ms), 10.000'de karşılanmıyor (29,7 ms)**. Bağlayıcı kısıt eşzamanlı O(n) geçişi
+(süzme + kovalama + sıralama + anahtar farkı). Ölçüt 5.000 diyor; ötesi
+istenirse çözüm pencereleme değil, veri hattını da parçalamaktır.
 
 **Bağımlılık:** T2.2
-**Dosyalar:** `src/ui/app.js`, `src/core/window.js`, `tests/window.test.js`, `tools/probe/perf.mjs`
+**Dosyalar:** `src/ui/app.js`, `src/core/util.js`, `src/core/list-diff.js`,
+`tools/probe/perf.mjs`, `tools/probe/behavior.mjs`
 **Boyut:** M
 
 ### T2.4: Doğal dil yakalama ayrıştırıcısı (saf çekirdek) — ✅ BİTTİ
@@ -526,14 +563,14 @@ Ayrıntı: `docs/olcumler/2026-09-20-erisilebilirlik.md`.
 - [x] **S2** iddia sayısı gerilemedi: 222 tarayıcı + 75 Node + 39 davranış
 - [x] Odak davranışı **elle değil testle** kilitlendi: taşıma, güncelleme,
       yuva korunumu ve "odağı çalma" guard'ı
-- [ ] **S3b** toplu geçiş < 16 ms → **AÇIK**, T2.3b (pencereleme)
-- [ ] **S9** 0 ihlal → **AÇIK**, T2.8 (devralınan borç; yeni ihlal geçmiyor)
+- [x] **S3b** 5.000 görevde hiçbir kare > 16 ms → **KAPANDI** (T2.3b): 30,50 → 10,2-13,7 ms
+- [x] **S9** 0 ihlal → **KAPANDI** (T2.8): 17 taban kaydı → 0
 - [ ] **İnsan gözden geçirmesi, Faz 3 öncesi**
 
-> Faz 2'nin yedi görevi bitti. İki ölçüt açık kaldı ve ikisi de **ölçümle**
-> açıldı, gevşetilerek değil: S3b fark algoritmasıyla çözülemeyecek bir inşa
-> hacmi problemi, S9 ise bu daldan önce de var olan bir borç. İkisi de kendi
-> görevine bağlandı ve her koşumda güncel sayıları basılıyor.
+> Faz 2'nin yedi görevi bitti. Açık kalan iki ölçüt de **ölçümle** açılmıştı,
+> gevşetilerek değil; ikisi de sonradan **ölçümle kapandı**, eşik indirilerek
+> değil. S3b'de plandaki çözüm (pencereleme) ölçümle çürütüldü ve yerine
+> parçalı çizim kondu — tahminin tutmaması, ölçüm yapmanın nedeni.
 
 ---
 

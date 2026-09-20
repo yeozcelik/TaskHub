@@ -76,7 +76,9 @@ jobs:
         run: node tools/probe/a11y.mjs
 
       # --- 10) çizim bütçesi ---
-      # S3a (küçük delta < 16 ms) ve S4 (O(değişen) düğüm) zorunlu.
-      # S3b (toplu geçiş) raporlanır; pencereleme bekliyor — bkz. T2.3b.
+      # ÜÇÜ DE ZORUNLU: S3a (küçük delta < 16 ms), S4 (O(değişen) düğüm) ve
+      # T2.3b ile kapanan S3b (5.000 görevde hiçbir kare 16 ms'yi aşmaz).
+      # S3b'nin ölçülen kapasite sınırı 5.000; TASKS ile daha büyük bir N
+      # verilirse kırılması beklenen davranıştır (bkz. perf.mjs başlığı).
       - name: Çizim bütçesi
         run: node tools/probe/perf.mjs

@@ -60,10 +60,23 @@ const MEASURE = (q, reset) => `(async () => {
   const dataMs = performance.now() - d0;
   const t0 = performance.now();
   renderList();
-  const ms = performance.now() - t0;
+  const ms = performance.now() - t0;                 // S3b: BLOKLAYAN süre
+
+  /* Parçalı çizimde kalan kareleri de ölç: en uzun TEK kare 16 ms'yi aşmamalı.
+     "Toplamda 300 ms sürdü" sorun değil; "bir karede 300 ms donduk" sorundur. */
+  const chunkFrames = [];
+  let guard = 0;
+  while (renderQueue && guard++ < 400){
+    await new Promise(r => requestAnimationFrame(r));
+    const c0 = performance.now();
+    flushRenderQueue(false);
+    chunkFrames.push(performance.now() - c0);
+  }
   await new Promise(r => setTimeout(r, 0));
   obs.disconnect();
-  return { ms, dataMs, q: ui.q, added, removed, cards: document.querySelectorAll("#list .card").length };
+  return { ms, worstChunk: chunkFrames.length ? Math.max.apply(null, chunkFrames) : 0,
+           chunks: chunkFrames.length, dataMs, q: ui.q, added, removed,
+           cards: document.querySelectorAll("#list .card").length };
 })()`;
 
 const pct = (xs, p) => { const s = xs.slice().sort((a,b) => a-b); return s[Math.min(s.length-1, Math.floor(s.length*p))]; };
@@ -94,8 +107,8 @@ const incAdd = inc.map(x => x.added), tearAdd = tear.map(x => x.added);
 
 console.log(`\nGörev sayısı: ${result.seeded} kart çizili (${N} görev)\n`);
 console.log("  ARTIMLI — adım adım");
-console.log('  sorgu      kart   eklenen   silinen    veri(ms)   toplam(ms)');
-for (const r of inc) console.log(`  ${JSON.stringify(r.q).padEnd(9)} ${String(r.cards).padStart(6)} ${String(r.added).padStart(9)} ${String(r.removed).padStart(9)} ${r.dataMs.toFixed(2).padStart(11)} ${r.ms.toFixed(2).padStart(12)}`);
+console.log('  sorgu      kart   eklenen   veri(ms)  blok(ms)  parça  enKötüParça(ms)');
+for (const r of inc) console.log(`  ${JSON.stringify(r.q).padEnd(9)} ${String(r.cards).padStart(6)} ${String(r.added).padStart(9)} ${r.dataMs.toFixed(2).padStart(9)} ${r.ms.toFixed(2).padStart(9)} ${String(r.chunks).padStart(6)} ${r.worstChunk.toFixed(2).padStart(16)}`);
 console.log("");
 console.log("                         artımlı      tam yıkım");
 console.log(`  çizim p50 (ms)      ${pct(incMs,.5).toFixed(2).padStart(10)}   ${pct(tearMs,.5).toFixed(2).padStart(12)}`);
@@ -105,13 +118,18 @@ console.log(`  eklenen düğüm top.  ${String(incAdd.reduce((a,b)=>a+b,0)).padS
 
 /* S3 ÖLÇÜLDÜĞÜNDE İKİ AYRI REJİME AYRILDI — bkz. docs/olcumler/.
    Tek eşik iki farklı şeyi ölçüyormuş:
-     S3a  küçük delta (yazarken):  uzlaştırıcının işi. KARŞILANIYOR, kapı aktif.
-     S3b  toplu geçiş (filtre temizleme): binlerce kart İNŞA etmek gerekiyor;
-          fark algoritmasıyla çözülmez, pencereleme gerekir. AÇIK, T2.3b.
-   Eşik düşürülmedi; ölçüm iki eşiğin gerektiğini gösterdi ve ikisi de tutuluyor. */
+     S3a  küçük delta (yazarken):  uzlaştırıcının işi. KARŞILANIYOR.
+     S3b  toplu geçiş (filtre temizleme): binlerce kartın inşası ve SİLİNMESİ.
+          T2.3b ile kapandı — pencereleme ile değil, parçalı çizimle.
+   Eşik düşürülmedi; ölçüm iki eşiğin gerektiğini gösterdi ve ikisi de tutuluyor.
+
+   S3b'NİN KAPASİTE SINIRI ÖLÇÜLDÜ: 5.000 görevde karşılanıyor (en kötü kare
+   12 koşumda 10,2-13,7 ms), 8.000 tam sınırda (16,0-16,4), 10.000'de
+   karşılanmıyor (29,7). Bağlayıcı kısıt
+   eşzamanlı O(n) geçişi. Ölçüt 5.000 olduğu için kapı burada zorunlu; daha
+   büyük N ile koşulursa BAŞARISIZ demesi doğrudur, gürültü değildir. */
 const SMALL_DELTA = 100;                       // düğüm değişimi eşiği
 const small = inc.filter(r => r.added + r.removed <= SMALL_DELTA);
-const bulk  = inc.filter(r => r.added + r.removed >  SMALL_DELTA);
 
 let bad = false;
 console.log("");
@@ -127,10 +145,23 @@ const incMed = pct(incAdd,.5), tearMed = pct(tearAdd,.5);
 if (incTotal >= tearTotal){ console.error(`S4 BAŞARISIZ: artımlı ${incTotal}, tam yıkım ${tearTotal} — kazanç yok`); bad = true; }
 else console.log(`S4  ✅ eklenen düğüm ${tearTotal} → ${incTotal} toplam; medyanda ${tearMed} → ${incMed}  (${Math.round(tearMed/Math.max(1,incMed))}× az)`);
 
-if (bulk.length){
-  const worst = bulk.reduce((a,b) => a.ms > b.ms ? a : b);
-  const perCard = worst.ms / Math.max(1, worst.added);
-  console.log(`S3b ⛔ AÇIK — toplu geçişte en kötü ${worst.ms.toFixed(0)} ms (${worst.added} kart, ~${perCard.toFixed(3)} ms/kart)`);
-  console.log(`        16 ms'lik kareye sığan kart sayısı ≈ ${Math.floor(BUDGET_MS / perCard)} → pencereleme gerekli (T2.3b)`);
+/* S3b (T2.3b ile kapandı): HİÇBİR KARE 16 ms'yi aşmamalı — ne bloklayan
+   çizim, ne de parçalardan biri. Parçalı çizim tam olarak bunu hedefliyor.
+   Ölçü "toplam süre" değil, "en uzun tek kare": kullanıcı donmayı hisseder,
+   toplam süreyi değil.
+
+   `veri(ms)` sütunu bilerek duruyor: bloklayan payın tabanı odur ve S3b'nin
+   5.000'in ötesinde neden düştüğünü tek bakışta gösterir. */
+const worstBlock = Math.max.apply(null, inc.map(r => r.ms));
+const worstChunkMs = Math.max.apply(null, inc.map(r => r.worstChunk));
+const worstFrame = Math.max(worstBlock, worstChunkMs);
+const totalChunks = inc.reduce((a, r) => a + r.chunks, 0);
+if (worstFrame > BUDGET_MS){
+  console.error(`S3b BAŞARISIZ: en kötü kare ${worstFrame.toFixed(2)} ms > ${BUDGET_MS} ms`);
+  console.error(`        bloklayan ${worstBlock.toFixed(2)} ms · en kötü parça ${worstChunkMs.toFixed(2)} ms`);
+  bad = true;
+} else {
+  console.log(`S3b ✅ en kötü KARE ${worstFrame.toFixed(2)} ms < ${BUDGET_MS} ms  ` +
+              `(bloklayan ${worstBlock.toFixed(2)} · parça ${worstChunkMs.toFixed(2)} · ${totalChunks} parça)`);
 }
 process.exit(bad ? 1 : 0);

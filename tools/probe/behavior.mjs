@@ -764,6 +764,92 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   check("eşleşme yoksa boş durum", await ev(`!!document.querySelector("#list .empty")`), true);
   await ev(`ui.q = ""; renderList();`);
   check("boş durumdan sonra liste yeniden kurulur", await ev(`document.querySelectorAll("#list .card").length`), 3);
+
+  /* SIRALAMA GERİLEMESİ (T2.3b sırasında bulundu ve düzeltildi).
+     Tek çizimde hem yeniden sıralama hem araya ekleme olduğunda, kuyruğa
+     alınmış inşa ile eşzamanlı taşıma karışıyordu: taşımanın çengeli henüz
+     kurulmamış bir karta denk gelip kart SONA ekleniyordu. [A,B,C] →
+     [B,D,A,C] çizimi [D,A,B,C] veriyordu. Sessiz bir hata — hiçbir şey
+     patlamıyor, sadece sıra yanlış. */
+  const siralama = await ev(`(() => {
+    today = "2026-05-10";
+    const mk = (id, prio) => ({ id, title:id, notes:"", dueDate:"2026-05-10", priority:prio,
+      tags:[], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z",
+      updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null });
+    const box = document.getElementById("list");
+    box.__taskList = null; box.textContent = "";
+    state.tasks = [mk("A","high"), mk("B","med"), mk("C","low")];
+    ui.q = ""; renderList(); flushRenderQueue(true);
+    state.tasks = [mk("B","high"), mk("D","med"), mk("A","low"), mk("C","low")];
+    state.tasks[3].dueDate = "2026-05-11";
+    renderList(); flushRenderQueue(true);
+    const dom = Array.from(document.querySelectorAll("#list .card")).map(n => n.getAttribute("data-id"));
+    const bekle = listGroups(state.tasks.filter(matches), today).flatMap(g => g.items.map(x => x.id));
+    return [dom.join(","), bekle.join(",")];
+  })()`);
+  check("yeniden sıralama + araya ekleme aynı çizimde: DOM sırası doğru",
+    siralama[0], siralama[1]);
+
+  /* ---------------------------------------------- T2.3b: parçalı çizim ---
+     Buradaki iddialar ölçüm değil SÖZLEŞME: kuyruk hiçbir zaman kartı
+     kaybetmemeli, klavyeyi kısıtlamamalı ve yazdırmayı yarım bırakmamalı.
+     Ölçüm perf.mjs'in işi; burada davranış kanıtlanıyor. */
+  const BIG = 3000;
+  await ev(`(() => {
+    clearSelection(); today = "2026-05-10";
+    const tasks = [];
+    for (let i = 0; i < ${BIG}; i++) tasks.push({ id:"k"+i, title:"kayit "+i, notes:"",
+      dueDate:"2026-05-10", priority:"med", tags:[], subtasks:[], done:false,
+      createdAt:"2026-01-01T00:00:00.000Z", updatedAt:"2026-01-01T00:00:00.000Z",
+      completedAt:null, sourceNoteId:null });
+    state.tasks = tasks;
+    const box = document.getElementById("list");
+    box.__taskList = null; box.textContent = "";      // baştan kurulum: kuyruk garanti dolar
+    ui.q = ""; renderList();
+    return true;
+  })()`);
+  const queued = await ev(`[!!renderQueue, document.querySelectorAll("#list .card").length < ${BIG}]`);
+  check("T2.3b: büyük listede çizim GERÇEKTEN parçalanıyor", queued, [true, true]);
+
+  // Klavye: henüz kurulmamış karta ok tuşuyla ulaşılabilmeli.
+  const reach = await ev(`(() => {
+    const sel = id => id == null ? null : document.querySelector('#list .card[data-id="' + CSS.escape(id) + '"]');
+    const n = document.querySelectorAll("#list .card").length;
+    const from = ui.selOrder[n - 1], next = ui.selOrder[n];
+    if (!sel(from)) return ["kaynak kart yok", n, String(from)];
+    if (next == null) return ["kuyruk erken bitti", n, ui.selOrder.length];
+    const yoktu = !sel(next);
+    sel(from).querySelector(".card-open").focus();
+    selArrow(from, 1, false);
+    const a = document.activeElement;
+    const card = a && a.closest ? a.closest(".card") : null;
+    return [yoktu, !!card && card.getAttribute("data-id") === next, a ? a.className : "yok"];
+  })()`);
+  check("T2.3b: ok tuşu ÇİZİLMEMİŞ karta ulaşır", reach, [true, true, "card-open"]);
+
+  // Yazdırma: beforeprint kuyruğu sonuna kadar boşaltmalı — yarım liste basılamaz.
+  await ev(`(() => {
+    const box = document.getElementById("list");
+    box.__taskList = null; box.textContent = ""; renderList(); return true;
+  })()`);
+  const printed = await ev(`(() => {
+    const yarim = document.querySelectorAll("#list .card").length;
+    window.dispatchEvent(new Event("beforeprint"));
+    return [yarim < ${BIG}, document.querySelectorAll("#list .card").length, renderQueue === null];
+  })()`);
+  check("T2.3b: beforeprint kuyruğu boşaltır, liste TAM basılır", printed, [true, BIG, true]);
+
+  // Süzgeç daraldığında: kuyruk bitince ekranda YALNIZ eşleşenler kalmalı.
+  const settled = await ev(`(async () => {
+    ui.q = "kayit 1"; renderList();
+    let g = 0;
+    while (renderQueue && g++ < 800) await new Promise(r => requestAnimationFrame(r));
+    const goster = Array.from(document.querySelectorAll("#list .card")).map(n => n.getAttribute("data-id"));
+    const bekle = state.tasks.filter(matches).map(x => x.id);
+    return [goster.length, bekle.length, goster.join(",") === bekle.join(",")];
+  })()`);
+  check("T2.3b: kuyruk bitince ekran süzgeçle BİREBİR (bayat kart kalmaz)",
+    [settled[0] === settled[1], settled[2]], [true, true]);
 }, { browser: flag("--browser"), waitFor: "typeof renderList === 'function' && document.getElementById('list')" });
 
 let bad = 0;

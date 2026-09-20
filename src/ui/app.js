@@ -127,7 +127,16 @@ function selArrow(fromId, delta, extend){
     renderList();
     announceSelection();
   }
-  const node = document.querySelector('#list .card[data-id="' + CSS.escape(next) + '"] .card-open');
+  /* Parçalı çizim klavyeyi ASLA kısıtlamamalı. Hedef kart henüz kuyrukta
+     bekliyorsa tuşa basan kişi "liste bitti" sanır. Böyle bir durumda kuyruk
+     tamamen boşaltılır: tek bir tuş vuruşu için bir kareyi bloklamak,
+     kullanıcıyı listenin ortasında bırakmaktan iyidir. (Ctrl+F için aynı
+     güvenceyi veremeyiz — tarayıcının kendi araması bize haber vermez —
+     ama kuyruk 5.000 görevde ~0,3 sn'de boşaldığı için kalıcı bir sınır
+     değil, geçici bir gecikmedir.) */
+  const find = () => document.querySelector('#list .card[data-id="' + CSS.escape(next) + '"] .card-open');
+  let node = find();
+  if (!node && renderQueue){ flushRenderQueue(true); node = find(); }
   if (node) node.focus({ preventScroll:false });
 }
 
@@ -418,15 +427,51 @@ function clearFilters(){
   const s = document.getElementById("q"); if (s) s.value = "";
   render();
 }
+/* Arama havuzu ÖNBELLEĞİ.
+ *
+ * `foldTr` NFD normalizasyonu + işaret soyma + küçültme yapıyor; 5.000 görevde
+ * her tuş vuruşunda yeniden çalıştırmak ölçüldü: 9,5 ms. Havuz yalnız görev
+ * DEĞİŞİNCE değişir, o yüzden `updatedAt` anahtarıyla saklanıyor — `stamp()`
+ * zaten her değişiklikte onu tazeliyor, ayrı bir geçersizleştirme yolu
+ * yazmaya gerek yok. */
+const foldCache = new Map();
+
+function taskHaystack(task){
+  const hit = foldCache.get(task.id);
+  if (hit && hit.at === task.updatedAt) return hit.hay;
+  const hay = foldTr([task.title, task.notes, task.tags.join(" "),
+                      task.subtasks.map(s => s.title).join(" ")].join(" "));
+  // Silinen görevlerin kalıntısı birikmesin.
+  if (foldCache.size > state.tasks.length * 2 + 64) foldCache.clear();
+  foldCache.set(task.id, { at: task.updatedAt, hay });
+  return hay;
+}
+
+/* Sorgu GÖREV BAŞINA değil ÇİZİM BAŞINA derlenir.
+ *
+ * `matches` görev başına bir kez çağrılıyor; `foldTr(ui.q.trim())` ile
+ * `.split(/\s+/)` her çağrıda yeniden çalışıyordu. 5.000 görevde bu 5.000
+ * katlama + 5.000 düzenli ifade bölmesi + 5.000 dizi ayırma demek: ölçüldü,
+ * 2 ms. Terimler yalnız `ui.q` değişince değişir. */
+let qTerms = { raw: null, terms: null };
+function queryTerms(){
+  if (qTerms.raw !== ui.q){
+    const q = foldTr(ui.q.trim());
+    qTerms = { raw: ui.q, terms: q ? q.split(/\s+/) : null };
+  }
+  return qTerms.terms;
+}
+
 function matches(task){
   if (ui.status === "active" && task.done) return false;
   if (ui.status === "done" && !task.done) return false;
   if (ui.prios.size && !ui.prios.has(task.priority)) return false;
   if (ui.tags.size && !task.tags.some(tg => ui.tags.has(tg))) return false;
-  const q = foldTr(ui.q.trim());
-  if (!q) return true;
-  const hay = foldTr([task.title, task.notes, task.tags.join(" "), task.subtasks.map(s => s.title).join(" ")].join(" "));
-  return q.split(/\s+/).every(term => hay.indexOf(term) !== -1);
+  const terms = queryTerms();
+  if (!terms) return true;
+  const hay = taskHaystack(task);
+  for (let i = 0; i < terms.length; i++) if (hay.indexOf(terms[i]) === -1) return false;
+  return true;
 }
 
 /* ------------------------------------------------------------ tarih biçimi */
@@ -867,16 +912,21 @@ function taskCard(task){
    aynıysa kart yeniden kurulmaz. Dil ve "bugün" de içeride: dil değişince her
    kartın metni değişir, gece yarısı geçilince tarih etiketi değişir — ikisi de
    imzaya girmezse kartlar sessizce bayat kalırdı. */
+/* Her çizimde EKRANDAKİ HER KART için bir kez çalışır; 5.000 görevde 2,6 ms
+   ölçüldü. `filter` + dizi + `join` üçlüsü kart başına üç geçici dizi
+   ayırıyordu. Aynı dize, ayırma olmadan. */
 function cardSig(task){
-  const subs = task.subtasks.length
-    ? task.subtasks.filter(s => s.done).length + "/" + task.subtasks.length : "";
-  return [
-    task.title, task.done ? 1 : 0, task.priority, task.dueDate || "",
-    task.tags.join(","), subs, task.id === openTaskId ? 1 : 0,
-    task.recur ? task.recur.freq + ":" + task.recur.interval + ":" + (task.recur.byDay || []).join("") : "",
-    ui.sel.has(task.id) ? 1 : 0,
-    state.settings.lang, today,
-  ].join("\u0001");
+  const subs = task.subtasks;
+  let sdone = 0;
+  for (let i = 0; i < subs.length; i++) if (subs[i].done) sdone++;
+  const r = task.recur;
+  const S = "\u0001";
+  return task.title + S + (task.done ? 1 : 0) + S + task.priority + S +
+    (task.dueDate || "") + S + task.tags.join(",") + S +
+    (subs.length ? sdone + "/" + subs.length : "") + S +
+    (task.id === openTaskId ? 1 : 0) + S +
+    (r ? r.freq + ":" + r.interval + ":" + (r.byDay || []).join("") : "") + S +
+    (ui.sel.has(task.id) ? 1 : 0) + S + state.settings.lang + S + today;
 }
 
 /* Odak korunumu. Filtre yazarken ya da bir görev sıralamada yer değiştirirken
@@ -946,38 +996,178 @@ function makeSection(group){
   return { section, list, keys: [], nodes: new Map(), sigs: new Map() };
 }
 
-/* Bir kovadaki kartları uzlaştırır. Yama O(değişen); tam yıkım yok. */
-function reconcileCards(rec, items){
-  const keys = items.map(x => x.id);
-  const byKey = new Map(items.map(x => [x.id, x]));
+/* --------------------------------------------------------- çizim kuyruğu ---
+ * KART İNŞASI pahalı: ölçüldü ~0,16 ms/kart. 5.000 kartı aynı karede kurmak
+ * 250-580 ms sürüyor ve arayüz o süre boyunca donuyor (S3b).
+ *
+ * Çözüm SANALLAŞTIRMA DEĞİL, parçalı çizim: kareye sığacak kadarı hemen
+ * yapılır, kalanı sonraki karelere bırakılır. Her kare 16 ms altında kalır
+ * ve liste akarak dolar.
+ *
+ * SANALLAŞTIRMA NEDEN SEÇİLMEDİ — ölçülerek elendi:
+ *   · `content-visibility: auto` denendi, kaydırmayı KÖTÜLEŞTİRDİ
+ *     (p50 16,9 → 32,7 ms; sürekli girip çıkan kutular yeniden düzen istiyor).
+ *   · Gerçek sanallaştırma p95 kaydırmayı düzeltirdi ama `Ctrl+F` çizilmemiş
+ *     kartı bulamaz, klavye ona ulaşamaz, yazdırma eksik çıkar ve ekran
+ *     okuyucuya yanlış sayı gider. Kabul ölçütlerinin yarısı zaten bu
+ *     bedellerin endişesiydi.
+ *   · Ölçüm kaydırmanın asıl darboğaz OLMADIĞINI gösterdi: 5.000 kartta
+ *     p50 = 16,6 ms (vsync sınırı, iş sınırı değil), p95 = 21 ms.
+ *
+ * Parçalı çizimde her kart eninde sonunda DOM'a giriyor: Ctrl+F çalışır,
+ * klavye ulaşır, yazdırma tamdır, ekran okuyucu doğru sayar.               */
+/* Parça boyutu SAYI değil ZAMAN ile sınırlı.
+ *
+ * Sabit 60 kart, kart maliyeti ölçümden ölçüme değiştiği için (0,14-0,19 ms)
+ * bazen bütçeyi aşıyordu. Daha önemlisi: ilk parça kareyi VERİ HATTIYLA
+ * paylaşıyor. 5.000 görevde süzme+kovalama+sıralama ~10 ms alıyor; üstüne
+ * sabit 60 kart koymak kareyi kaçınılmaz olarak taşırıyordu.
+ *
+ * Artık çağıran ne kadar bütçe kaldığını söylüyor ve kuyruk o kadarını
+ * harcıyor. Kare bütçesi paylaşılan bir kaynak, sabit bir kota değil. */
+const FRAME_MS = 16;
+/* Pay NİYE BU KADAR BÜYÜK (16 - 9 = 7 ms iş bütçesi):
+     · Tarayıcının düzen/boyama işi ölçülen sürenin DIŞINDA kalıyor.
+     · Çöp toplama araya giriyor; 16 ms'lik kareye 16 ms'lik iş koymak,
+       tanım gereği kareyi kaçırmak demek.
+   Ölçüm zinciri: pay 7 iken (9 ms bütçe) 12 koşumun ikisi 16,6 ms'de
+   düştü; pay 9'a çıkarılıp saat her iki kartta okunmaya başlayınca parçalar
+   7,0-7,6 ms'de kapanır oldu. Sayılar tahmin değil, 12'şer koşumun
+   dağılımından. */
+const FRAME_SAFETY = 9;         // düzen/boyama + ölçüm çözünürlüğü + çöp toplama payı
+const CHUNK_CHECK = 2;          // her N kartta bir saat okunur
+let renderQueue = null;
+
+function flushRenderQueue(all, budgetMs){
+  if (!renderQueue) return;
+  const q = renderQueue;
+  const budget = budgetMs == null ? FRAME_MS - FRAME_SAFETY : budgetMs;
+  const start = performance.now();
+  while (q.i < q.items.length){
+    q.items[q.i++]();
+    // Her öğede saat okumak pahalı; ikide bir yeterli çözünürlük veriyor.
+    if (!all && (q.i % CHUNK_CHECK) === 0 && performance.now() - start >= budget) break;
+  }
+  if (q.i >= q.items.length){
+    renderQueue = null;
+    if (q.onDone) q.onDone();
+  } else {
+    q.raf = requestAnimationFrame(() => flushRenderQueue(false));
+  }
+}
+
+/* Yarıda kalan kuyruk, bölümün defterini DOM'la tutarsız bırakır: `rec.keys`
+   henüz kurulmamış kartları sayar. Bu yüzden iptal, etkilenen bölümleri
+   SIFIRLAR — bir sonraki çizim onları baştan kurar. Kaybedilen iş, tutarsız
+   bir deftere göre çizim yapmaktan ucuzdur. */
+function cancelRenderQueue(){
+  if (!renderQueue) return;
+  if (renderQueue.raf) cancelAnimationFrame(renderQueue.raf);
+  for (const rec of renderQueue.dirty){
+    rec.keys = []; rec.nodes.clear(); rec.sigs.clear();
+    rec.list.textContent = "";
+  }
+  renderQueue = null;
+}
+
+/* Yazdırma ve dışa aktarma kuyruğu BEKLEYEMEZ: kâğıda yarım liste basmak
+   sessiz veri kaybıdır. */
+window.addEventListener("beforeprint", () => flushRenderQueue(true));
+
+/* Bir kovadaki kartları uzlaştırır. Yama O(değişen); tam yıkım yok.
+   Pahalı iş (kart İNŞASI ve SİLİNMESİ) kuyruğa yazılır, ucuz iş hemen yapılır.
+
+   SİLMENİN KUYRUĞA ALINMASI — ölçüm zinciri:
+     · Bir kartı silmek 15-20 µs. Kart 21 DOM düğümü; maliyet düğüm başına
+       ~1 µs ve alt ağacın tümüne ödenir. 1.000 kart = 22,6 ms; ÖLÇÜLEN en
+       büyük tek bloklama kaynağı buydu.
+     · `textContent = ""` KURTARMIYOR: 3.895 gerçek kart için 51,4 ms, yani
+       düğüm başına 0,73 µs — tek tek silmeden yalnızca ~%25 ucuz, üstelik
+       KALANLARI da yıkıyor. Kabı boş klonuyla değiştirmek (56,3 ms) ve
+       `display:none` (JS'te 1,7 ms ama sonraki düzen 50,9 ms) da kaçış değil.
+     · Demek ki silme maliyeti indirilemez, yalnızca BÖLÜNEBİLİR. Parça
+       bütçesine (7 ms) ~350 kart siliniyor; gerisi sonraki karelere.
+   Bedeli: bir-iki kare boyunca artık süzgece uymayan kartlar ekranda kalır.
+   Bu, inşanın parçalı olmasının aynadaki eşi — liste gözle görülür biçimde
+   yerine oturur ve son durum doğrudur. */
+function reconcileCards(rec, items, kills, work){
+  /* Düz döngü, `map` değil: `items.map(x => [x.id, x])` 5.000 görevde 5.000
+     iki elemanlı dizi ayırıyordu, yalnızca Map'e yem olmak için. */
+  const n = items.length;
+  const keys = new Array(n);
+  const byKey = new Map();
+  for (let i = 0; i < n; i++){ const x = items[i]; keys[i] = x.id; byKey.set(x.id, x); }
+
   const ops = diffChildren(rec.keys, keys);
 
   for (const op of ops){
     if (op.type !== "remove") continue;
-    const n = rec.nodes.get(op.key);
-    if (n) n.remove();
-    rec.nodes.delete(op.key); rec.sigs.delete(op.key);
+    const key = op.key;
+    kills.push(() => {
+      const gone = rec.nodes.get(key);
+      if (gone) gone.remove();
+      rec.nodes.delete(key); rec.sigs.delete(key);
+    });
   }
-  for (const op of ops){
-    if (op.type === "remove") continue;
-    let node = rec.nodes.get(op.key);
-    if (!node){
-      const task = byKey.get(op.key);
-      node = taskCard(task);
-      rec.nodes.set(op.key, node);
-      rec.sigs.set(op.key, cardSig(task));
-    }
-    rec.list.insertBefore(node, op.before ? rec.nodes.get(op.before) : null);
+
+  /* YERLEŞTİRME BELGE SIRASINDA, ÖNCEKİ KARDEŞE ÇENGELLİ.
+   *
+   * `diffChildren` işlemleri SAĞDAN SOLA verir ve her birini SONRAKİ kardeşe
+   * (`before`) çengeller; eşzamanlı uygulamada doğru olan budur. Parçalı
+   * çizimde iki şeyi birden bozuyordu:
+   *   1. Liste ALTTAN yukarı doluyordu. Ekranda görünen üst kısım en son
+   *      geliyordu — kullanıcı 0,3 sn boyunca listenin sonunu görüyordu.
+   *   2. Taşıma eşzamanlı, inşa kuyrukluyken bir taşımanın çengeli
+   *      (`before`) henüz kurulmamış bir karta denk gelebiliyordu; düğüm
+   *      bulunamayınca kart SONA ekleniyordu. Ölçüldü: [A,B,C] → [B,D,A,C]
+   *      çiziminde DOM [D,A,B,C] çıkıyordu. Sessiz bir sıralama hatası.
+   *
+   * Çözüm: her şey (taşıma da, inşa da) TEK kuyruğa, soldan sağa, ÖNCEKİ
+   * kardeşe çengelli. Soldan sağa işlenirken keys[i-1] her zaman yerine
+   * oturmuştur — ya yerinde kalmıştır (LIS) ya da bir adım önce konmuştur —
+   * bu yüzden çengel hiçbir zaman boşa düşmez. Tümevarım: i işlendikten
+   * sonra keys[0..i] birbirine göre doğru sıradadır.
+   *
+   * Taşımayı da kuyruğa almanın bedeli yok: LIS zaten taşıma sayısını en
+   * aza indiriyor. */
+  const todo = new Map();
+  for (const op of ops) if (op.type !== "remove") todo.set(op.key, op.type);
+
+  for (let i = 0; i < n; i++){
+    const key = keys[i];
+    const kind = todo.get(key);
+    if (!kind) continue;                           // LIS: yerinde kalıyor
+    const after = i > 0 ? keys[i - 1] : null;
+    const isMove = kind === "move";
+    work.push(() => {
+      let node = rec.nodes.get(key);
+      if (!node){
+        if (isMove) return;                        // düğüm kayıp: bir sonraki çizim kurar
+        const task = byKey.get(key);
+        if (!task) return;
+        node = taskCard(task);
+        rec.nodes.set(key, node);
+        rec.sigs.set(key, cardSig(task));
+      }
+      const prev = after ? rec.nodes.get(after) : null;
+      rec.list.insertBefore(node, prev ? prev.nextSibling : rec.list.firstChild);
+    });
   }
   for (const task of items){
+    /* Düğüm kontrolü İMZADAN ÖNCE: henüz kurulmamış kartın imzasını hesaplamak
+       boşa iş. Büyük bir eklemede (5.000 kart) bu tek sıra değişikliği binlerce
+       gereksiz dize birleştirmesini eliyor. */
+    if (!rec.nodes.has(task.id)) continue;         // inşa zaten yeni imzayla olacak
     const sig = cardSig(task);
     if (rec.sigs.get(task.id) === sig) continue;
-    const old = rec.nodes.get(task.id);
-    if (!old) continue;
-    const fresh = taskCard(task);
-    old.replaceWith(fresh);
-    rec.nodes.set(task.id, fresh);
-    rec.sigs.set(task.id, sig);
+    work.push(() => {
+      const prev = rec.nodes.get(task.id);
+      if (!prev) return;
+      const fresh = taskCard(task);
+      prev.replaceWith(fresh);
+      rec.nodes.set(task.id, fresh);
+      rec.sigs.set(task.id, sig);
+    });
   }
   rec.keys = keys;
 }
@@ -1120,6 +1310,7 @@ function renderList(){
 
   const visible = state.tasks.filter(matches);
   if (!visible.length && ui.taskView !== "calendar"){
+    cancelRenderQueue();
     ui.selOrder = [];
     ui.sel = pruneSelection(ui.sel, ui.selOrder);
     renderBulkBar();
@@ -1139,6 +1330,7 @@ function renderList(){
      Pano ayrı bir depo açmaz, ayrı bir süzgeç uygulamaz; arama ve filtreler
      her ikisinde de aynen geçerlidir. */
   if (ui.taskView === "calendar"){
+    cancelRenderQueue();
     ui.selOrder = [];
     ui.sel = pruneSelection(ui.sel, ui.selOrder);
     renderBulkBar();
@@ -1157,15 +1349,22 @@ function renderList(){
 
   /* Ekrandaki sıra: aralık seçimi ve ok tuşları buna göre çalışır. Gruplar
      arası da geçerli — kullanıcı için liste tek bir dizidir. */
-  ui.selOrder = groups.flatMap(g => g.items.map(x => x.id));
-  const before = ui.sel.size;
-  ui.sel = pruneSelection(ui.sel, ui.selOrder);
-  if (ui.sel.size !== before) announceSelection();
+  ui.selOrder = [];
+  for (const g of groups) for (const x of g.items) ui.selOrder.push(x.id);
+  /* Seçim boşken budamak 5.000 elemanlı bir Set kurup atmak demek. Boş seçim
+     en yaygın durum; O(n) işi oraya ödememek gerek. */
+  if (ui.sel.size){
+    const before = ui.sel.size;
+    ui.sel = pruneSelection(ui.sel, ui.selOrder);
+    if (ui.sel.size !== before) announceSelection();
+  }
   renderBulkBar();
   const active = groups.map(g => g.key);
   box.classList.toggle("board", board);
 
+  const renderStart = performance.now();
   const focusBefore = captureListFocus(box);
+  cancelRenderQueue();
 
   let st = box.__taskList;
   if (!st){ box.textContent = ""; st = box.__taskList = { order: [], sections: new Map() }; }
@@ -1184,15 +1383,33 @@ function renderList(){
   }
   st.order = active.slice();
 
+  /* Silmeler TÜM bölümler için önce gelir: liste böylece önce doğruya yakınsar,
+     sonra dolar. Bölüm bölüm "sil-kur-sil-kur" yapmak, ikinci bölümün eski
+     kartları dururken birincinin yenileri çizilmesi demekti. */
+  const kills = [];
+  const builds = [];
+  const dirty = new Set();
   for (const key of active){
     const rec = st.sections.get(key);
     const group = byKey.get(key);
     const items = group.items;                       // izdüşüm zaten sıraladı
     const expanded = (key === "completed" && !board) ? ui.showCompleted : true;
     rec.section.replaceChild(groupHead(group, items.length, expanded), rec.section.firstChild);
-    reconcileCards(rec, expanded ? items : []);
+    const bk = kills.length, bw = builds.length;
+    reconcileCards(rec, expanded ? items : [], kills, builds);
+    if (kills.length > bk || builds.length > bw) dirty.add(rec);
   }
+  const work = kills.length ? kills.concat(builds) : builds;
 
+  /* Odak İLK PARÇADAN sonra geri verilir: odaklı kart neredeyse her zaman
+     görünür alandadır, sonraki kareleri beklemesine gerek yok. Kuyruk bitince
+     bir kez daha denenir; `restoreListFocus` odak kaybolmadıysa dokunmaz. */
+  renderQueue = { items: work, i: 0, raf: 0, dirty,
+                  onDone: () => restoreListFocus(st, focusBefore) };
+  /* İlk parçaya karenin KALANI verilir: veri hattı ve uzlaştırma zaten
+     bütçenin bir kısmını harcadı. */
+  const spent = performance.now() - renderStart;
+  flushRenderQueue(false, Math.max(0, FRAME_MS - FRAME_SAFETY - spent));
   restoreListFocus(st, focusBefore);
 }
 

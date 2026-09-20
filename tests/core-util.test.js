@@ -3,7 +3,7 @@
    regresyon ağı olarak orada da durmaya devam eder (SPEC.md, test stratejisi). */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { load } from "./_load.mjs";
+import { load, plain } from "./_load.mjs";   // plain: vm realm → host (ADR 0002)
 
 const {
   foldTr, clamp, numOr, ymd, parseYmd, daysBetween, bucketOf,
@@ -134,14 +134,14 @@ test("sortTasks: tarihli önce, sonra öncelik, sonra oluşturma", () => {
     mk({ id: "3", dueDate: "2026-05-10", priority: "low" }),
     mk({ id: "4", dueDate: "2026-05-10", priority: "high" }),
   ];
-  assert.deepEqual(sortTasks(list).map(t => t.id), ["4", "3", "2", "1"]);
+  assert.deepEqual(plain(sortTasks(list)).map(t => t.id), ["4", "3", "2", "1"]);
 });
 
 test("sortTasks: girdiyi yerinde değiştirmez", () => {
   const list = [mk({ id: "b", dueDate: "2026-05-20" }), mk({ id: "a", dueDate: "2026-05-10" })];
   const before = list.map(t => t.id);
   sortTasks(list);
-  assert.deepEqual(list.map(t => t.id), before);
+  assert.deepEqual(plain(list).map(t => t.id), before);
 });
 
 test("sortTasks: bilinmeyen öncelik sona düşer, çökmez", () => {
@@ -149,7 +149,7 @@ test("sortTasks: bilinmeyen öncelik sona düşer, çökmez", () => {
     mk({ id: "bozuk", dueDate: "2026-05-10", priority: "uydurma" }),
     mk({ id: "iyi", dueDate: "2026-05-10", priority: "high" }),
   ];
-  assert.deepEqual(sortTasks(list).map(t => t.id), ["iyi", "bozuk"]);
+  assert.deepEqual(plain(sortTasks(list)).map(t => t.id), ["iyi", "bozuk"]);
 });
 
 test("clamp / numOr: sınır davranışı", () => {
@@ -174,4 +174,64 @@ test("uid: benzersiz ve boş değil", () => {
   const seen = new Set();
   for (let i = 0; i < 500; i++) { const u = uid(); assert.ok(u && u.length > 8); seen.add(u); }
   assert.equal(seen.size, 500);
+});
+
+test("sortTasks: kararlı — eşit anahtarlarda girdi sırası korunur", () => {
+  // Süsle-sırala-soy'a geçerken kararlılık `a.i - b.i` ile AÇIKÇA korundu;
+  // motorun kararlılığına güvenmek yerine sözleşme hâline getirildi.
+  const same = ["x", "y", "z", "w"].map(id => mk({ id, dueDate: "2026-05-10",
+    priority: "med", createdAt: "2026-01-01T00:00:00.000Z" }));
+  assert.deepEqual(plain(sortTasks(same)).map(t => t.id), ["x", "y", "z", "w"]);
+});
+
+test("sortTasks: paralel dizi yazımı, süs-nesnesi yazımıyla BİREBİR aynı sırayı verir", () => {
+  /* Süs nesnelerinden paralel dizilere geçişin davranışı değiştirmediğini
+     ÖRNEKLE değil, ÖLÇÜTLE kanıtlar: burada eski yazımın bire bir kopyası
+     referans olarak duruyor ve 400 rastgele girdide iki çıktı karşılaştırılıyor.
+     Rastgelelik tohumlu, yani başarısızlık yeniden üretilebilir. */
+  const PRIO = { high: 0, med: 1, low: 2 };
+  const referans = list => {
+    const dec = list.map((t, i) => ({
+      t, i, hasDue: !!t.dueDate, due: t.dueDate || "",
+      prio: Object.prototype.hasOwnProperty.call(PRIO, t.priority) ? PRIO[t.priority] : 3,
+      born: Date.parse(t.createdAt) || 0,
+    }));
+    dec.sort((a, b) => {
+      if (a.hasDue !== b.hasDue) return a.hasDue ? -1 : 1;
+      if (a.hasDue && a.due !== b.due) return a.due < b.due ? -1 : 1;
+      if (a.prio !== b.prio) return a.prio - b.prio;
+      if (a.born !== b.born) return a.born - b.born;
+      return a.i - b.i;
+    });
+    return dec.map(d => d.t.id);
+  };
+
+  let tohum = 20260920;
+  const rnd = n => { tohum = (tohum * 1103515245 + 12345) & 0x7fffffff; return tohum % n; };
+  const prios = ["high", "med", "low", "belirsiz"];
+
+  for (let durum = 0; durum < 400; durum++){
+    const n = rnd(40);
+    const list = Array.from({ length: n }, (_, i) => mk({
+      id: "s" + i,
+      dueDate: rnd(3) === 0 ? null : "2026-0" + (rnd(9) + 1) + "-" + String(rnd(28) + 1).padStart(2, "0"),
+      priority: prios[rnd(4)],
+      createdAt: "2026-01-" + String(rnd(28) + 1).padStart(2, "0") + "T00:00:00.000Z",
+    }));
+    assert.deepEqual(plain(sortTasks(list)).map(t => t.id), referans(list),
+      `durum ${durum} (n=${n}) ayrıştı`);
+  }
+});
+
+test("sortTasks: 5.000 öğe < 20 ms (Date.parse karşılaştırıcıda değil)", () => {
+  const big = Array.from({ length: 5000 }, (_, i) => mk({
+    id: "b" + i, dueDate: i % 7 ? "2026-05-" + String((i % 28) + 1).padStart(2, "0") : null,
+    priority: ["low", "med", "high"][i % 3],
+    createdAt: "2026-0" + ((i % 9) + 1) + "-01T00:00:00.000Z",
+  }));
+  const t0 = performance.now();
+  const out = sortTasks(big);
+  const ms = performance.now() - t0;
+  assert.equal(plain(out).length, 5000);
+  assert.ok(ms < 20, `beklenen < 20 ms, ölçülen ${ms.toFixed(1)} ms`);
 });

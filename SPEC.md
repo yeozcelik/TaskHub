@@ -152,7 +152,7 @@ aynı modülleri çağırmaya devam eder. İddia sayısının **azalması** CI h
 | S1 | Derleme geri dönüşlü | `node tools/build.mjs --stdout` çıktısı `index.html` ile **birebir aynı** | `diff` |
 | S2 | Test sayısı gerilemez | ≥ 222 iddia, tamamı geçer | `node --test` |
 | S3a | Büyük listede yazma | 5.000 görevde **küçük deltalı** çizim **< 16 ms** (p95) | `node tools/probe/perf.mjs` |
-| S3b | Büyük listede toplu geçiş | **her** çizim < 16 ms | aynı koşum — **AÇIK**, pencereleme bekliyor (T2.3b) |
+| S3b | Büyük listede toplu geçiş | 5.000 görevde **hiçbir kare** 16 ms'yi aşmaz (bloklayan çizim de, parçalar da) | aynı koşum — **karşılandı** (T2.3b): en kötü kare 10,2-13,7 ms (12 koşum) |
 | S4 | Çizimde DOM yıkımı | Arama filtresi değişince **eklenen düğüm sayısı O(değişen)**, O(toplam) değil | MutationObserver sayımı |
 | S5 | Depolama tavanı | Not+resim için **> 50 MB** kullanılabilir | `node tools/probe/migration.mjs` — 60 MB yazılıp geri okunarak ✅ |
 | S6 | Klavye kapsaması | Her kullanıcı aksiyonu `Ctrl+K` üzerinden ulaşılabilir | komut kayıt defteri sayımı vs. aksiyon envanteri |
@@ -185,10 +185,34 @@ S3 tek bir eşik olarak yazılmıştı: "tuş başına < 16 ms". Ölçüldüğü
 karıştırdığı görüldü ve **S3a / S3b** olarak ayrıldı.
 
 Bu bir eşik gevşetmesi **değildir**: S3b silinmedi, "kabul edilebilir" ilan
-edilmedi, sayısı da yumuşatılmadı. Açık bir kapı olarak duruyor ve her koşumda
-güncel değeri basılıyor. Ayrım, ölçümün ortaya çıkardığı fiziksel gerçeği
-kayda geçirir: küçük delta bir *uzlaştırma* problemi (çözüldü), toplu geçiş bir
-*inşa hacmi* problemi (pencereleme gerekir, T2.3b).
+edilmedi, sayısı da yumuşatılmadı. Açık bir kapı olarak durdu ve her koşumda
+güncel değeri basıldı. Ayrım, ölçümün ortaya çıkardığı fiziksel gerçeği
+kayda geçirir: küçük delta bir *uzlaştırma* problemi, toplu geçiş bir
+*inşa hacmi* problemi.
+
+### S3b kapandı (T2.3b) — ve tahmin tutmadı
+
+Yukarıdaki paragraf "pencereleme gerekir" diyordu. **Gerekmedi.** Ölçüm iki
+şeyi birden çürüttü: `content-visibility: auto` kaydırmayı *kötüleştirdi*
+(p50 16,9 → 32,7 ms), gerçek pencereleme ise T2.3b'nin kendi kabul
+ölçütlerinden dördünü (Ctrl+F, klavye, yazdırma, ekran okuyucu) ihlal
+edecekti — yani sözleşmedeki "erişilebilirlik gerilemez" maddesine aykırı.
+
+Seçilen yol **parçalı (aşamalı) çizim** oldu: her kart eninde sonunda DOM'a
+girer, yalnız *ne zaman* girdiği kareye bölünür. 5.000 görevde en kötü tek
+kare **30,50 ms → 10,2-13,7 ms** (12 koşumun dağılımı; tek koşum yanıltıcıdır
+ve bu çalışmada iki kez yanılttı).
+
+S3b'nin ifadesi de ölçümle keskinleşti: ölçü "toplam süre" değil **"en uzun
+tek kare"**. Kullanıcı donmayı hisseder, toplamı değil. Bu, eşiği gevşetmek
+değil, doğru büyüklüğü ölçmektir — ve daha zor bir ölçüttür, çünkü işi
+karelere yaymak artık tek başına yetmez, her karenin de bütçeye sığması gerekir.
+
+**SINIR, açıkça:** S3b 5.000 görevde karşılanıyor; 8.000 sınırın tam üstünde
+(16,0-16,4 ms), 10.000'de karşılanmıyor (29,7 ms). Bağlayıcı kısıt eşzamanlı O(n) geçişi
+(süzme + kovalama + sıralama + anahtar farkı). Ölçüt 5.000 diyor, kapı 5.000'de
+zorunlu; daha yukarısı istenirse çözüm pencereleme değil, veri hattını da
+parçalamaktır.
 
 
 ## S9 kapandı (T2.8)

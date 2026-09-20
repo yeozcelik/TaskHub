@@ -36,10 +36,40 @@ const addDays = (ymdStr, n) => {
   return ymd(d);
 };
 
+/* GÜN FARKI ÖNBELLEĞİ.
+ *
+ * Ölçüldü (5.000 görev, `bucketOf` üzerinden): kovalama 5,2 ms sürüyordu ve
+ * bunun 5,0 ms'si `parseYmd` çağrılarıydı — görev başına İKİ tane, üstelik
+ * biri her seferinde aynı `today` dizesi için. Sonuç iki dizenin saf
+ * fonksiyonu olduğundan hatırlanabilir.
+ *
+ * İki katmanlı: dış anahtar `aY` (neredeyse hep `today`), iç anahtar `bY`.
+ * Tek katmanlı bir önbellek `aY + "|" + bY` dizesini her çağrıda kurardı;
+ * yineleme başına 5.000 kısa ömürlü dize demek bu. İç içe iki `Map.get`
+ * hiçbir şey ayırmıyor.
+ *
+ * SINIR: sonuç yerel saat dilimine bağlıdır (`parseYmd` yerel gece yarısı
+ * üretir). Oturum ortasında saat dilimi değişirse önbellek bayatlar; tarayıcı
+ * bunu yeniden yükleme olmadan yapmaz, `today` da zaten açılışta bir kez
+ * hesaplanır. */
+const DB_CACHE = new Map();
+const DB_MAX = 4096;
+
 function daysBetween(aY, bY){
+  let inner = DB_CACHE.get(aY);
+  if (inner){
+    const hit = inner.get(bY);
+    if (hit !== undefined) return hit;
+  } else {
+    if (DB_CACHE.size > 8) DB_CACHE.clear();
+    inner = new Map();
+    DB_CACHE.set(aY, inner);
+  }
   const a = parseYmd(aY), b = parseYmd(bY);
-  if (!a || !b) return null;
-  return Math.round((b - a) / 86400000);
+  const v = (!a || !b) ? null : Math.round((b - a) / 86400000);
+  if (inner.size > DB_MAX) inner.clear();
+  inner.set(bY, v);
+  return v;
 }
 
 const BUCKETS = ["overdue","today","tomorrow","week","later","nodate","completed"];
@@ -63,7 +93,20 @@ function csvEscape(v, delim){
   return /["\r\n]/.test(s) || s.indexOf(d) !== -1 ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
-const ts = x => { const n = Date.parse(x); return isNaN(n) ? 0 : n; };
+/* `Date.parse` ucuz değil: 5.000 görevi sıralarken `ts(createdAt)` tek başına
+   1,3 ms. Damgalar değişmeyen dizeler olduğundan dize → sayı eşlemesi
+   hatırlanabilir; ISO damgaları saat diliminden bağımsız okunur. */
+const TS_CACHE = new Map();
+const TS_MAX = 8192;
+const ts = x => {
+  if (typeof x !== "string"){ const n = Date.parse(x); return isNaN(n) ? 0 : n; }
+  const hit = TS_CACHE.get(x);
+  if (hit !== undefined) return hit;
+  const n = Date.parse(x), v = isNaN(n) ? 0 : n;
+  if (TS_CACHE.size > TS_MAX) TS_CACHE.clear();
+  TS_CACHE.set(x, v);
+  return v;
+};
 /** id çakışmasında updatedAt'i yeni olan kazanır. */
 function mergeImport(current, incoming){
   const out = current.slice();

@@ -13,34 +13,45 @@
  * tek eleman yer değiştirdiğinde yama tek bir "move"dur.                    */
 
 /** Yinelenen anahtar sessizce yanlış çizime yol açar: iki düğüm aynı kimliği
- *  paylaşınca hangisinin taşınacağı tanımsızdır. Hata vermek tek dürüst yol. */
+ *  paylaşınca hangisinin taşınacağı tanımsızdır. Hata vermek tek dürüst yol.
+ *
+ *  Kurduğu kümeyi DÖNDÜRÜR: çağıran zaten "bu anahtar yeni listede var mı"
+ *  diye soracak. İki ayrı 5.000 elemanlı küme kurmanın anlamı yok. */
 function assertUniqueKeys(keys, which){
   const seen = new Set();
   for (const k of keys){
     if (seen.has(k)) throw new Error(`list-diff: ${which} listede yinelenen anahtar: ${String(k)}`);
     seen.add(k);
   }
+  return seen;
 }
 
 /** seq içindeki (negatif olmayan) değerlerin en uzun artan altdizisine ait
  *  KONUMLARI döndürür. O(n log n), öncül dizisiyle geri kurulum. */
+/*  TİPLİ DİZİLER: `seq`, `prev` ve `keep` konum tutar, yani tamsayı. Kutulu
+ *  JS dizisi yerine Int32Array/Uint8Array kullanmak 5.000 elemanda üç ayrı
+ *  kutulu dizi ve bir Set ayırmayı ortadan kaldırıyor — fark hesabı çizimin
+ *  bloklayan payındaki en büyük kalemdi. Algoritma ve çıktı aynı. */
 function lisPositions(seq){
-  const prev = new Array(seq.length).fill(-1);
-  const tails = [];                       // her uzunluk için en küçük son konum
-  for (let i = 0; i < seq.length; i++){
+  const n = seq.length;
+  const prev = new Int32Array(n).fill(-1);
+  const tails = new Int32Array(n);        // her uzunluk için en küçük son konum
+  let nt = 0;
+  for (let i = 0; i < n; i++){
     const v = seq[i];
     if (v < 0) continue;                  // listede yeni olan eleman zincire giremez
-    let lo = 0, hi = tails.length;
+    let lo = 0, hi = nt;
     while (lo < hi){
       const mid = (lo + hi) >> 1;
       if (seq[tails[mid]] < v) lo = mid + 1; else hi = mid;
     }
     if (lo > 0) prev[i] = tails[lo - 1];
-    if (lo === tails.length) tails.push(i); else tails[lo] = i;
+    tails[lo] = i;
+    if (lo === nt) nt++;
   }
-  const keep = new Set();
-  let k = tails.length ? tails[tails.length - 1] : -1;
-  while (k >= 0){ keep.add(k); k = prev[k]; }
+  const keep = new Uint8Array(n);
+  let k = nt ? tails[nt - 1] : -1;
+  while (k >= 0){ keep[k] = 1; k = prev[k]; }
   return keep;
 }
 
@@ -53,20 +64,24 @@ function lisPositions(seq){
  *  before === null → kabın sonuna ekle.                                     */
 function diffChildren(oldKeys, newKeys){
   assertUniqueKeys(oldKeys, "eski");
-  assertUniqueKeys(newKeys, "yeni");
+  const newSet = assertUniqueKeys(newKeys, "yeni");
 
   const oldIndex = new Map();
   for (let i = 0; i < oldKeys.length; i++) oldIndex.set(oldKeys[i], i);
-  const newSet = new Set(newKeys);
 
   const ops = [];
   for (const k of oldKeys) if (!newSet.has(k)) ops.push({ type: "remove", key: k });
 
-  const seq = newKeys.map(k => oldIndex.has(k) ? oldIndex.get(k) : -1);
+  const n = newKeys.length;
+  const seq = new Int32Array(n);
+  for (let i = 0; i < n; i++){
+    const at = oldIndex.get(newKeys[i]);
+    seq[i] = at === undefined ? -1 : at;
+  }
   const keep = lisPositions(seq);
 
-  for (let i = newKeys.length - 1; i >= 0; i--){
-    if (keep.has(i)) continue;
+  for (let i = n - 1; i >= 0; i--){
+    if (keep[i]) continue;
     ops.push({
       type: seq[i] < 0 ? "insert" : "move",
       key: newKeys[i],
