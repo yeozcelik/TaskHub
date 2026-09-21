@@ -127,16 +127,16 @@ const isTasks = () => ui.view !== "notes";
 const isNotes = () => ui.view === "notes";
 
 [
-  { id:"view.tasks", label:() => t("cmdViewTasks"), when:isNotes, run(){ switchView("tasks"); } },
-  { id:"view.notes", label:() => t("cmdViewNotes"), when:isTasks, run(){ switchView("notes"); } },
+  { id:"view.tasks", label:() => t("cmdViewTasks"), when:isNotes, run(){ pickView("tasks"); } },
+  { id:"view.notes", label:() => t("cmdViewNotes"), when:isTasks, run(){ pickView("notes"); } },
 
   { id:"taskview.list", label:() => t("cmdViewList"), when:() => isTasks() && ui.taskView !== "list",
-    run(){ switchTaskView("list"); } },
+    run(){ pickTaskView("list"); } },
   { id:"taskview.board", label:() => t("cmdViewBoard"), when:() => isTasks() && ui.taskView !== "board",
-    run(){ switchTaskView("board"); } },
+    run(){ pickTaskView("board"); } },
 
   { id:"taskview.calendar", label:() => t("cmdViewCalendar"), when:() => isTasks() && ui.taskView !== "calendar",
-    run(){ switchTaskView("calendar"); } },
+    run(){ pickTaskView("calendar"); } },
 
   { id:"task.new", label:() => t("cmdNewTask"), keys:"N", when:isTasks,
     run(){ const q = document.getElementById("quick"); if (q) q.focus(); } },

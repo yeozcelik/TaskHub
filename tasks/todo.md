@@ -1078,21 +1078,47 @@ göreve ya da sayfaya gidiliyor.
 > Kasten en sona konuldu. **Kesilebilir olan budur** — işlevsellik olmadan cila
 > anlamsızdır, cila olmadan işlevsellik değil.
 
-### T5.1: View Transitions + `prefers-reduced-motion`
+### T5.1: View Transitions + `prefers-reduced-motion` — ✅ BİTTİ
 
-**Açıklama:** Ölçüldü: `document.startViewTransition` `file://` üzerinde mevcut.
-İlerici geliştirme — desteklenmeyen tarayıcıda hiçbir şey kırılmaz.
+**Açıklama:** Ölçüldü: `document.startViewTransition` `file://` üzerinde mevcut
+(bu koşumda yeniden doğrulandı, iddiayla kilitli). İlerici geliştirme —
+desteklenmeyen tarayıcıda hiçbir şey kırılmaz.
 
 **Kabul ölçütleri:**
-- [ ] Görünüm geçişleri (liste ↔ pano ↔ takvim) animasyonlu
-- [ ] `startViewTransition` yoksa **anında geçiş**, hata yok
-- [ ] `prefers-reduced-motion: reduce` animasyonu **tamamen** kapatır
-- [ ] Animasyon sırasında odak ve ekran okuyucu duyurusu bozulmaz
+- [x] Görünüm geçişleri animasyonlu: liste ↔ pano ↔ takvim **ve** görevler ↔ notlar
+- [x] `startViewTransition` yoksa **anında geçiş**, hata yok — API silinip sınandı
+- [x] `prefers-reduced-motion: reduce` animasyonu **tamamen** kapatır: JS geçişi
+      hiç başlatmaz (`matchMedia` sahtelenip sayaçla doğrulandı) **ve** CSS ikinci
+      savunma hattı olarak `::view-transition-*` animasyonlarını sıfırlar.
+      Üstteki genel `*{animation-duration:.01ms}` kuralı buna YETMEZ — geçiş
+      sözde öğeleri `*` ile eşleşmiyor.
+- [x] Odak ve ekran okuyucu duyurusu bozulmaz — **burada gerçek bir hata bulundu**
 
-**Doğrulama:** İki ayarda elle sınama; API'si kaldırılmış sahte ortamda sınama; axe.
+**Sınırda bulunan hata:** Kenar çubuğu her çizimde `textContent = ""` ile baştan
+kuruluyordu; tıklanan düğme yok ediliyor ve **odak `body`ye düşüyordu**. Yalnız
+görünüm düğmelerinde değil, durum/öncelik/etiket süzgeçlerinin hepsinde.
+Klavyeyle süzgeç değiştiren biri her tıkta belgenin başına atılıyordu. Kartlardaki
+`data-slot` deseninin aynısı uygulandı: `data-side-key` ile kimlik yakalanıyor,
+yeniden kurulduktan sonra odak geri veriliyor. İddia kasten bozularak sınandı.
+
+**Mimari karar:** Animasyon **jestin** parçasıdır, durum değişiminin değil.
+`switchTaskView`/`switchView` senkron kaldı; sarmalayıcı yalnız kullanıcının
+tıkladığı düğmede ve komut paletinde. Sebebi teknik: `startViewTransition` geri
+çağrıyı bir sonraki kareye erteler, dolayısıyla durum değişimini sarmak her
+programatik çağrıyı (geri yükleme, test, zincirleme kısayol) asenkron yapardı.
+
+**Yan bulgu:** `view-transition-name` adlandırılan öğeyi `position:fixed`
+torunları için kuşatan blok yapar. `#list` içinde sabit konumlu torun olmadığı
+doğrulandı ve iddiayla kilitlendi; ayrıca panel geometrisi bir önceki sürümle
+birebir karşılaştırıldı (1157/780/0/343 — ad eklemek düzeni değiştirmedi).
+
+**Doğrulama:** `behavior.mjs` **159/159** (T5.1 için 10 iddia: API var/yok,
+hareket serbest/kapalı, `matchMedia` patlarsa, odak, `aria-pressed`, kuşatan
+blok); axe 64 tarama 0 ihlal.
 
 **Bağımlılık:** T3.5
-**Dosyalar:** `src/ui/transitions.js`, `src/styles/motion.css`, `src/ui/view-*.js`
+**Dosyalar:** `src/ui/transitions.js`, `src/styles/08-motion.css`,
+`src/ui/app.js`, `src/ui/palette.js`, `tools/probe/behavior.mjs`
 **Boyut:** S
 
 ### T5.2: Sürükle-bırak yeniden sıralama

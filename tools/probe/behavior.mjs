@@ -33,6 +33,19 @@ const check = (name, actual, expected) => checks.push({ name, actual, expected,
 
 await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   const ev = async expr => { const r = await evaluate(expr); if (r.error) throw new Error(expr + "\n  → " + r.error); return r.value; };
+
+  /* Sabit `setTimeout` yerine KOŞUL BEKLE. Görünüm geçişleri geri çağrıyı bir
+     sonraki kareye erteliyor; "30 ms yeter" varsayımı yarışa açık ve gerçekten
+     de yarıştı. Koşul beklemek hem daha hızlı hem daha sağlam. */
+  const bekle = async (expr, ms = 2000) => {
+    const bitis = Date.now() + ms;
+    for (;;){
+      if (await ev("!!(" + expr + ")")) return true;
+      if (Date.now() > bitis) return false;
+      await ev(`new Promise(r => requestAnimationFrame(r))`);
+    }
+  };
+
   await ev(SEED);
 
   check("üç görev çizildi", await ev(ids), ["alfa rapor", "beta rapor", "gama İstanbul"]);
@@ -183,7 +196,7 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   // Enter komutu çalıştırır.
   await ev(`document.getElementById("palQ").value = "gorunum notlar"; renderPaletteList();`);
   await ev(key("getElementById('palQ')", "Enter"));
-  await ev(`new Promise(r => setTimeout(r, 30))`);
+  await bekle(`ui.view === "notes"`);
   check("Enter komutu çalıştırdı (notlar görünümüne geçildi)", await ev(`ui.view`), "notes");
   check("çalıştırınca palet kapandı", await ev(`!document.querySelector("dialog.palette[open]")`), true);
 
@@ -850,6 +863,107 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   })()`);
   check("T2.3b: kuyruk bitince ekran süzgeçle BİREBİR (bayat kart kalmaz)",
     [settled[0] === settled[1], settled[2]], [true, true]);
+
+  /* ------------------------------------------------- T5.1: görünüm geçişi ---
+     Üç yol da sınanır: normal (API var, hareket serbest), API YOK, hareket
+     İSTENMİYOR. Üçünde de iş yapılmalı; yalnız ikisinde animasyon olmamalı. */
+  await ev(`(() => {
+    clearSelection(); today = "2026-05-10"; ui.q = "";
+    state.tasks = [{ id:"v1", title:"gecis", notes:"", dueDate:"2026-05-10", priority:"high",
+      tags:[], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z",
+      updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, sourceNoteId:null }];
+    switchTaskView("list"); render();
+    // Casus: gerçek API korunur, çağrı sayılır.
+    window.__vt = { n: 0, gercek: document.startViewTransition };
+    document.startViewTransition = function(cb){
+      window.__vt.n++;
+      return window.__vt.gercek ? window.__vt.gercek.call(document, cb) : (cb(), null);
+    };
+    return typeof window.__vt.gercek;
+  })()`);
+  check("T5.1: file:// üzerinde startViewTransition VAR", await ev(`typeof window.__vt.gercek`), "function");
+
+  const tikla = v => `(() => { const b = document.querySelector(${JSON.stringify('#sidebar [data-side-key="view:' + v + '"]')});
+    if (!b) return "düğme yok"; b.focus(); b.click(); return true; })()`;
+
+  await ev(`window.__vt.n = 0; true`);
+  await ev(tikla("board"));
+  await bekle(`ui.taskView === "board"`);
+  check("T5.1: pano düğmesi görünümü değiştirdi", await ev(`ui.taskView`), "board");
+  check("T5.1: geçiş BAŞLATILDI (API var, hareket serbest)", await ev(`window.__vt.n`), 1);
+  check("T5.1: geçişten sonra odak kaybolmadı — düğme hâlâ odakta",
+    await ev(`(() => { const a = document.activeElement;
+      return [a && a.getAttribute && a.getAttribute("data-side-key"),
+              a && a.getAttribute && a.getAttribute("aria-pressed")]; })()`),
+    ["view:board", "true"]);
+  check("T5.1: pano gerçekten çizildi",
+    await ev(`document.getElementById("list").classList.contains("board")`), true);
+
+  // API YOK: anında geçiş, hata yok.
+  await ev(`(() => { window.__vtYedek = document.startViewTransition;
+    try { delete document.startViewTransition; } catch (e){}
+    document.startViewTransition = undefined; return true; })()`);
+  const apisiz = await ev(`(() => { try { pickTaskView("calendar");
+      return [ui.taskView, document.getElementById("list").classList.contains("calendar")]; }
+    catch (e){ return ["hata: " + e.message, false]; } })()`);
+  check("T5.1: API yokken ANINDA geçiş, hata yok", apisiz, ["calendar", true]);
+  await ev(`document.startViewTransition = window.__vtYedek; true`);
+
+  // HAREKET İSTENMİYOR: API var ama kullanılmaz.
+  const azHareket = await ev(`(() => {
+    const gercekMM = window.matchMedia;
+    window.matchMedia = q => /prefers-reduced-motion/.test(q) ? { matches:true, media:q,
+      addEventListener(){}, removeEventListener(){}, addListener(){}, removeListener(){} }
+      : gercekMM.call(window, q);
+    window.__vt.n = 0;
+    const izin = motionAllowed();
+    pickTaskView("list");
+    const sonuc = [izin, window.__vt.n, ui.taskView,
+                   document.getElementById("list").classList.contains("calendar")];
+    window.matchMedia = gercekMM;
+    return sonuc;
+  })()`);
+  check("T5.1: reduce → animasyon YOK ama geçiş ANINDA yapıldı",
+    azHareket, [false, 0, "list", false]);
+
+  // Sorgulanamayan ortamda da kıpırdamaz: şüphede kalınca hareket yok.
+  check("T5.1: matchMedia patlarsa hareket YOK sayılır", await ev(`(() => {
+    const gercekMM = window.matchMedia;
+    window.matchMedia = () => { throw new Error("yok"); };
+    const izin = motionAllowed();
+    window.matchMedia = gercekMM;
+    return izin; })()`), false);
+
+  // Ekran okuyucu durumu: her üç düğmenin aria-pressed'i tek ve doğru.
+  check("T5.1: geçişten sonra aria-pressed tek ve doğru",
+    await ev(`(() => { const bs = Array.from(document.querySelectorAll('#sidebar [data-side-key^="view:"]'));
+      return [bs.length, bs.filter(b => b.getAttribute("aria-pressed") === "true")
+        .map(b => b.getAttribute("data-side-key"))]; })()`),
+    [3, ["view:list"]]);
+
+  // Kenar çubuğu odak korunumu görünüm düğmesine özel değil: süzgeçte de geçerli.
+  check("T5.1: süzgeç düğmesine basınca da odak kenar çubuğunda kalır",
+    await ev(`(() => { const b = document.querySelector('#sidebar [data-side-key="prio:high"]');
+      b.focus(); b.click();
+      const a = document.activeElement;
+      return a && a.getAttribute && a.getAttribute("data-side-key"); })()`), "prio:high");
+  await ev(`ui.prios.clear(); render(); document.startViewTransition = window.__vt.gercek; true`);
+  /* `view-transition-name` bedava değil: adlandırılmış öğe bir yığma bağlamı
+     kurar VE içindeki `position:fixed` torunları için KUŞATAN BLOK olur.
+     Bugün `#list` içinde sabit konumlu hiçbir şey yok (panel, bildirimler ve
+     araç menüleri onun DIŞINDA) — bu iddia yarın biri içeri koyduğunda
+     sessizce kaymasın diye var. Geometri ayrıca bir önceki sürümle birebir
+     karşılaştırıldı: ad eklemek düzeni değiştirmedi. */
+  check("T5.1: #list içinde position:fixed torun YOK (kuşatan blok tuzağı)",
+    await ev(`(() => { const list = document.getElementById("list");
+      const hepsi = Array.from(list.querySelectorAll("*"));
+      return hepsi.filter(n => getComputedStyle(n).position === "fixed").length; })()`), 0);
+  check("T5.1: panel ve bildirimler listenin DIŞINDA",
+    await ev(`(() => { const list = document.getElementById("list");
+      return ["#panel", ".toasts"].map(sel => { const n = document.querySelector(sel);
+        return !!n && !list.contains(n); }); })()`), [true, true]);
+
+
 }, { browser: flag("--browser"), waitFor: "typeof renderList === 'function' && document.getElementById('list')" });
 
 let bad = 0;

@@ -1,0 +1,27 @@
+/* ---------- Görünüm geçişleri ----------
+   Liste alanı kendi adını alır: pano/takvim geçişinde DEĞİŞEN yer orasıdır.
+   Adlandırılan öğe kök anlık görüntüsünün dışında kalır, yani üst çubuk ve
+   kenar çubuğu kendi (görünmez, çünkü içerikleri aynı) çapraz solmasını
+   yapar; liste kendi animasyonunu.
+
+   Süreler kasten kısa: 140/180 ms. Bu bir gösteri değil, gözün geçişi
+   takip etmesine yetecek kadar bir ipucu (Things 3 yasası: varsayılan
+   sakin kalır). */
+#list{ view-transition-name: tasklist }
+
+@keyframes th-view-in { from { opacity:0; transform:translateY(4px) } }
+@keyframes th-view-out{ to   { opacity:0; transform:translateY(-4px) } }
+
+::view-transition-old(tasklist){ animation: th-view-out 140ms ease both }
+::view-transition-new(tasklist){ animation: th-view-in  180ms ease both }
+
+/* İKİNCİ SAVUNMA HATTI. `withViewTransition` hareket istenmiyorsa geçişi zaten
+   hiç başlatmaz; bu blok, JS'in medya sorgusunu okuyamadığı ya da geçişin
+   başka bir yoldan başladığı durumda da ekranı sabit tutar.
+   Üstteki genel `*{animation-duration:.01ms}` kuralı BURAYA YETMEZ: geçiş
+   sözde öğeleri (`::view-transition-*`) `*` ile eşleşmez. */
+@media (prefers-reduced-motion:reduce){
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*){ animation: none !important }
+}

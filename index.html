@@ -857,6 +857,33 @@ dialog.palette{
 .testwrap ol{margin:0;padding-left:26px}
 .testwrap li{padding:3px 0;border-bottom:1px solid var(--border)}
 .tpass{color:var(--ok)} .tfail{color:var(--danger);font-weight:700}
+/* ---------- Görünüm geçişleri ----------
+   Liste alanı kendi adını alır: pano/takvim geçişinde DEĞİŞEN yer orasıdır.
+   Adlandırılan öğe kök anlık görüntüsünün dışında kalır, yani üst çubuk ve
+   kenar çubuğu kendi (görünmez, çünkü içerikleri aynı) çapraz solmasını
+   yapar; liste kendi animasyonunu.
+
+   Süreler kasten kısa: 140/180 ms. Bu bir gösteri değil, gözün geçişi
+   takip etmesine yetecek kadar bir ipucu (Things 3 yasası: varsayılan
+   sakin kalır). */
+#list{ view-transition-name: tasklist }
+
+@keyframes th-view-in { from { opacity:0; transform:translateY(4px) } }
+@keyframes th-view-out{ to   { opacity:0; transform:translateY(-4px) } }
+
+::view-transition-old(tasklist){ animation: th-view-out 140ms ease both }
+::view-transition-new(tasklist){ animation: th-view-in  180ms ease both }
+
+/* İKİNCİ SAVUNMA HATTI. `withViewTransition` hareket istenmiyorsa geçişi zaten
+   hiç başlatmaz; bu blok, JS'in medya sorgusunu okuyamadığı ya da geçişin
+   başka bir yoldan başladığı durumda da ekranı sabit tutar.
+   Üstteki genel `*{animation-duration:.01ms}` kuralı BURAYA YETMEZ: geçiş
+   sözde öğeleri (`::view-transition-*`) `*` ile eşleşmez. */
+@media (prefers-reduced-motion:reduce){
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*){ animation: none !important }
+}
 </style>
 </head>
 <body>
@@ -3310,6 +3337,64 @@ function installStorageHooks(){
   });
 }
 
+/* ------------------------------------------------------- görünüm geçişleri ---
+ * View Transitions API ile liste ↔ pano ↔ takvim ve görevler ↔ notlar
+ * geçişlerine yumuşak bir geçiş. Tamamen İLERİCİ GELİŞTİRME: API yoksa da,
+ * kullanıcı hareketi istemiyorsa da iş aynen yapılır, yalnız anında yapılır.
+ *
+ * ANİMASYON JESTİN PARÇASIDIR, DURUM DEĞİŞİMİNİN DEĞİL.
+ * `switchTaskView`/`switchView` senkron kalır; sarmalayıcı yalnız kullanıcının
+ * tıkladığı/komut çalıştırdığı yerde devreye girer. Sebebi mimari: geri
+ * yükleme, test ya da bir kısayolun zincirleme çağrısı animasyon beklemek
+ * zorunda değildir — ve `startViewTransition` geri çağrıyı BİR SONRAKİ KAREYE
+ * ertelediği için, durum değişimini sarmak bütün programatik çağrıları
+ * asenkron yapardı.                                                          */
+
+/** Kullanıcı hareket istiyor mu? Her çağrıda sorulur: işletim sistemi ayarı
+ *  oturum ortasında değişebilir ve önbelleklemek onu görmezden gelmek olurdu.
+ *
+ *  Sorgulayamıyorsak cevap HAYIR. Hareket duyarlılığı bir tercih değil bir
+ *  erişilebilirlik ihtiyacıdır; şüphede kalınca kıpırdamamak doğrusu. */
+function motionAllowed(){
+  try { return !matchMedia("(prefers-reduced-motion: reduce)").matches; }
+  catch (e){ return false; }
+}
+
+/** `apply` TAM OLARAK BİR KEZ çalışır — geçiş olsun olmasın, API patlasın
+ *  patlamasın. Geçiş yalnız bir görsel katmandır; işin kendisi ona bağlı
+ *  olamaz, yoksa animasyonu desteklemeyen tarayıcıda uygulama donardı. */
+function withViewTransition(apply){
+  let ran = false;
+  const once = () => { if (ran) return; ran = true; apply(); };
+
+  const start = document.startViewTransition;
+  if (typeof start !== "function" || !motionAllowed()){ once(); return null; }
+
+  try {
+    const tr = start.call(document, once);
+    /* Geçiş iptal edilebilir (başka bir geçiş başlarsa, sekme arkaplana
+       düşerse). Reddi yutmuyoruz diye konsola yakalanmamış hata düşmesin;
+       `once` yine de çalışmış olur. */
+    if (tr && tr.finished && tr.finished.catch) tr.finished.catch(() => {});
+    if (tr && tr.updateCallbackDone && tr.updateCallbackDone.catch) tr.updateCallbackDone.catch(once);
+    return tr;
+  } catch (e){
+    once();                       // API var ama reddetti: iş yine yapılır
+    return null;
+  }
+}
+
+/** Görev görünümü seçimi (liste/pano/takvim) — kullanıcı jestinden. */
+function pickTaskView(v){
+  if (ui.taskView === v) return;         // aynı görünüm: boş geçiş başlatma
+  withViewTransition(() => switchTaskView(v));
+}
+
+/** Görevler ↔ notlar — kullanıcı jestinden. */
+function pickView(v){
+  if (ui.view === v) return;
+  withViewTransition(() => switchView(v));
+}
 /* ------------------------------------------------------------ uygulama durumu */
 let state = defaultState();
 let notes = defaultNotes();
@@ -3849,7 +3934,7 @@ function buildShell(){
 
   const tab = (view, iconName, label) => el("button", {
     class:"tab", role:"tab", "aria-selected": String(ui.view === view),
-    onclick(){ switchView(view); }
+    onclick(){ pickView(view); }           // jest: geçiş animasyonlu
   }, icon(iconName), label);
 
   const topbar = el("header", { class:"topbar" },
@@ -4022,6 +4107,16 @@ function renderBanners(){
 function renderSidebar(){
   const bar = document.getElementById("sidebar");
   if (!bar) return;
+
+  /* ODAK KORUNUMU — kartlardaki `data-slot` deseninin kenar çubuğu karşılığı.
+     Kenar çubuğu her çizimde baştan kuruluyor, yani tıklanan düğme yok
+     ediliyor ve odak `body`ye düşüyordu. Klavyeyle süzgeç değiştiren biri her
+     seferinde belgenin başına atılıyor, sırayı baştan buluyordu. Kimliği
+     yakala, yeniden kur, geri ver. */
+  const act = document.activeElement;
+  const keepKey = (act && bar.contains(act) && act.getAttribute)
+    ? act.getAttribute("data-side-key") : null;
+
   bar.textContent = "";
 
   /* Görünüm seçimi kenar çubuğunun EN ÜSTÜNDE. Things'in kendi yaptığı da bu:
@@ -4032,8 +4127,9 @@ function renderSidebar(){
   const viewList = el("ul", { class:"side-list" });
   for (const v of ["list", "board", "calendar"]){
     viewList.append(el("li", {}, el("button", {
-      class:"side-item", "aria-pressed": String(ui.taskView === v),
-      onclick(){ switchTaskView(v); }
+      class:"side-item", "data-side-key": "view:" + v,
+      "aria-pressed": String(ui.taskView === v),
+      onclick(){ pickTaskView(v); }          // jest: geçiş animasyonlu
     }, icon(v === "list" ? "list" : v === "board" ? "grid" : "cal"),
        el("span", { text: t("view_" + v) }))));
   }
@@ -4048,7 +4144,8 @@ function renderSidebar(){
   const statusList = el("ul", { class:"side-list" });
   for (const key of ["all","active","done"]){
     statusList.append(el("li", {}, el("button", {
-      class:"side-item", "aria-pressed": String(ui.status === key),
+      class:"side-item", "data-side-key": "status:" + key,
+      "aria-pressed": String(ui.status === key),
       onclick(){ ui.status = key; render(); }
     }, el("span", { text: t(key) }), el("span", { class:"count", text: String(statusCounts[key]) }))));
   }
@@ -4059,7 +4156,8 @@ function renderSidebar(){
   for (const p of ["high","med","low"]){
     const n = state.tasks.filter(x => x.priority === p).length;
     prioList.append(el("li", {}, el("button", {
-      class:"side-item", "aria-pressed": String(ui.prios.has(p)),
+      class:"side-item", "data-side-key": "prio:" + p,
+      "aria-pressed": String(ui.prios.has(p)),
       onclick(){ ui.prios.has(p) ? ui.prios.delete(p) : ui.prios.add(p); render(); }
     }, el("span", { class:"dot " + p }), el("span", { text: t(p) }), el("span", { class:"count", text:String(n) }))));
   }
@@ -4075,7 +4173,8 @@ function renderSidebar(){
     const tagList = el("ul", { class:"side-list" });
     for (const tg of tagNames){
       tagList.append(el("li", {}, el("button", {
-        class:"side-item", "aria-pressed": String(ui.tags.has(tg)),
+        class:"side-item", "data-side-key": "tag:" + tg,
+        "aria-pressed": String(ui.tags.has(tg)),
         onclick(){ ui.tags.has(tg) ? ui.tags.delete(tg) : ui.tags.add(tg); render(); }
       }, el("span", { text: "#" + tg }), el("span", { class:"count", text:String(counts.get(tg)) }))));
     }
@@ -4083,6 +4182,13 @@ function renderSidebar(){
   }
 
   bar.append(viewGroup, statusGroup, prioGroup, tagGroup);
+
+  /* Yalnız odak GERÇEKTEN kenar çubuğundaydıysa geri verilir; kullanıcı bu
+     sırada başka bir yere geçtiyse odağı geri çalmayız. */
+  if (keepKey){
+    const back = bar.querySelector('[data-side-key="' + CSS.escape(keepKey) + '"]');
+    if (back) back.focus({ preventScroll:true });
+  }
 }
 
 /* ------------------------------------------------------------------ liste */
@@ -8064,16 +8170,16 @@ const isTasks = () => ui.view !== "notes";
 const isNotes = () => ui.view === "notes";
 
 [
-  { id:"view.tasks", label:() => t("cmdViewTasks"), when:isNotes, run(){ switchView("tasks"); } },
-  { id:"view.notes", label:() => t("cmdViewNotes"), when:isTasks, run(){ switchView("notes"); } },
+  { id:"view.tasks", label:() => t("cmdViewTasks"), when:isNotes, run(){ pickView("tasks"); } },
+  { id:"view.notes", label:() => t("cmdViewNotes"), when:isTasks, run(){ pickView("notes"); } },
 
   { id:"taskview.list", label:() => t("cmdViewList"), when:() => isTasks() && ui.taskView !== "list",
-    run(){ switchTaskView("list"); } },
+    run(){ pickTaskView("list"); } },
   { id:"taskview.board", label:() => t("cmdViewBoard"), when:() => isTasks() && ui.taskView !== "board",
-    run(){ switchTaskView("board"); } },
+    run(){ pickTaskView("board"); } },
 
   { id:"taskview.calendar", label:() => t("cmdViewCalendar"), when:() => isTasks() && ui.taskView !== "calendar",
-    run(){ switchTaskView("calendar"); } },
+    run(){ pickTaskView("calendar"); } },
 
   { id:"task.new", label:() => t("cmdNewTask"), keys:"N", when:isTasks,
     run(){ const q = document.getElementById("quick"); if (q) q.focus(); } },

@@ -537,7 +537,7 @@ function buildShell(){
 
   const tab = (view, iconName, label) => el("button", {
     class:"tab", role:"tab", "aria-selected": String(ui.view === view),
-    onclick(){ switchView(view); }
+    onclick(){ pickView(view); }           // jest: geçiş animasyonlu
   }, icon(iconName), label);
 
   const topbar = el("header", { class:"topbar" },
@@ -710,6 +710,16 @@ function renderBanners(){
 function renderSidebar(){
   const bar = document.getElementById("sidebar");
   if (!bar) return;
+
+  /* ODAK KORUNUMU — kartlardaki `data-slot` deseninin kenar çubuğu karşılığı.
+     Kenar çubuğu her çizimde baştan kuruluyor, yani tıklanan düğme yok
+     ediliyor ve odak `body`ye düşüyordu. Klavyeyle süzgeç değiştiren biri her
+     seferinde belgenin başına atılıyor, sırayı baştan buluyordu. Kimliği
+     yakala, yeniden kur, geri ver. */
+  const act = document.activeElement;
+  const keepKey = (act && bar.contains(act) && act.getAttribute)
+    ? act.getAttribute("data-side-key") : null;
+
   bar.textContent = "";
 
   /* Görünüm seçimi kenar çubuğunun EN ÜSTÜNDE. Things'in kendi yaptığı da bu:
@@ -720,8 +730,9 @@ function renderSidebar(){
   const viewList = el("ul", { class:"side-list" });
   for (const v of ["list", "board", "calendar"]){
     viewList.append(el("li", {}, el("button", {
-      class:"side-item", "aria-pressed": String(ui.taskView === v),
-      onclick(){ switchTaskView(v); }
+      class:"side-item", "data-side-key": "view:" + v,
+      "aria-pressed": String(ui.taskView === v),
+      onclick(){ pickTaskView(v); }          // jest: geçiş animasyonlu
     }, icon(v === "list" ? "list" : v === "board" ? "grid" : "cal"),
        el("span", { text: t("view_" + v) }))));
   }
@@ -736,7 +747,8 @@ function renderSidebar(){
   const statusList = el("ul", { class:"side-list" });
   for (const key of ["all","active","done"]){
     statusList.append(el("li", {}, el("button", {
-      class:"side-item", "aria-pressed": String(ui.status === key),
+      class:"side-item", "data-side-key": "status:" + key,
+      "aria-pressed": String(ui.status === key),
       onclick(){ ui.status = key; render(); }
     }, el("span", { text: t(key) }), el("span", { class:"count", text: String(statusCounts[key]) }))));
   }
@@ -747,7 +759,8 @@ function renderSidebar(){
   for (const p of ["high","med","low"]){
     const n = state.tasks.filter(x => x.priority === p).length;
     prioList.append(el("li", {}, el("button", {
-      class:"side-item", "aria-pressed": String(ui.prios.has(p)),
+      class:"side-item", "data-side-key": "prio:" + p,
+      "aria-pressed": String(ui.prios.has(p)),
       onclick(){ ui.prios.has(p) ? ui.prios.delete(p) : ui.prios.add(p); render(); }
     }, el("span", { class:"dot " + p }), el("span", { text: t(p) }), el("span", { class:"count", text:String(n) }))));
   }
@@ -763,7 +776,8 @@ function renderSidebar(){
     const tagList = el("ul", { class:"side-list" });
     for (const tg of tagNames){
       tagList.append(el("li", {}, el("button", {
-        class:"side-item", "aria-pressed": String(ui.tags.has(tg)),
+        class:"side-item", "data-side-key": "tag:" + tg,
+        "aria-pressed": String(ui.tags.has(tg)),
         onclick(){ ui.tags.has(tg) ? ui.tags.delete(tg) : ui.tags.add(tg); render(); }
       }, el("span", { text: "#" + tg }), el("span", { class:"count", text:String(counts.get(tg)) }))));
     }
@@ -771,6 +785,13 @@ function renderSidebar(){
   }
 
   bar.append(viewGroup, statusGroup, prioGroup, tagGroup);
+
+  /* Yalnız odak GERÇEKTEN kenar çubuğundaydıysa geri verilir; kullanıcı bu
+     sırada başka bir yere geçtiyse odağı geri çalmayız. */
+  if (keepKey){
+    const back = bar.querySelector('[data-side-key="' + CSS.escape(keepKey) + '"]');
+    if (back) back.focus({ preventScroll:true });
+  }
 }
 
 /* ------------------------------------------------------------------ liste */
