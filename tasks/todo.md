@@ -1176,9 +1176,17 @@ yok, çip var; çipleri sürüklemek ayrı bir iş. Ölçüt "liste ve pano" diy
 `tests/task-ops.test.js`, `tools/probe/behavior.mjs`
 **Boyut:** M
 
+> Faz 5'in iki görevi de bitti. İkisi de plandan **saptı** ve ikisinde de sapma
+> ölçümden geldi: T5.1'de geçişin gerçek bedeli (tıklamaya kapalı pencere)
+> ölçülüp üçte bir kısaltıldı ve bir kapıya bağlandı; T5.2'de planın istediği
+> "yeniden sıralama" veri modelinde karşılıksız çıktı ve yerine yeniden
+> gruplama kondu (ADR 0003). İkisi de yazıya geçti.
+
 ### ✅ Kontrol noktası — Bitiş
+- [x] `README.md`: klavye kısayolları tablosu güncellendi (`Ctrl+K`, `X`,
+      `↑/↓`, `Shift+↑/↓`, `Alt+↑/↓`) ve sürükleyerek taşıma bölümü eklendi
 - [ ] S1–S11 **tamamı** karşılandı ve ölçümleri `docs/olcumler/` altında
-- [ ] `README.md` güncellendi: derleme adımı, yeni kısayollar, yeni görünümler
+- [ ] `README.md`: derleme adımı ve yeni görünümler bölümü (kalan)
 - [ ] `CAPABILITY-MAP.md` "kapsam dışı" listesi gerçeği yansıtıyor
 - [ ] Her modülün `SPEC-<id>.md` dosyası uygulanana uygun
 - [ ] **Bitiş gözden geçirmesi**
