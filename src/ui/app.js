@@ -134,10 +134,17 @@ function selArrow(fromId, delta, extend){
      güvenceyi veremeyiz — tarayıcının kendi araması bize haber vermez —
      ama kuyruk 5.000 görevde ~0,3 sn'de boşaldığı için kalıcı bir sınır
      değil, geçici bir gecikmedir.) */
-  const find = () => document.querySelector('#list .card[data-id="' + CSS.escape(next) + '"] .card-open');
+  focusCardOpen(next);
+}
+
+/** Kartın erişilebilir girişine (başlık düğmesi) odaklanır.
+ *  @returns kart bulunduysa true */
+function focusCardOpen(id){
+  const find = () => document.querySelector('#list .card[data-id="' + CSS.escape(id) + '"] .card-open');
   let node = find();
   if (!node && renderQueue){ flushRenderQueue(true); node = find(); }
   if (node) node.focus({ preventScroll:false });
+  return !!node;
 }
 
 /* ------------------------------------------------------- toplu işlemler ---
@@ -903,6 +910,13 @@ function taskCard(task){
       /* Boşluk düğmeyi etkinleştirir (yerel davranış); seçim için Linear'ın
          kısayolu `x` kullanılıyor — yerel anlamla kavga edilmiyor. */
       if (e.key === "x" || e.key === "X"){ e.preventDefault(); selToggle(task.id); return; }
+      /* Alt+ok SÜRÜKLEMENİN klavye eşdeğeri (T5.2): kartı önceki/sonraki gruba
+         taşır. Sade ok seçim gezintisi olduğu için Alt dalı ÖNCE gelmeli. */
+      if (e.altKey && (e.key === "ArrowDown" || e.key === "ArrowUp")){
+        e.preventDefault();
+        moveTaskByKeyboard(task.id, e.key === "ArrowDown" ? 1 : -1);
+        return;
+      }
       if (e.key === "ArrowDown" || e.key === "ArrowUp"){
         e.preventDefault();
         selArrow(task.id, e.key === "ArrowDown" ? 1 : -1, e.shiftKey);
@@ -926,6 +940,9 @@ function taskCard(task){
       title: t("deleteTask"), "aria-label": t("deleteTaskNamed", { s: task.title }),
       onclick(e){ e.stopPropagation(); deleteTask(task.id); } }, icon("trash"))
   );
+  /* Tutamak kart kurulduktan SONRA ekleniyor: sürükleme işleyicisi kartın
+     kendisine ihtiyaç duyuyor (kaldırılmış görünümü onun sınıfı veriyor). */
+  card.append(cardGrip(task, card));
   return card;
 }
 
@@ -1012,7 +1029,10 @@ function makeSection(group){
   const list = el("ul", { class:"tasklist", id:"g-" + group.key });
   /* Sütun/kova ekran okuyucuda adlı olsun: "Yüksek, 3 görev" gibi bir bölge
      olmadan pano, ekranı görmeyen için yalnız bir kart yığınıdır. */
-  const section = el("section", { class:"group", role:"group",
+  /* `data-group`: bırakma hedefi buradan okunur. Bölümün KİMLİĞİ zaten vardı
+     (`g-<anahtar>` id'si) ama onu ayrıştırmak kırılgan olurdu — anahtar açıkça
+     yazılı duruyor. */
+  const section = el("section", { class:"group", role:"group", "data-group": group.key,
     "aria-label": t(group.labelKey) }, groupHead(group, 0, true), list);
   return { section, list, keys: [], nodes: new Map(), sigs: new Map() };
 }

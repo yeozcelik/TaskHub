@@ -37,6 +37,14 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   /* Sabit `setTimeout` yerine KOŞUL BEKLE. Görünüm geçişleri geri çağrıyı bir
      sonraki kareye erteliyor; "30 ms yeter" varsayımı yarışa açık ve gerçekten
      de yarıştı. Koşul beklemek hem daha hızlı hem daha sağlam. */
+  /* Görünüm geçişi SÜRERKEN sayfa tıklanamaz: anlık görüntüler üst katmanda
+     ve `elementFromPoint` kökü döndürür. İşaretçi sınamaları bunu beklemek
+     zorunda — beklemeyince "bırakma hedefi yok" gibi görünüyordu. */
+  const gecisBitsin = async () => bekle(`!document.documentElement
+    .getAnimations({ subtree: true })
+    .find(a => a.effect && a.effect.pseudoElement && /view-transition/.test(a.effect.pseudoElement))
+    && (document.elementFromPoint(20, 20) || {}).tagName !== "HTML"`);
+
   const bekle = async (expr, ms = 2000) => {
     const bitis = Date.now() + ms;
     for (;;){
@@ -889,6 +897,7 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
   await ev(`window.__vt.n = 0; true`);
   await ev(tikla("board"));
   await bekle(`ui.taskView === "board"`);
+  await gecisBitsin();
   check("T5.1: pano düğmesi görünümü değiştirdi", await ev(`ui.taskView`), "board");
   check("T5.1: geçiş BAŞLATILDI (API var, hareket serbest)", await ev(`window.__vt.n`), 1);
   check("T5.1: geçişten sonra odak kaybolmadı — düğme hâlâ odakta",
@@ -898,6 +907,34 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
     ["view:board", "true"]);
   check("T5.1: pano gerçekten çizildi",
     await ev(`document.getElementById("list").classList.contains("board")`), true);
+
+  /* GEÇİŞİN BEDELİ ÖLÇÜLÜR. Geçiş sürerken sayfa tıklanamaz — anlık
+     görüntüler üst katmanda. Varsayılan sürelerle bu pencere 324 ms ölçüldü;
+     "Pano"ya basıp hemen "Takvim"e basan biri ikinci tıklamasını kaybediyordu.
+     Süreler 150 ms'ye çekilince 223 ms'ye indi (kalan ~70 ms API'nin sabit
+     maliyeti: anlık görüntü alma + bir kare gecikme + sökme). Kök animasyonunu
+     tümden kapatmak ölçüldü ve HİÇBİR ŞEY kazandırmadı (233 ms) — o yüzden
+     duruyor ve görevler ↔ notlar geçişini o yapıyor.
+     Bu kapı sayının sessizce büyümesini engeller. */
+  await ev(`switchTaskView("list"); true`);
+  await gecisBitsin();
+  const pencere = await ev(`(async () => {
+    const t0 = performance.now();
+    document.querySelector('#sidebar [data-side-key="view:board"]').click();
+    let engel = null, acildi = null;
+    for (let i = 0; i < 120; i++){
+      await new Promise(r => requestAnimationFrame(r));
+      const bos = (document.elementFromPoint(20, 20) || {}).tagName === "HTML";
+      if (bos && engel === null) engel = performance.now() - t0;
+      if (!bos && engel !== null){ acildi = performance.now() - t0; break; }
+    }
+    return acildi;
+  })()`);
+  check("T5.1: geçiş sırasında tıklamaya kapalı pencere < 300 ms",
+    typeof pencere === "number" && pencere < 300, true);
+  if (!(typeof pencere === "number" && pencere < 300))
+    console.log("    ölçülen pencere:", pencere);
+  await gecisBitsin();
 
   // API YOK: anında geçiş, hata yok.
   await ev(`(() => { window.__vtYedek = document.startViewTransition;
@@ -962,6 +999,194 @@ await withPage(`file://${resolve(ROOT, "index.html")}`, async evaluate => {
     await ev(`(() => { const list = document.getElementById("list");
       return ["#panel", ".toasts"].map(sel => { const n = document.querySelector(sel);
         return !!n && !list.contains(n); }); })()`), [true, true]);
+
+
+
+  /* --------------------------------------------- T5.2: sürükle ve bırak ---
+     Sürükleme yeniden GRUPLAMA yapar (ADR 0003). Aşağıdakiler mekaniği değil
+     SÖZLEŞMEYİ kilitler: hangi jest hangi alanı değiştirir, neyi değiştirmez,
+     klavye eşdeğeri var mı, geri alınabiliyor mu. */
+  const sahne = `(() => {
+    clearSelection(); today = "2026-05-10"; ui.q = ""; ui.prios.clear(); ui.tags.clear();
+    ui.status = "all"; ui.showCompleted = true;
+    const mk = (id, due, prio, done) => ({ id, title:id, notes:"", dueDate:due, priority:prio,
+      tags:[], subtasks:[], done: !!done, createdAt:"2026-01-01T00:00:00.000Z",
+      updatedAt:"2026-01-01T00:00:00.000Z", completedAt: done ? "2026-01-01T00:00:00.000Z" : null,
+      recur:null, sourceNoteId:null });
+    state.tasks = [mk("bugun","2026-05-10","high"), mk("yarin","2026-05-11","med"),
+                   mk("sonra","2026-06-20","low")];
+    switchTaskView("list");
+    const box = document.getElementById("list");
+    box.__taskList = null; box.textContent = "";
+    render(); flushRenderQueue(true);
+    const toasts = document.getElementById("toasts"); if (toasts) toasts.textContent = "";
+    return true;
+  })()`;
+  await ev(sahne);
+  await gecisBitsin();
+
+  check("T5.2: her kartta tutamak var",
+    await ev(`document.querySelectorAll("#list .card .card-grip").length`), 3);
+  check("T5.2: tutamak ekran okuyucudan gizli ve ODAKLANAMAZ (sekme durağı eklemez)",
+    await ev(`(() => { const g = document.querySelector(".card-grip");
+      return [g.getAttribute("aria-hidden"), g.tagName, g.hasAttribute("tabindex"),
+              g.matches("button, a, input, [tabindex]")]; })()`),
+    ["true", "SPAN", false, false]);
+  check("T5.2: bölümler bırakma hedefi olarak işaretli",
+    await ev(`Array.from(document.querySelectorAll("#list [data-group]")).map(n => n.getAttribute("data-group"))`),
+    ["today", "tomorrow", "later"]);
+
+  /* Gerçek işaretçi olayları: yakalama sahte işaretçi için başarısız olur,
+     o yüzden kod `try/catch` ile devam eder ve olaylar tutamağa gönderilir.
+
+     Hedef ÖNCE görünür alana kaydırılır: `elementFromPoint` görüş alanı
+     dışındaki bir noktaya null döner ve test "bırakılamaz" sanırdı. Gerçek
+     kullanıcı da hedefe kaydırır. Tutamağın konumu önemsiz — `pointerdown`
+     doğrudan ona gönderiliyor, koordinat yalnız BIRAKMA noktası için gerekli. */
+  const surukle = (id, hedef, pid) => `(() => {
+    const card = document.querySelector('#list .card[data-id=' + JSON.stringify(${JSON.stringify(id)}) + ']');
+    if (!card) return { hata: "kart yok" };
+    const grip = card.querySelector(".card-grip");
+    const sec = document.querySelector('#list [data-group=' + JSON.stringify(${JSON.stringify(hedef)}) + ']');
+    if (!sec) return { hata: "hedef bölüm yok" };
+    sec.scrollIntoView({ block: "center" });
+    const r = sec.getBoundingClientRect();
+    const x = Math.round(r.left + r.width / 2);
+    const y = Math.round(Math.min(Math.max(r.top + 8, 6), window.innerHeight - 6));
+    const gorusAlaninda = y > 0 && y < window.innerHeight && r.bottom > 0 && r.top < window.innerHeight;
+    const e = (tip, px, py) => grip.dispatchEvent(new PointerEvent(tip, { pointerId: ${pid}, button: 0,
+      clientX: px, clientY: py, bubbles: true, cancelable: true }));
+    e("pointerdown", 10, 10);
+    e("pointermove", 10, 60);                    // eşiği aş
+    e("pointermove", x, y);
+    const etiket = document.getElementById("dragLabel");
+    const iz = { gorusAlaninda, etiket: etiket && etiket.textContent,
+                 hedefIsaretli: sec.classList.contains("drop-target"),
+                 kaldirilmis: card.classList.contains("dragging") };
+    e("pointerup", x, y);
+    return iz;
+  })()`;
+
+  const iz = await ev(surukle("sonra", "tomorrow", 7));
+  check("T5.2: sürükleme sırasında hedef işaretlendi ve etiket göründü",
+    [iz.hedefIsaretli, iz.kaldirilmis, iz.etiket], [true, true, "Yarın grubuna bırak"]);
+  check("T5.2: YARIN kovasına bırakınca son tarih o kovaya düştü",
+    await ev(`(() => { const x = getTask("sonra"); return [x.dueDate, bucketOf(x, today)]; })()`),
+    ["2026-05-11", "tomorrow"]);
+  check("T5.2: taşıma GERİ ALINABİLİR",
+    await ev(`(() => { const b = document.querySelector(".toasts .toast button:not(.btn-icon)");
+      if (!b) return "geri al düğmesi yok"; b.click();
+      const x = getTask("sonra"); return [x.dueDate, bucketOf(x, today)]; })()`),
+    ["2026-06-20", "later"]);
+
+  // Escape sürüklemeyi iptal eder: hiçbir alan değişmez.
+  await ev(`document.getElementById("toasts").textContent = ""; true`);
+  const iptal = await ev(`(() => {
+    const card = document.querySelector('#list .card[data-id="sonra"]');
+    const grip = card.querySelector(".card-grip");
+    const sec = document.querySelector('#list [data-group="today"]');
+    const r = sec.getBoundingClientRect(), g = grip.getBoundingClientRect();
+    const e = (tip, x, y) => grip.dispatchEvent(new PointerEvent(tip, { pointerId: 8, button: 0,
+      clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    e("pointerdown", g.left + 5, g.top + 5);
+    e("pointermove", g.left + 5, g.top + 40);
+    e("pointermove", r.left + r.width / 2, r.top + 10);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key:"Escape", bubbles:true, cancelable:true }));
+    e("pointerup", r.left + r.width / 2, r.top + 10);
+    return [getTask("sonra").dueDate,
+            document.querySelectorAll(".toasts .toast").length,
+            !!document.querySelector(".card.dragging"),
+            !!document.querySelector(".drop-target")];
+  })()`);
+  check("T5.2: Escape sürüklemeyi iptal eder — veri, bildirim ve sınıflar temiz",
+    iptal, ["2026-06-20", 0, false, false]);
+
+  // Pano: sütuna bırakmak önceliği değiştirir.
+  await ev(`switchTaskView("board"); flushRenderQueue(true);
+            document.getElementById("toasts").textContent = ""; true`);
+  await ev(surukle("sonra", "high", 9));
+  check("T5.2: panoda sütuna bırakmak ÖNCELİĞİ değiştirir",
+    await ev(`getTask("sonra").priority`), "high");
+  check("T5.2: panoda taşıma son tarihe DOKUNMAZ",
+    await ev(`getTask("sonra").dueDate`), "2026-06-20");
+
+  // Klavye eşdeğeri: Alt+ok kartı komşu gruba taşır, odak kartı takip eder.
+  await ev(`switchTaskView("list"); flushRenderQueue(true);
+            document.getElementById("toasts").textContent = ""; true`);
+  const klavye = await ev(`(() => {
+    const ac = () => document.querySelector('#list .card[data-id="bugun"] .card-open');
+    ac().focus();
+    ac().dispatchEvent(new KeyboardEvent("keydown", { key:"ArrowDown", altKey:true,
+      bubbles:true, cancelable:true }));
+    const x = getTask("bugun");
+    const a = document.activeElement;
+    return [x.dueDate, bucketOf(x, today),
+            a && a.closest(".card") && a.closest(".card").getAttribute("data-id"),
+            a && a.className,
+            document.getElementById("selLive").textContent];
+  })()`);
+  check("T5.2: Alt+↓ kartı sonraki gruba taşır, odak kartı TAKİP eder",
+    klavye.slice(0, 4), ["2026-05-11", "tomorrow", "bugun", "card-open"]);
+  check("T5.2: taşıma ekran okuyucuya bildirildi", /taşındı|moved/.test(klavye[4]), true);
+
+  // Uçta hareket yok ama SESSİZ de değil.
+  const uc = await ev(`(() => {
+    document.getElementById("selLive").textContent = "";
+    const once = getTask("bugun").dueDate;
+    const ac = document.querySelector('#list .card[data-id="bugun"] .card-open');
+    ac.focus();
+    ac.dispatchEvent(new KeyboardEvent("keydown", { key:"ArrowUp", altKey:true,
+      bubbles:true, cancelable:true }));
+    return [once === getTask("bugun").dueDate, document.getElementById("selLive").textContent];
+  })()`);
+  check("T5.2: uçta Alt+↑ veriyi değiştirmez ama duyurur",
+    [uc[0], /taşınamaz|move further/.test(uc[1])], [true, true]);
+
+  // Sade ok tuşu HÂLÂ seçim gezintisi: Alt dalı onu yutmamalı.
+  check("T5.2: Alt'sız ok tuşu hâlâ gezinti (taşıma değil)",
+    await ev(`(() => { const once = getTask("yarin").dueDate;
+      const ac = document.querySelector('#list .card[data-id="yarin"] .card-open');
+      ac.focus();
+      ac.dispatchEvent(new KeyboardEvent("keydown", { key:"ArrowDown", bubbles:true, cancelable:true }));
+      return once === getTask("yarin").dueDate; })()`), true);
+
+  // GECİKMİŞ bırakma hedefi değil.
+  await ev(`(() => { state.tasks.push({ id:"gec", title:"gec", notes:"", dueDate:"2026-05-01",
+      priority:"med", tags:[], subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z",
+      updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, recur:null, sourceNoteId:null });
+    render(); flushRenderQueue(true); document.getElementById("toasts").textContent = ""; return true; })()`);
+  const gecikmis = await ev(surukle("yarin", "overdue", 11));
+  check("T5.2: GECİKMİŞ kovası bırakma hedefi DEĞİL",
+    [gecikmis.hedefIsaretli, gecikmis.etiket,
+     await ev(`getTask("yarin").dueDate`)],
+    [false, "Buraya bırakılamaz", "2026-05-11"]);
+
+  /* Seçim varsa sürükleme SEÇİMİN TAMAMINI taşır. Üç görev seçip birini
+     sürükleyip yalnız onun taşındığını görmek, seçimin ne işe yaradığı
+     konusunda yanıltıcı olurdu. */
+  await ev(`(() => {
+    clearSelection(); today = "2026-05-10"; ui.q = ""; switchTaskView("list");
+    const mk = (id, due) => ({ id, title:id, notes:"", dueDate:due, priority:"med", tags:[],
+      subtasks:[], done:false, createdAt:"2026-01-01T00:00:00.000Z",
+      updatedAt:"2026-01-01T00:00:00.000Z", completedAt:null, recur:null, sourceNoteId:null });
+    state.tasks = [mk("s1","2026-05-10"), mk("s2","2026-05-10"), mk("s3","2026-06-20")];
+    const box = document.getElementById("list");
+    box.__taskList = null; box.textContent = "";
+    render(); flushRenderQueue(true);
+    selToggle("s1"); selToggle("s2");
+    document.getElementById("toasts").textContent = "";
+    return ui.sel.size;
+  })()`);
+  await ev(surukle("s1", "later", 13));
+  check("T5.2: seçim varsa sürükleme SEÇİMİN TAMAMINI taşır",
+    await ev(`[getTask("s1").dueDate, getTask("s2").dueDate, getTask("s3").dueDate]`),
+    ["2026-05-18", "2026-05-18", "2026-06-20"]);
+  check("T5.2: çoklu taşıma da TEK adımda geri alınır",
+    await ev(`(() => { const b = document.querySelector(".toasts .toast button:not(.btn-icon)");
+      if (!b) return "geri al yok"; b.click();
+      return [getTask("s1").dueDate, getTask("s2").dueDate]; })()`),
+    ["2026-05-10", "2026-05-10"]);
+  await ev(`clearSelection(); document.getElementById("toasts").textContent = ""; true`);
 
 
 }, { browser: flag("--browser"), waitFor: "typeof renderList === 'function' && document.getElementById('list')" });

@@ -237,3 +237,51 @@ Tek koşum yanıltıcı. Bu çalışmada iki kez tek koşuma bakıp "geçti" ded
 ikisinde de 12 koşumluk dağılım bunu çürüttü (15,2 ms "geçti" görünen ayar,
 12 koşumda iki kez 16,6 ms'de düştü). Bundan sonrası için kural: **kare
 bütçesi kararı en az 10 koşumun dağılımına bakılmadan verilmez.**
+
+---
+
+# EK 2 — Faz 5'in çizim bütçesine etkisi (2026-09-21)
+
+T5.1 ve T5.2 karta ve sayfaya yeni şeyler ekledi; bütçeye ne oldu, ölçüldü.
+
+## Kart büyüdü, bütçe tutuyor
+
+Sürükleme tutamağı kart başına ~3 DOM düğümü ekledi (21 → ~24). Silme maliyeti
+düğüm sayısıyla doğru orantılı olduğu için bu doğrudan bütçeye yansır. 5.000
+görevde en kötü kare 4 koşumda **10,1 · 10,3 · 12,2 · 12,3 ms** — bütçe 16 ms.
+Faz 5 öncesi dağılım 10,2-13,7 ms idi; fark ölçüm gürültüsünün içinde.
+
+## Görünüm geçişinin GERÇEK bedeli: tıklamaya kapalı pencere
+
+Bu, animasyonun "ne kadar sürdüğü" değil, kullanıcının **ne kadar süre
+tıklayamadığı**. Geçiş sürerken anlık görüntüler üst katmanda duruyor ve
+`document.elementFromPoint` kökü döndürüyor — yani hiçbir denetim tıklanamıyor.
+
+| ayar | pencere |
+|---|---|
+| tarayıcı varsayılan süreleri | **324 ms** |
+| süreler 150 ms'ye çekildi | **223 ms** |
+| ek olarak kök animasyonu tümden kapatıldı | 233 ms (fark yok) |
+
+İki şey öğrenildi:
+
+1. **Varsayılanı kabul etmek pahalıydı.** 324 ms, "Pano"ya basıp hemen
+   "Takvim"e basan birinin ikinci tıklamasını yutacak kadar uzun.
+2. **Kök animasyonunu kapatmak hiçbir şey kazandırmıyor.** Sezgi "daha az
+   animasyon = daha kısa pencere" diyordu; ölçüm hayır dedi. Bu yüzden kök
+   çapraz solması duruyor ve görevler ↔ notlar geçişini o yapıyor.
+
+Kalan ~70 ms API'nin sabit maliyeti: anlık görüntü alma + geri çağrının bir
+sonraki kareye ertelenmesi + sökme. Süreyi 0'a indirmek bile bunu bırakırdı.
+
+Sayı bir kapıya bağlandı (`behavior.mjs`: pencere < 300 ms), yani sessizce
+büyüyemez.
+
+## Yöntem notu: "hedef bulunamadı" sanılan şey
+
+İşaretçi sınamaları önce başarısız oldu; `elementFromPoint` bırakma hedefini
+bulamıyordu. Sebep kodda değildi: **bir önceki sınamanın başlattığı geçiş hâlâ
+sürüyordu** ve sayfa o sırada tıklanamaz durumdaydı. Yani testin gördüğü şey
+gerçek bir davranıştı, yanlış olan testin varsayımıydı. `behavior.mjs` artık
+işaretçi sınamalarından önce geçişin bitmesini bekliyor — ve bu, yukarıdaki
+pencere ölçümünün de nereden çıktığı.

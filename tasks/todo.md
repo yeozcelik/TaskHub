@@ -1121,20 +1121,59 @@ blok); axe 64 tarama 0 ihlal.
 `src/ui/app.js`, `src/ui/palette.js`, `tools/probe/behavior.mjs`
 **Boyut:** S
 
-### T5.2: Sürükle-bırak yeniden sıralama
+### T5.2: Sürükle-bırak — ✅ BİTTİ (yeniden GRUPLAMA olarak)
+
+**Kapsam değişikliği, gerekçesiyle:** Görev "yeniden sıralama" diye yazılmıştı.
+TaskHub'da grup içi sıra **türetilmiştir** (`src/core/sort.js`), saklanmaz;
+kartı grup içinde başka bir yere sürüklemenin veri modelinde karşılığı yok —
+bırakıldığı anda yerine dönerdi. Sürükleme bunun yerine kartı **bırakıldığı
+grubun tanımladığı alana** taşır. Tam gerekçe:
+`docs/adr/0003-surukle-birak-yeniden-gruplamadir.md`. Özetle: manuel sıra
+üyeliği sabit bir kap ister, bizim gruplarımız tarihten hesaplanıyor ve her
+gece yarısı değişiyor; ayrıca manuel sıra bir "sıralama kipi" denetimi
+gerektirirdi (S8 envanterine dokunmak).
 
 **Kabul ölçütleri:**
-- [ ] Görevler liste ve panoda sürüklenerek taşınır
-- [ ] **Klavye eşdeğeri var** (mevcut sayfa sıralamasındaki `Alt+↑/↓` deseni)
-- [ ] Sürükleme sırasında ekran okuyucuya durum bildirilir
-- [ ] Dokunmatikte çalışır (Pointer Events — tuvalde zaten kullanılan desen)
-- [ ] Arama/filtre açıkken sıralama **kapalı** — görünen sıra gerçek sıra olmadığı
-      için yanıltırdı (mevcut sayfa listesi kuralıyla tutarlı)
+- [x] Görevler liste ve panoda sürüklenerek taşınır — listede kova son tarihi,
+      panoda sütun önceliği belirler; "Tamamlananlar" görevi bitirir
+      (tekrar kuralı varsa sonraki örnek üretilir — tamamlama yolu TEK)
+- [x] **Klavye eşdeğeri var:** `Alt+↑/↓` kartı önceki/sonraki gruba taşır,
+      odak kartı takip eder, uçta veriyi değiştirmeden duyurur
+- [x] Sürükleme sırasında ekran okuyucuya bildirilir (başlangıç, hedef
+      değişimi, bırakma, iptal — seçim duyurularıyla aynı canlı bölge)
+- [x] Dokunmatikte çalışır: Pointer Events; `touch-action:none` YALNIZ
+      tutamakta (kartın tamamına konsaydı parmakla kaydırmak biterdi),
+      tutamak kaba işaretçide her zaman görünür
+- [x] ~~Arama/filtre açıkken kapalı~~ → **DAYANAĞI ORTADAN KALKTI.** O ölçüt
+      manuel sıra varsayıyordu. Yeniden gruplamada bırakma hedefi bir GRUP,
+      görünen sıra değil; süzgeç açıkken sürüklemek hem tanımlı hem yararlı.
 
-**Doğrulama:** Fare, klavye, dokunmatik ile elle sınama; axe.
+**Ölçütlerin ötesinde çıkanlar:**
+- **Seçim varsa seçimin tamamı taşınır** ve tek adımda geri alınır. Üç görev
+  seçip birini sürükleyince yalnız onun taşınması, seçimin ne işe yaradığı
+  konusunda yanıltıcı olurdu (Finder ve Linear da böyle yapar).
+- **Gecikmiş bırakma hedefi DEĞİL:** bir işi bilerek geciktirmek bir niyet
+  değil ve tek bir makul tarihi de yok.
+- Her taşıma geri alınabilir (mevcut `snapshotTasks`/`restoreSnapshot` yolu).
+- **Erişilebilirlik kararı:** tutamak `aria-hidden` ve odaklanamaz. Odaklanabilir
+  olsaydı her karta dördüncü bir sekme durağı eklenirdi (5.000 görevde 5.000
+  durak) ve ekran okuyucuya sürükleyemeyeceği bir denetim duyurulurdu. WCAG
+  2.1.1 ve 2.5.7 klavye eşdeğeriyle karşılanıyor.
+
+**Doğrulama:** `node --test` **186** (task-ops için 11 saf test, bırakma
+tarihinin gerçekten o kovaya düştüğü `bucketOf`'a sorularak doğrulanıyor);
+`behavior.mjs` **176/176** (T5.2 için 14 iddia: gerçek `PointerEvent`
+dizileriyle sürükleme, Escape iptali, geçersiz hedef, pano, klavye, çoklu
+seçim, geri alma); iddialar `dropFields` bir gün kaydırılarak kasten bozuldu →
+dördü birden kırmızıya döndü; axe 64 tarama 0 ihlal.
+
+**Kapsam dışı bırakılan:** takvim hücrelerine bırakma. Takvim görünümünde kart
+yok, çip var; çipleri sürüklemek ayrı bir iş. Ölçüt "liste ve pano" diyordu.
 
 **Bağımlılık:** T5.1
-**Dosyalar:** `src/ui/drag-reorder.js`, `src/core/task-ops.js`, `src/styles/motion.css`
+**Dosyalar:** `src/core/task-ops.js`, `src/ui/drag-reorder.js`,
+`src/styles/08-motion.css`, `src/ui/app.js`, `src/i18n/strings.js`,
+`tests/task-ops.test.js`, `tools/probe/behavior.mjs`
 **Boyut:** M
 
 ### ✅ Kontrol noktası — Bitiş

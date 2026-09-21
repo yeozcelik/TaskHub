@@ -871,8 +871,19 @@ dialog.palette{
 @keyframes th-view-in { from { opacity:0; transform:translateY(4px) } }
 @keyframes th-view-out{ to   { opacity:0; transform:translateY(-4px) } }
 
-::view-transition-old(tasklist){ animation: th-view-out 140ms ease both }
-::view-transition-new(tasklist){ animation: th-view-in  180ms ease both }
+::view-transition-old(tasklist){ animation: th-view-out 120ms ease both }
+::view-transition-new(tasklist){ animation: th-view-in  150ms ease both }
+
+/* TARAYICI VARSAYILANI DA KISALTILIR — bu bir süsleme değil, tepkisellik
+   meselesi. Geçiş sürerken sayfa TIKLANAMIYOR: anlık görüntüler üst katmanda
+   ve `elementFromPoint` kökü döndürüyor. Ölçüldü: varsayılan sürelerle
+   tıklamaya kapalı pencere **324 ms**. "Pano"ya basıp hemen "Takvim"e basan
+   biri ikinci tıklamasını kaybediyordu.
+   Kök ve grup animasyonları da 150 ms'ye çekildi; ölçüm aşağıda, sayıyı
+   `behavior.mjs` bir kapı olarak tutuyor. */
+::view-transition-group(*){ animation-duration:150ms }
+::view-transition-old(root),
+::view-transition-new(root){ animation-duration:150ms }
 
 /* İKİNCİ SAVUNMA HATTI. `withViewTransition` hareket istenmiyorsa geçişi zaten
    hiç başlatmaz; bu blok, JS'in medya sorgusunu okuyamadığı ya da geçişin
@@ -883,6 +894,45 @@ dialog.palette{
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*){ animation: none !important }
+}
+
+/* ---------- Sürükle ve bırak (T5.2, ADR 0003) ---------- */
+/* Tutamak İŞARETÇİ İÇİN bir kolaylık: klavye eşdeğeri Alt+↑/↓ kartın kendi
+   düğmesinde. `touch-action:none` YALNIZ burada — kartın tamamına konsaydı
+   listeyi parmakla kaydırmak imkânsız olurdu. */
+.card-grip{
+  display:flex;align-items:center;justify-content:center;
+  width:22px;flex:none;align-self:stretch;margin-right:-4px;
+  color:var(--faint);cursor:grab;touch-action:none;visibility:hidden;
+}
+.card-grip svg{width:15px;height:15px}
+.card:hover .card-grip,
+.card:focus-within .card-grip{visibility:visible}
+/* Dokunmatikte "üzerine gelme" diye bir şey yok: hedef her zaman görünür. */
+@media (pointer:coarse){ .card-grip{visibility:visible} }
+
+.card.dragging{opacity:.45}
+body.dragging-on{cursor:grabbing;user-select:none}
+body.dragging-on .card-grip{cursor:grabbing}
+
+.group.drop-target > .tasklist{
+  outline:2px dashed var(--accent);outline-offset:3px;border-radius:var(--r);
+}
+.group.drop-target > .group-head{color:var(--accent)}
+
+/* Yüzen etiket: parmağın/imlecin altında hedefin ADI. `pointer-events:none`
+   şart — aksi halde kendisi isabet testini yakalar ve hedef hep kendisi olur. */
+.drag-label{
+  position:fixed;z-index:80;pointer-events:none;opacity:0;
+  transform:translate(14px,14px);
+  padding:4px 9px;border-radius:var(--r);font-size:12.5px;font-weight:600;
+  background:var(--accent);color:#fff;box-shadow:var(--sh-2);white-space:nowrap;
+}
+.drag-label.on{opacity:1}
+.drag-label.bad{background:var(--muted)}
+
+@media (prefers-reduced-motion:reduce){
+  .drag-label{transition:none}
 }
 </style>
 </head>
@@ -1050,6 +1100,11 @@ const I18N = {
     removeTag:"Etiketi kaldır", moveUp:"Yukarı taşı", moveDown:"Aşağı taşı", removeSub:"Alt görevi sil",
     created:"Oluşturuldu", updated:"Güncellendi",
     deleted:"Görev silindi", undo:"Geri al", restored:"Görev geri getirildi",
+    dragMove:"Taşı", dragStarted:"{s} sürükleniyor",
+    dragCancelled:"Taşıma iptal edildi",
+    dropOn:"{g} grubuna bırak", dropNone:"Buraya bırakılamaz",
+    movedTo:"{s} — {g} grubuna taşındı", movedN:"{n} görev {g} grubuna taşındı",
+    moveEdge:"Daha ileri taşınamaz",
     savedAll:"Değişiklikler kaydedildi",
     storageFailTitle:"Veriler bu tarayıcıda kaydedilemiyor.",
     storageFailText:"Görevlerin yalnızca bu sekme açık kaldığı sürece durur. Kapatmadan önce JSON yedeği indir.",
@@ -1193,6 +1248,11 @@ const I18N = {
     removeTag:"Remove tag", moveUp:"Move up", moveDown:"Move down", removeSub:"Delete subtask",
     created:"Created", updated:"Updated",
     deleted:"Task deleted", undo:"Undo", restored:"Task restored",
+    dragMove:"Move", dragStarted:"Dragging {s}",
+    dragCancelled:"Move cancelled",
+    dropOn:"Drop on {g}", dropNone:"Can't drop here",
+    movedTo:"{s} — moved to {g}", movedN:"{n} tasks moved to {g}",
+    moveEdge:"Can't move further",
     savedAll:"Changes saved",
     storageFailTitle:"This browser cannot save your data.",
     storageFailText:"Tasks will only last while this tab stays open. Download a JSON backup before closing.",
@@ -2100,6 +2160,71 @@ function tasksByDate(tasks){
   // tesadüfe bırakırdı; doğrusu diziyi bir kez sıralamak.)
   for (const [k, list] of map) map.set(k, sortTasks(list));
   return { map, undated: sortTasks(undated) };
+}
+/* ----------------------------------------------------- görev taşıma işlemleri
+ * Bir kartı bir gruba bırakmanın VERİDEKİ karşılığı. Saf: DOM yok, durum yok,
+ * saat yok — bugünün tarihi dışarıdan verilir.
+ *
+ * Neden ayrı bir dosya: bırakma anlamı sürükleme mekaniğinden bağımsız olarak
+ * sınanabilmeli. "Yarın kovasına bırakınca tarih ne olur" sorusunun cevabı
+ * fare olaylarına bağlı değil (docs/adr/0003).                               */
+
+/** Listede bırakma hedefi olan kovalar ve bunların gerektirdiği alanlar.
+ *  `overdue` KASTEN yok: bir işi bilerek geciktirmek bir niyet değil ve tek
+ *  bir makul tarihi de yok (dün mü? geçen hafta mı?). */
+const LIST_DROP_DAYS = { today: 0, tomorrow: 1, week: 2, later: 8 };
+
+/* `week` kovası 2-7. günleri, `later` 8. günden sonrasını kapsıyor. Bırakınca
+   kovanın EN ERKEN gününü seçiyoruz: "bu haftaya at" diyen biri için en az
+   sürprizli tarih, kovaya düşen ilk tarihtir. Haftanın sonunu seçmek sessizce
+   beş gün daha ertelemek olurdu. */
+
+/** Bir gruba bırakmanın görevde değiştireceği alanlar.
+ *  @param groupKey bırakılan bölümün anahtarı (kova ya da sütun)
+ *  @param view "list" | "board"
+ *  @param todayY bugünün "YYYY-MM-DD" hâli
+ *  @returns alan yaması, ya da hedef geçersizse null */
+function dropFields(groupKey, view, todayY){
+  if (groupKey === "completed") return { done: true };
+
+  if (view === "board"){
+    if (groupKey === "high" || groupKey === "med" || groupKey === "low"){
+      return { priority: groupKey, done: false };
+    }
+    return null;
+  }
+
+  if (groupKey === "nodate") return { dueDate: null, done: false };
+  if (!LIST_DROP_DAYS.hasOwnProperty(groupKey)) return null;   // overdue dahil
+  const due = addDays(todayY, LIST_DROP_DAYS[groupKey]);
+  return due ? { dueDate: due, done: false } : null;
+}
+
+/** Yama görevi gerçekten değiştiriyor mu? Değiştirmiyorsa ne bildirim ne de
+ *  geri alma adımı üretmek gerekir — "hiçbir şey olmadı" da bir cevaptır. */
+function fieldsChange(task, fields){
+  for (const k in fields) if (fields[k] !== task[k]) return true;
+  return false;
+}
+
+/** Klavye eşdeğeri (`Alt+↑/↓`) için komşu grup.
+ *
+ *  EKRANDAKİ gruplar arasında gezinir, kuramsal olanlar arasında değil: boş
+ *  bir kovaya taşımak kullanıcı için "hiçbir şey olmadı" gibi görünürdü.
+ *  Geçerli hedef olmayan gruplar (gecikmiş) atlanır.
+ *
+ *  @param present ekranda bulunan grup anahtarları, GÖRÜNEN sırayla
+ *  @param from görevin şu anki grubu
+ *  @param delta -1 yukarı, +1 aşağı
+ *  @param view "list" | "board"
+ *  @returns hedef grup anahtarı ya da null */
+function neighborGroup(present, from, delta, view, todayY){
+  const usable = present.filter(k => k === from || dropFields(k, view, todayY));
+  const i = usable.indexOf(from);
+  if (i < 0) return null;
+  const j = i + delta;
+  if (j < 0 || j >= usable.length) return null;      // uçlarda sarmaz
+  return usable[j];
 }
 /* ------------------------------------------------------------- seçim ---
  * Çoklu seçimin SAF çekirdeği: sıralı bir anahtar listesi, bir çapa ve bir
@@ -3531,10 +3656,17 @@ function selArrow(fromId, delta, extend){
      güvenceyi veremeyiz — tarayıcının kendi araması bize haber vermez —
      ama kuyruk 5.000 görevde ~0,3 sn'de boşaldığı için kalıcı bir sınır
      değil, geçici bir gecikmedir.) */
-  const find = () => document.querySelector('#list .card[data-id="' + CSS.escape(next) + '"] .card-open');
+  focusCardOpen(next);
+}
+
+/** Kartın erişilebilir girişine (başlık düğmesi) odaklanır.
+ *  @returns kart bulunduysa true */
+function focusCardOpen(id){
+  const find = () => document.querySelector('#list .card[data-id="' + CSS.escape(id) + '"] .card-open');
   let node = find();
   if (!node && renderQueue){ flushRenderQueue(true); node = find(); }
   if (node) node.focus({ preventScroll:false });
+  return !!node;
 }
 
 /* ------------------------------------------------------- toplu işlemler ---
@@ -4300,6 +4432,13 @@ function taskCard(task){
       /* Boşluk düğmeyi etkinleştirir (yerel davranış); seçim için Linear'ın
          kısayolu `x` kullanılıyor — yerel anlamla kavga edilmiyor. */
       if (e.key === "x" || e.key === "X"){ e.preventDefault(); selToggle(task.id); return; }
+      /* Alt+ok SÜRÜKLEMENİN klavye eşdeğeri (T5.2): kartı önceki/sonraki gruba
+         taşır. Sade ok seçim gezintisi olduğu için Alt dalı ÖNCE gelmeli. */
+      if (e.altKey && (e.key === "ArrowDown" || e.key === "ArrowUp")){
+        e.preventDefault();
+        moveTaskByKeyboard(task.id, e.key === "ArrowDown" ? 1 : -1);
+        return;
+      }
       if (e.key === "ArrowDown" || e.key === "ArrowUp"){
         e.preventDefault();
         selArrow(task.id, e.key === "ArrowDown" ? 1 : -1, e.shiftKey);
@@ -4323,6 +4462,9 @@ function taskCard(task){
       title: t("deleteTask"), "aria-label": t("deleteTaskNamed", { s: task.title }),
       onclick(e){ e.stopPropagation(); deleteTask(task.id); } }, icon("trash"))
   );
+  /* Tutamak kart kurulduktan SONRA ekleniyor: sürükleme işleyicisi kartın
+     kendisine ihtiyaç duyuyor (kaldırılmış görünümü onun sınıfı veriyor). */
+  card.append(cardGrip(task, card));
   return card;
 }
 
@@ -4409,7 +4551,10 @@ function makeSection(group){
   const list = el("ul", { class:"tasklist", id:"g-" + group.key });
   /* Sütun/kova ekran okuyucuda adlı olsun: "Yüksek, 3 görev" gibi bir bölge
      olmadan pano, ekranı görmeyen için yalnız bir kart yığınıdır. */
-  const section = el("section", { class:"group", role:"group",
+  /* `data-group`: bırakma hedefi buradan okunur. Bölümün KİMLİĞİ zaten vardı
+     (`g-<anahtar>` id'si) ama onu ayrıştırmak kırılgan olurdu — anahtar açıkça
+     yazılı duruyor. */
+  const section = el("section", { class:"group", role:"group", "data-group": group.key,
     "aria-label": t(group.labelKey) }, groupHead(group, 0, true), list);
   return { section, list, keys: [], nodes: new Map(), sigs: new Map() };
 }
@@ -8041,6 +8186,230 @@ function withTimeout(promise, ms, fallback){
     }
   }
 })();
+/* ------------------------------------------------------- sürükle ve bırak ---
+ * Bir kartı sürüklemek onu BAŞKA BİR GRUBA taşır; grup içinde yeniden
+ * sıralamaz. Gerekçe docs/adr/0003: grup içi sıra türetilmiştir, saklanmaz —
+ * "üç sıra yukarı" diye bir veri yok, bırakılan kart yerine geri dönerdi.
+ * Bırakılan grubun TANIMLADIĞI alan değişir: listede son tarih, panoda
+ * öncelik, "Tamamlananlar"da bitmişlik.
+ *
+ * Mekanik Pointer Events üstünde: fare, dokunmatik ve kalem tek kod yolundan
+ * geçer (tuvalde de kullanılan desen). Sürükleme TUTAMAKTAN başlar, kartın
+ * her yerinden değil — sebebi dokunmatik: `touch-action:none` kartın tamamına
+ * konsaydı listeyi parmakla kaydırmak imkânsız olurdu.                       */
+
+const DRAG_START_PX = 6;          // bu kadar oynamadan sürükleme başlamaz
+let dragging = null;
+
+/** Ekran okuyucu duyurusu. Seçim duyurularıyla aynı canlı bölgeyi kullanır:
+ *  iki ayrı canlı bölge, ikisinin de sırayla okunmasına güvenmek demektir. */
+function announce(msg){
+  const live = document.getElementById("selLive");
+  if (live) live.textContent = msg;
+}
+
+/** Grup anahtarının kullanıcıya görünen adı. Panoda sütunlar öncelik
+ *  adlarını kullanır, listede kova adlarını — izdüşüm farkı (projections.js). */
+function groupLabel(key, view){
+  if (key === "completed") return t("b_completed");
+  return view === "board" ? t(key) : t("b_" + key);
+}
+
+const dragView = () => ui.taskView === "board" ? "board" : "list";
+
+/** Bir görevin ŞU ANKİ grubu. Ekrandaki bölüm anahtarıyla aynı olmalı;
+ *  kaynağı da aynı: izdüşümler. */
+function groupOfTask(task){
+  return dragView() === "board"
+    ? (task.done ? "completed" : task.priority)
+    : bucketOf(task, today);
+}
+
+/* Ekranda BULUNAN grup anahtarları, görünen sırayla. DOM'dan okunur çünkü
+   klavye de fare de kullanıcının GÖRDÜĞÜ şeye göre çalışmalı: hesapta var
+   olup ekranda olmayan bir kovaya taşımak "hiçbir şey olmadı" gibi görünür. */
+function presentGroups(){
+  return Array.prototype.map.call(
+    document.querySelectorAll("#list [data-group]"), n => n.getAttribute("data-group"));
+}
+
+/* ------------------------------------------------------------ taşıma işi --- */
+
+/** Verilen görevleri bir gruba taşır. TEK geri alma adımı üretir; hiçbiri
+ *  değişmiyorsa hiçbir şey yapmaz (ne bildirim, ne geri alma, ne kayıt).
+ *  @returns taşınan görev sayısı */
+function moveTasksToGroup(ids, groupKey){
+  const view = dragView();
+  const fields = dropFields(groupKey, view, today);
+  if (!fields) return 0;
+  const hedefler = ids.map(getTask).filter(x => x && fieldsChange(x, fields));
+  if (!hedefler.length) return 0;
+
+  const snap = snapshotTasks(hedefler.map(x => x.id));
+  const spawned = [];
+  for (const task of hedefler){
+    /* Tamamlama YOLU TEK: tekrar kuralı olan bir görev tamamlanınca sonraki
+       örneği üretilir. `bulkDone` da bunu böyle yapıyor; sürükleme ayrı bir
+       tamamlama yolu açarsa tekrar kuralları sessizce atlanırdı. */
+    if (Object.prototype.hasOwnProperty.call(fields, "done") && fields.done !== task.done){
+      task.done = fields.done;
+      task.completedAt = fields.done ? new Date().toISOString() : null;
+      if (fields.done){ const nx = spawnNextOccurrence(task); if (nx) spawned.push(nx.id); }
+    }
+    if (Object.prototype.hasOwnProperty.call(fields, "dueDate")) task.dueDate = fields.dueDate;
+    if (Object.prototype.hasOwnProperty.call(fields, "priority")) task.priority = fields.priority;
+    stamp(task);
+  }
+  scheduleSave(); render();
+
+  const g = groupLabel(groupKey, view);
+  const msg = hedefler.length === 1
+    ? t("movedTo", { s: noteTextOfTitle(hedefler[0].title), g })
+    : t("movedN", { n: hedefler.length, g });
+  announce(msg);
+  toast(msg, { label: t("undo"), run(){ restoreSnapshot(snap, spawned); } }, 8000);
+  return hedefler.length;
+}
+
+/** Tek kartın taşınması — ama kart SEÇİLİYSE bütün seçim taşınır.
+ *  Üç görev seçip birini sürükleyip yalnız onun taşındığını görmek, seçimin
+ *  ne işe yaradığı konusunda kullanıcıyı yanıltırdı (Finder ve Linear da
+ *  seçimin tamamını taşır).
+ *  @returns taşındıysa true */
+function moveTaskToGroup(id, groupKey){
+  const ids = (ui.sel.size > 1 && ui.sel.has(id)) ? [...ui.sel] : [id];
+  return moveTasksToGroup(ids, groupKey) > 0;
+}
+
+/** Klavye eşdeğeri: `Alt+↑/↓` kartı önceki/sonraki gruba taşır.
+ *  Fare kullanamayan biri için sürüklemenin tam karşılığı bu. */
+function moveTaskByKeyboard(id, delta){
+  const task = getTask(id);
+  if (!task) return;
+  const view = dragView();
+  const target = neighborGroup(presentGroups(), groupOfTask(task), delta, view, today);
+  if (!target){ announce(t("moveEdge")); return; }
+  if (moveTaskToGroup(id, target)) focusCardOpen(id);
+}
+
+/* --------------------------------------------------------- işaretçi yolu --- */
+
+function dropTargetAt(x, y){
+  const node = document.elementFromPoint(x, y);
+  if (!node || !node.closest) return null;
+  const sec = node.closest("#list [data-group]");
+  if (!sec) return null;
+  const key = sec.getAttribute("data-group");
+  if (!dropFields(key, dragView(), today)) return null;    // geçersiz hedef (gecikmiş)
+  return { key, node: sec };
+}
+
+function dragLabelNode(){
+  let n = document.getElementById("dragLabel");
+  if (!n){
+    n = el("div", { class:"drag-label", id:"dragLabel", "aria-hidden":"true" });
+    document.body.appendChild(n);
+  }
+  return n;
+}
+
+function dragBegin(ev){
+  dragging.active = true;
+  dragging.card.classList.add("dragging");
+  document.body.classList.add("dragging-on");
+  announce(t("dragStarted", { s: dragging.title }));
+  window.addEventListener("keydown", dragKey, true);
+}
+
+function dragKey(e){
+  if (e.key !== "Escape") return;
+  e.preventDefault(); e.stopPropagation();
+  dragEnd(false);
+  announce(t("dragCancelled"));
+}
+
+function dragTo(x, y){
+  const hit = dropTargetAt(x, y);
+  const key = hit ? hit.key : null;
+  if (key !== dragging.targetKey){
+    if (dragging.targetNode) dragging.targetNode.classList.remove("drop-target");
+    dragging.targetKey = key;
+    dragging.targetNode = hit ? hit.node : null;
+    if (hit) hit.node.classList.add("drop-target");
+    if (key) announce(t("dropOn", { g: groupLabel(key, dragView()) }));
+  }
+  const lbl = dragLabelNode();
+  lbl.textContent = key ? t("dropOn", { g: groupLabel(key, dragView()) }) : t("dropNone");
+  lbl.classList.toggle("bad", !key);
+  lbl.style.left = Math.round(x) + "px";
+  lbl.style.top  = Math.round(y) + "px";
+  lbl.classList.add("on");
+}
+
+/** Sürüklemeyi bitirir. `apply` false ise hiçbir şey değişmez — iptal,
+ *  işaretçi kaybı ve Escape aynı yoldan geçer ki yarım durum kalmasın. */
+function dragEnd(apply){
+  if (!dragging) return;
+  const d = dragging;
+  dragging = null;
+  window.removeEventListener("keydown", dragKey, true);
+  if (d.targetNode) d.targetNode.classList.remove("drop-target");
+  if (d.card) d.card.classList.remove("dragging");
+  document.body.classList.remove("dragging-on");
+  const lbl = document.getElementById("dragLabel");
+  if (lbl) lbl.classList.remove("on");
+  try { if (d.grip.hasPointerCapture(d.pointerId)) d.grip.releasePointerCapture(d.pointerId); } catch (e){}
+  if (apply && d.active && d.targetKey) moveTaskToGroup(d.id, d.targetKey);
+}
+
+/** Tutamağa basıldı. Sürükleme HENÜZ başlamaz: eşik aşılmadan basmak
+ *  sürükleme sayılmaz, yoksa titrek bir el her tıklamayı taşımaya çevirirdi. */
+function dragDown(e, task, card){
+  if (e.button != null && e.button !== 0) return;      // yalnız birincil düğme
+  if (dragging) dragEnd(false);
+  const grip = e.currentTarget;
+  dragging = { id: task.id, title: noteTextOfTitle(task.title), card, grip,
+               pointerId: e.pointerId, x0: e.clientX, y0: e.clientY,
+               active: false, targetKey: null, targetNode: null };
+  try { grip.setPointerCapture(e.pointerId); } catch (err){}
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function dragMove(e){
+  if (!dragging || e.pointerId !== dragging.pointerId) return;
+  if (!dragging.active){
+    if (Math.abs(e.clientX - dragging.x0) + Math.abs(e.clientY - dragging.y0) < DRAG_START_PX) return;
+    dragBegin(e);
+  }
+  e.preventDefault();
+  dragTo(e.clientX, e.clientY);
+}
+
+function dragUp(e){
+  if (!dragging || e.pointerId !== dragging.pointerId) return;
+  e.preventDefault();
+  dragEnd(true);
+}
+
+/** Kartın sürükleme tutamağı.
+ *
+ *  ERİŞİLEBİLİRLİK KARARI: tutamak `aria-hidden` ve odaklanamaz. Bu bir
+ *  eksiklik değil, bilinçli bir seçim — tutamak YALNIZCA işaretçi için bir
+ *  kolaylık ve klavye eşdeğeri (`Alt+↑/↓`) kartın kendi düğmesinde zaten var.
+ *  Odaklanabilir yapmak her karta dördüncü bir sekme durağı eklerdi (5.000
+ *  görevde 5.000 durak) ve ekran okuyucuya sürükleyemeyeceği bir denetim
+ *  duyururdu. WCAG 2.1.1 klavye eşdeğeriyle, 2.5.7 de onunla karşılanıyor. */
+function cardGrip(task, card){
+  return el("span", {
+    class:"card-grip", "aria-hidden":"true", title: t("dragMove"),
+    onpointerdown(e){ dragDown(e, task, card); },
+    onpointermove: dragMove,
+    onpointerup: dragUp,
+    onpointercancel(){ dragEnd(false); },
+    onlostpointercapture(){ if (dragging && !dragging.active) dragEnd(false); }
+  }, icon("grip"));
+}
 /* ============================ KOMUT PALETİ ==============================
  * Ctrl/Cmd+K. Linear yasası: klavyeden çağrılamayan yetenek bitmiş sayılmaz.
  *

@@ -19,10 +19,27 @@ kaydedilir.
 
 | Tuş | İş |
 |---|---|
-| `N` | Yeni görev kutusuna geç |
+| `Ctrl/⌘ + K` | Komut paleti |
+| `N` | Yeni görev kutusuna geç (notlarda: yeni sayfa) |
 | `/` | Aramaya geç |
-| `Esc` | Paneli kapat / aramayı temizle |
+| `Esc` | Seçimi temizle → paneli kapat → aramayı temizle |
 | `Enter` | Görevi, etiketi veya alt görevi ekle |
+| `↑` `↓` | Kartlar arasında gez (kart odaktayken) |
+| `Shift + ↑/↓` | Seçimi genişlet |
+| `X` | Kartı seç / seçimi kaldır |
+| `Alt + ↑/↓` | **Kartı önceki/sonraki gruba taşı** |
+
+### Sürükleyerek taşıma
+
+Kartın sol kenarındaki tutamaktan sürükleyip **başka bir gruba bırak**: listede
+grup son tarihi belirler (Bugün, Yarın, Önümüzdeki 7 gün, Sonra, Tarihsiz),
+panoda önceliği. "Tamamlananlar"a bırakmak görevi bitirir. Birden çok görev
+seçiliyse hepsi birlikte taşınır ve tek adımda geri alınır.
+
+Sürükleme **grup içinde yeniden sıralama yapmaz**: grup içi sıra türetilmiştir
+(tarih → öncelik → oluşturma), saklanmaz. Gerekçe:
+`docs/adr/0003-surukle-birak-yeniden-gruplamadir.md`. Fare kullanmıyorsan
+`Alt + ↑/↓` aynı işi yapar.
 
 ### Gruplar
 

@@ -12,8 +12,19 @@
 @keyframes th-view-in { from { opacity:0; transform:translateY(4px) } }
 @keyframes th-view-out{ to   { opacity:0; transform:translateY(-4px) } }
 
-::view-transition-old(tasklist){ animation: th-view-out 140ms ease both }
-::view-transition-new(tasklist){ animation: th-view-in  180ms ease both }
+::view-transition-old(tasklist){ animation: th-view-out 120ms ease both }
+::view-transition-new(tasklist){ animation: th-view-in  150ms ease both }
+
+/* TARAYICI VARSAYILANI DA KISALTILIR — bu bir süsleme değil, tepkisellik
+   meselesi. Geçiş sürerken sayfa TIKLANAMIYOR: anlık görüntüler üst katmanda
+   ve `elementFromPoint` kökü döndürüyor. Ölçüldü: varsayılan sürelerle
+   tıklamaya kapalı pencere **324 ms**. "Pano"ya basıp hemen "Takvim"e basan
+   biri ikinci tıklamasını kaybediyordu.
+   Kök ve grup animasyonları da 150 ms'ye çekildi; ölçüm aşağıda, sayıyı
+   `behavior.mjs` bir kapı olarak tutuyor. */
+::view-transition-group(*){ animation-duration:150ms }
+::view-transition-old(root),
+::view-transition-new(root){ animation-duration:150ms }
 
 /* İKİNCİ SAVUNMA HATTI. `withViewTransition` hareket istenmiyorsa geçişi zaten
    hiç başlatmaz; bu blok, JS'in medya sorgusunu okuyamadığı ya da geçişin
@@ -24,4 +35,43 @@
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*){ animation: none !important }
+}
+
+/* ---------- Sürükle ve bırak (T5.2, ADR 0003) ---------- */
+/* Tutamak İŞARETÇİ İÇİN bir kolaylık: klavye eşdeğeri Alt+↑/↓ kartın kendi
+   düğmesinde. `touch-action:none` YALNIZ burada — kartın tamamına konsaydı
+   listeyi parmakla kaydırmak imkânsız olurdu. */
+.card-grip{
+  display:flex;align-items:center;justify-content:center;
+  width:22px;flex:none;align-self:stretch;margin-right:-4px;
+  color:var(--faint);cursor:grab;touch-action:none;visibility:hidden;
+}
+.card-grip svg{width:15px;height:15px}
+.card:hover .card-grip,
+.card:focus-within .card-grip{visibility:visible}
+/* Dokunmatikte "üzerine gelme" diye bir şey yok: hedef her zaman görünür. */
+@media (pointer:coarse){ .card-grip{visibility:visible} }
+
+.card.dragging{opacity:.45}
+body.dragging-on{cursor:grabbing;user-select:none}
+body.dragging-on .card-grip{cursor:grabbing}
+
+.group.drop-target > .tasklist{
+  outline:2px dashed var(--accent);outline-offset:3px;border-radius:var(--r);
+}
+.group.drop-target > .group-head{color:var(--accent)}
+
+/* Yüzen etiket: parmağın/imlecin altında hedefin ADI. `pointer-events:none`
+   şart — aksi halde kendisi isabet testini yakalar ve hedef hep kendisi olur. */
+.drag-label{
+  position:fixed;z-index:80;pointer-events:none;opacity:0;
+  transform:translate(14px,14px);
+  padding:4px 9px;border-radius:var(--r);font-size:12.5px;font-weight:600;
+  background:var(--accent);color:#fff;box-shadow:var(--sh-2);white-space:nowrap;
+}
+.drag-label.on{opacity:1}
+.drag-label.bad{background:var(--muted)}
+
+@media (prefers-reduced-motion:reduce){
+  .drag-label{transition:none}
 }
